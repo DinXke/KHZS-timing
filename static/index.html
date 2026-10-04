@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live timing</title>
+<script id="themeinit">
+try{var t=localStorage.getItem('lt_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}
+</script>
+<style>
+:root{color-scheme:dark;--amber:#ffa726;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--gold:#f5c542;--silver:#cfd8e0;--bronze:#d9884a;--flash:#38bdf8;--onacc:#04121c;--onwarn:#111;--onok:#04121c;}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;--amber:#b45309;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--gold:#8a6400;--silver:#5b6b78;--bronze:#a2561c;--flash:#0ea5e9;--onacc:#fff;--onwarn:#fff;--onok:#fff;}}
+:root[data-theme="light"]{color-scheme:light;--amber:#b45309;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--gold:#8a6400;--silver:#5b6b78;--bronze:#a2561c;--flash:#0ea5e9;--onacc:#fff;--onwarn:#fff;--onok:#fff;}
+:root[data-theme="dark"]{color-scheme:dark;--amber:#ffa726;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--gold:#f5c542;--silver:#cfd8e0;--bronze:#d9884a;--flash:#38bdf8;--onacc:#04121c;--onwarn:#111;--onok:#04121c;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow-x:hidden}
+main{max-width:1600px;margin:0 auto;padding:12px 16px 24px}
+.banner{padding:10px 16px;font-weight:600;text-align:center}
+.banner[hidden]{display:none}
+#bnConn{background:var(--danger);color:#fff}
+#bnData{background:var(--warning);color:var(--onwarn)}
+header .meet{color:var(--muted);font-size:14px}
+h1{font-size:clamp(18px,3.2vw,36px);margin:4px 0;line-height:1.2}
+.topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.tbt{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mini{font-size:clamp(18px,4vw,30px);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini.running{color:var(--accent)}.mini.stopped{color:var(--success)}.mini.idle{color:var(--muted)}.mini.ready{color:var(--warning);font-size:14px;animation:pulse 1s infinite}
+.sub{color:var(--muted);font-size:14px}
+.clockbox{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:12px 0;padding:10px 14px;text-align:center}
+#clock{font-size:clamp(44px,14vw,140px);font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+#clock.ready{animation:pulse 1s infinite;color:var(--warning);font-size:clamp(28px,8vw,80px)}
+#clock.running{color:var(--accent)}
+#clock.stopped{color:var(--success)}
+#clock.idle{color:var(--muted)}
+@keyframes pulse{50%{opacity:.35}}
+.records{font-size:13px;color:var(--muted);margin:6px 0}
+.records b{color:var(--gold)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0;font-size:13px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{background:var(--card);color:var(--text);border:0;padding:8px 12px;font-size:13px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--onacc);font-weight:700}
+.tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:12px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
+td.l,th.l{text-align:left}
+td.lane{text-align:center;font-weight:700;color:var(--muted);width:2.2em}
+td.name{font-weight:600;max-width:42vw;overflow:hidden;text-overflow:ellipsis}
+td.name small{display:none;color:var(--muted);font-weight:400}
+tr.empty td{color:var(--muted);opacity:.5;padding:3px 8px;font-size:12px}
+td.time{font-size:clamp(16px,2.2vw,28px);font-weight:600}
+td.fin{font-size:clamp(17px,2.6vw,32px);font-weight:700}
+td.rank{font-size:clamp(16px,2.2vw,28px);font-weight:700;text-align:center;width:2.6em}
+td.rt{color:var(--muted)}
+sup.r{font-size:10px;color:var(--muted);margin-left:3px}
+.m{color:var(--danger)}
+.mlab{display:inline-block;font-size:10px;font-weight:700;border:1px solid var(--danger);border-radius:4px;padding:0 3px;margin-left:4px;vertical-align:middle;color:var(--danger)}
+.sus{color:var(--amber)}
+.slab{display:inline-block;font-size:10px;font-weight:700;border:1px solid var(--amber);border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:middle;color:var(--amber);cursor:help}
+.legend{font-size:12px;color:var(--muted);margin:8px 2px 0;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.legend .mlab,.legend .slab{margin-left:0;margin-right:4px}
+.corr{font-size:11px;color:var(--warning);margin-left:4px;cursor:help}
+.p1{color:var(--gold)}.p2{color:var(--silver)}.p3{color:var(--bronze)}
+td.fin.medal{box-shadow:inset 3px 0 0 currentColor}
+.flash{animation:fl 1.5s ease-out both}
+@keyframes fl{0%{background:var(--flash);color:#04121c}100%{background:transparent}}
+.nodata{padding:24px;text-align:center;color:var(--muted)}
+section.hist{margin-top:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:0 12px}
+summary{cursor:pointer;padding:12px 0;font-weight:700;font-size:16px}
+.hist input{width:100%;padding:10px;font-size:15px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);margin-bottom:10px}
+.hitem{border-top:1px solid var(--border);padding:10px 0}
+.hitem h3{margin:0 0 6px;font-size:15px}
+.hitem h3 span{color:var(--muted);font-weight:400;font-size:12px}
+.hrow{display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:15px}
+.hrow .pl{width:2em;text-align:center;font-weight:700}
+.hrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow .cl{color:var(--muted);font-size:12px;width:4.5em}
+.hrow .tm{font-weight:700;font-variant-numeric:tabular-nums}
+footer{max-width:1600px;margin:0 auto;padding:8px 16px 20px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--danger);margin-right:5px}
+.dot.ok{background:var(--success)}
+td.sps{white-space:normal;text-align:left;min-width:14em}
+.spg{display:grid;grid-template-columns:repeat(4,minmax(4.4em,1fr));gap:3px 8px;font-size:clamp(14px,1.7vw,24px);text-align:left}
+.sc{display:flex;flex-direction:column;line-height:1.1;padding:1px 4px;border-radius:5px;min-width:0}
+.sd{font-size:.5em;color:var(--muted);font-weight:600}
+.stm{font-weight:600;white-space:nowrap}
+.sc.fin .stm{font-weight:800}
+.sc.fin{box-shadow:inset 0 -2px 0 var(--accent)}
+.sc.empty .stm{color:var(--muted)}
+.sc.m .stm{color:var(--danger)}
+.sc.sus .stm{color:var(--amber)}
+.sc .rsn{font-size:.5em;color:var(--danger);font-weight:600;line-height:1.1;overflow-wrap:anywhere}
+body.jv .sc .rsn{display:block}
+.chip.empty{opacity:.55}
+@media (max-width:700px){.spg{font-size:13px;gap:2px 4px}td.sps{min-width:0}}
+@media (max-width:560px){.col-club{display:none}td.name small{display:block}th,td{padding:8px 5px}}
+@media (max-width:460px){.col-rt{display:none}}
+
+#jury{display:none}
+body.jury #jury{display:block}
+body.jury section.hist{display:none}
+body.jury main{max-width:1900px}
+.jbtn{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
+.jbtn[aria-pressed=true]{background:var(--accent);color:var(--onacc);font-weight:700}
+@media (min-width:1000px){
+ body.jury #layout{display:grid;grid-template-columns:minmax(0,var(--jl,67fr)) minmax(0,var(--jr,33fr));gap:16px;align-items:start}
+ body.jury #cur{min-width:0}
+ body.jury #jury{position:sticky;top:52px;max-height:calc(100vh - 64px);overflow-y:auto}
+}
+@media (max-width:999px){body.jury #jury{margin-top:16px}}
+.jcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px}
+.jcard h3{margin:0 0 8px;font-size:clamp(15px,1.4vw,20px);line-height:1.25}
+.jcard h3 small{color:var(--muted);font-weight:400;font-size:.75em;margin-left:6px}
+.jbadge{display:inline-block;background:var(--danger);color:#fff;border-radius:999px;font-size:12px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.issues{margin:0 0 10px;padding:0;list-style:none;font-size:clamp(13px,1.15vw,17px)}
+.issues li{padding:5px 8px;border-left:4px solid;border-radius:4px;margin-bottom:4px;background:var(--card2)}
+.issues .fout{border-color:var(--danger);color:var(--danger);font-weight:600}
+.issues .waarschuwing{border-color:var(--amber);color:var(--amber)}
+.issues .info{border-color:var(--accent);color:var(--muted)}
+.issues .none{border-color:var(--success);color:var(--success)}
+.jsw{padding:6px 0;border-top:1px solid var(--border)}
+.jrow{display:grid;grid-template-columns:1.6em 1.6em 1fr auto auto;gap:8px;align-items:baseline;font-size:clamp(14px,1.25vw,19px)}
+.jrow .pl{font-weight:700;text-align:center}
+.jrow .ln{color:var(--muted);text-align:center}
+.jrow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.jrow .nm small{color:var(--muted);font-weight:400;margin-left:6px}
+.jrow .rt{color:var(--muted);font-size:.85em}
+.jrow .tm{font-weight:700;font-variant-numeric:tabular-nums}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+.chip{font-size:clamp(11px,.95vw,15px);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:2px 5px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+.chip b{color:var(--muted);font-weight:600;margin-right:3px}
+.chip{white-space:normal}
+.chip.ok{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.65)}
+.chip.bad{background:rgba(255,93,93,.18);border-color:var(--danger)}
+.chip .ct{white-space:nowrap;font-weight:600}
+.chip .why{display:block;font-size:.78em;line-height:1.2;color:var(--danger);font-weight:600;margin-top:2px;overflow-wrap:anywhere}
+.jsw.bad{background:rgba(255,93,93,.12);border-radius:6px}
+.jsw.bad .tm{color:var(--danger)}
+.jwhy{font-size:clamp(11px,.95vw,14px);color:var(--danger);font-weight:600;padding:2px 0 0 3.6em;overflow-wrap:anywhere}
+.jnone{font-size:13px;color:var(--muted);margin-top:6px}
+
+.tbr{display:flex;align-items:center;gap:10px}
+.tbtn{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+body.pub .jbtn,body.pub .legend,body.pub .toolbar{display:none}
+.hch{margin:2px 0 6px 2.5em}
+
+.rsn{display:none}
+.keys{opacity:.8}
+@media (min-width:1000px){
+ html:has(body.jv.jury){height:100%}
+ body.jv.jury{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+ body.jv.jury .banner,body.jv.jury .topbar,body.jv.jury footer{flex:0 0 auto}
+ body.jv.jury .topbar{padding:4px 16px}
+ body.jv.jury .tbt{font-size:clamp(14px,1.3vw,20px);color:var(--text);font-weight:600}
+ body.jv.jury .mini{font-size:clamp(28px,3.4vw,52px)}
+ body.jv.jury main{flex:1 1 auto;min-height:0;max-width:none;width:100%;margin:0;padding:6px 12px 2px;display:flex;flex-direction:column}
+ body.jv.jury header,body.jv.jury .clockbox,body.jv.jury .toolbar,body.jv.jury .records{display:none}
+ body.jv.jury #layout{flex:1 1 auto;min-height:0;grid-template-columns:minmax(0,var(--jl,67fr)) minmax(0,var(--jr,33fr));gap:12px;align-items:stretch}
+ body.jv.jury #cur{display:flex;flex-direction:column;min-height:0;min-width:0}
+ body.jv.jury .tablewrap{flex:1 1 auto;min-height:0;overflow:hidden;font-size:var(--tf,16px)}
+ body.jv.jury .tablewrap table{font-size:inherit}
+ body.jv.jury .tablewrap td{font-size:1em;padding:.2em .45em}
+ body.jv.jury .tablewrap td.time,body.jv.jury .tablewrap td.rank{font-size:1em}
+ body.jv.jury .tablewrap td.fin{font-size:1.1em}
+ body.jv.jury .tablewrap td.name{max-width:none}
+ body.jv.jury .tablewrap th{font-size:.55em;padding:.3em .45em}
+ body.jv.jury .tablewrap tr.empty td{font-size:.5em;padding:.1em .4em}
+ body.jv.jury .tablewrap .mlab,body.jv.jury .tablewrap .slab,body.jv.jury .tablewrap .corr{font-size:.5em}
+ body.jv.jury .tablewrap .rsn{display:block;font-weight:600;color:var(--danger);white-space:normal;line-height:1.1}
+ body.jv.jury .tablewrap .spg{font-size:.95em;gap:.1em .5em}
+ body.jv.jury .tablewrap th{position:sticky;top:0;background:var(--card);z-index:1}
+ body.jv.jury .legend{flex:0 0 auto;font-size:11px;margin-top:4px}
+ body.jv.jury #jury{position:static;top:auto;max-height:none;overflow:hidden;display:flex;flex-direction:column;gap:8px;min-height:0}
+ body.jv.jury #jlist{display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0}
+ body.jv.jury .jcard{flex:1 1 0;min-height:0;overflow:hidden;margin:0;padding:.5em .7em;font-size:var(--jf,16px)}
+ body.jv.jury .jcard h3{font-size:1.1em;margin-bottom:.4em}
+ body.jv.jury .issues{font-size:.85em;margin-bottom:.5em}
+ body.jv.jury .jrow{font-size:1em}
+ body.jv.jury .chip{font-size:.8em}
+ body.jv.jury .jwhy,body.jv.jury .jnone{font-size:.8em}
+ body.jv.jury .jbadge{font-size:.7em}
+ body.jv.jury footer{padding:2px 16px;font-size:11px}
+ body.jv.jury.idle,body.jv.jury.idle *{cursor:none}
+}
+
+#nextbar{margin:8px 0;border:2px solid var(--accent);border-radius:10px;background:var(--card2);padding:8px 12px}
+#nextbar[hidden]{display:none}
+.nx1{font-weight:700;font-size:clamp(15px,2vw,24px);color:var(--accent)}
+.nx2{font-size:clamp(12px,1.4vw,17px);margin-top:3px;line-height:1.35}
+@media (min-width:1000px){
+ body.jv.jury #nextbar{flex:0 0 auto;margin:0 0 6px;padding:4px 10px}
+ body.jv.jury .nx1{font-size:clamp(14px,1.3vw,20px)}
+ body.jv.jury .nx2{font-size:clamp(11px,.95vw,15px);max-height:2.8em;overflow:hidden}
+}
+
+.peer{display:block;font-size:.55em;color:var(--muted);font-weight:500;line-height:1.15;white-space:normal;overflow-wrap:anywhere}
+.peer.ex{color:var(--danger);font-weight:700}
+.sc.pex{background:rgba(255,93,93,.16);outline:1px solid var(--danger)}
+.dbl{font-size:.8em;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:5px;font-weight:600}
+.chip .peer{font-size:.78em}
+.jwhy.pmut{color:var(--muted);font-weight:400}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal[hidden]{display:none}
+.mbox{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:16px;max-width:560px;width:100%;position:relative;max-height:90vh;overflow:auto}
+.mbox h2{margin:0 0 10px;font-size:20px}
+.mbox input{width:100%;padding:9px;font-size:15px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);margin:4px 0 10px}
+.mbox table.st{width:100%;font-size:14px;margin-bottom:10px}
+.mbox table.st td{text-align:left;padding:3px 6px;white-space:normal;border:0}
+.mbox table.st td:first-child{color:var(--muted);width:42%}
+.mbox .conf{border:1px solid var(--warning);border-radius:8px;padding:10px;margin:8px 0}
+.mbox .conf[hidden]{display:none}
+.mx{position:absolute;top:6px;right:10px;background:none;border:0;color:var(--text);font-size:26px;cursor:pointer}
+.dbline{font-variant-numeric:tabular-nums}
+
+.mems{margin:0 0 4px 1.6em;font-size:.82em}
+.mem{display:grid;grid-template-columns:1.6em minmax(8em,1fr) auto 5.2em 5.2em;gap:0 .6em;align-items:baseline;padding:.08em 0;font-variant-numeric:tabular-nums;color:var(--text)}
+.mem .mp{color:var(--muted);text-align:center}
+.mem .mn small{color:var(--muted);margin-left:.5em}
+.mem .mw{color:var(--muted);text-align:right;font-size:.9em}
+.mem .mw.ex{color:var(--danger);font-weight:700}
+.mem .ml{text-align:right;font-weight:600}
+.mem .mc{text-align:right;color:var(--muted)}
+.mems .chips{margin:2px 0 4px 2.2em}
+.memrow td{padding-top:0;text-align:left;white-space:normal}
+tr.hasmem td{border-bottom:0}
+@media (max-width:560px){.mem{grid-template-columns:1.4em minmax(5em,1fr) auto 4.2em 4.2em}}
+
+/* ===== leesbaarheid en schaling ===== */
+html{font-size:clamp(16px,calc(.55vw + .6vh),40px)}
+body{font-size:1rem}
+main,footer{max-width:100rem}
+body.jury main{max-width:118rem}
+.banner{font-size:1rem}
+header .meet,.sub{font-size:max(12px,.9rem)}
+h1{font-size:clamp(18px,3.2vw,2.3rem)}
+.tbt{font-size:max(12px,.85rem)}
+.mini{font-size:clamp(18px,4vw,1.9rem)}
+.mini.ready{font-size:max(12px,.9rem)}
+#clock{font-size:clamp(44px,14vw,9rem)}
+#clock.ready{font-size:clamp(28px,8vw,5rem)}
+.records,.legend,.toolbar{font-size:max(12px,.85rem)}
+.seg button,.jbtn,.tbtn{font-size:max(12px,.85rem)}
+.segtop{margin-right:.5rem}
+.segtop button{padding:.15rem .6rem}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--text)}
+th{font-size:max(11px,.75rem)}
+th,td{padding:.5rem}
+tr.empty td{font-size:max(12px,.75rem);padding:.2rem .5rem}
+td.time{font-size:1.15rem}
+td.fin{font-size:1.35rem}
+td.rank{font-size:1.2rem}
+td.name small{font-size:max(11px,.8em)}
+.spg{font-size:1.1rem}
+sup.r{font-size:max(11px,.55em)}
+.mlab,.slab,.dbl,.corr{font-size:max(11px,.6em)}
+.sd{font-size:max(11px,.5em)}
+.sc .rsn{font-size:max(11px,.5em)}
+.peer{font-size:max(11px,.55em)}
+.chip{font-size:max(12px,.8rem)}
+.chip .why,.chip .peer{font-size:max(11px,.78em)}
+.jcard h3{font-size:1.15rem}
+.jcard h3 small{font-size:max(11px,.75em)}
+.jbadge{font-size:max(11px,.7em)}
+.jrow{font-size:1.05rem}
+.jrow .rt{font-size:max(11px,.85em)}
+.jwhy,.jnone{font-size:max(11px,.8rem)}
+.nodata{font-size:1rem}
+summary{font-size:1.05rem}
+.hist input{font-size:1rem}
+.hitem h3{font-size:1rem}
+.hitem h3 span{font-size:max(12px,.8em)}
+.hrow{font-size:1rem}
+.hrow .cl{font-size:max(12px,.8em)}
+footer{font-size:max(12px,.75rem)}
+.nx1{font-size:clamp(15px,2vw,1.5rem)}
+.nx2{font-size:max(12px,.9rem)}
+.mems{font-size:max(12px,.82em)}
+.mem .mw{font-size:max(11px,.9em)}
+.chips{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (min-width:1000px){
+ body.jv.jury .tbt{font-size:clamp(14px,1.3vw,1.3rem)}
+ body.jv.jury .mini{font-size:clamp(28px,3.4vw,3.3rem)}
+ body.jv.jury #layout{grid-template-rows:minmax(0,1fr)}
+ body.jv.jury .tablewrap th{font-size:max(11px,.55em)}
+ body.jv.jury .tablewrap tr.empty td{font-size:max(11px,.5em)}
+ body.jv.jury .tablewrap .mlab,body.jv.jury .tablewrap .slab,body.jv.jury .tablewrap .corr{font-size:max(11px,.5em)}
+ body.jv.jury .chip{font-size:max(12px,.8em)}
+ body.jv.jury .jcard h3 small{font-size:max(11px,.75em)}
+ body.jv.jury .jbadge{font-size:max(11px,.7em)}
+ body.jv.jury .jwhy,body.jv.jury .jnone{font-size:max(11px,.8em)}
+ body.jv.jury .nx1{font-size:max(14px,1rem)}
+ body.jv.jury .nx2{font-size:max(12px,.85rem)}
+ body.jv.jury .legend{font-size:max(11px,.7rem)}
+ body.jv.jury footer{font-size:max(11px,.7rem)}
+}
+@media (max-width:699px){
+ .tablewrap{overflow:visible;background:none;border:0}
+ table,tbody{display:block}
+ thead{display:none}
+ tbody tr{display:block;border:0}
+ tbody tr.empty{display:none}
+ tbody tr:not(.memrow):not(.empty){display:grid;grid-template-columns:2.8em minmax(0,1fr) auto 2.2em;grid-template-areas:"lane name fin rank" "rt sps sps sps";align-items:center;gap:.15rem .4rem;background:var(--card);border:1px solid var(--border);border-radius:10px;margin:.4rem 0;padding:.45rem .5rem}
+ tbody tr.hasmem{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
+ tbody tr.memrow{background:var(--card);border:1px solid var(--border);border-top:0;border-radius:0 0 10px 10px;margin:0 0 .4rem;padding:0 .5rem .4rem}
+ tbody tr.memrow td:first-child{display:none}
+ tbody td{display:block;border:0;padding:0;width:auto}
+ td.lane{grid-area:lane}
+ td.name{grid-area:name;max-width:none;text-align:left;min-width:0}
+ td.name small{display:block}
+ td.col-club{display:none}
+ td.col-rt{grid-area:rt;display:block;text-align:center}
+ td.sps{grid-area:sps;min-width:0}
+ td.fin{grid-area:fin}
+ td.rank{grid-area:rank}
+ .spg{grid-template-columns:repeat(4,minmax(0,1fr));font-size:.95rem;gap:.15rem .3rem}
+}
+
+#splash{position:fixed;inset:0;z-index:200;pointer-events:none;visibility:hidden;opacity:0;background:linear-gradient(180deg,var(--bg) 0%,var(--card2) 100%);transition:opacity .45s ease,visibility 0s linear .45s;overflow:hidden}
+#splash.on{visibility:visible;opacity:1;transition:opacity .3s ease}
+#splash svg{position:absolute;inset:0;width:100%;height:100%}
+#splash .wave{fill:var(--accent);animation:spwv linear infinite}
+#splash .w1{opacity:.22;animation-duration:3.2s}
+#splash .w2{opacity:.16;animation-duration:4.6s;animation-direction:reverse}
+#splash .w3{opacity:.30;animation-duration:2.4s}
+@keyframes spwv{to{transform:translateX(-1200px)}}
+#splash .swimmer{animation:spsw var(--sd,2s) cubic-bezier(.35,.1,.65,.9) both}
+@keyframes spsw{from{transform:translate(-200px,410px)}to{transform:translate(1400px,410px)}}
+#splash .bob{animation:spbob .5s ease-in-out infinite alternate}
+@keyframes spbob{to{transform:translateY(-9px)}}
+#splash .arm{transform-box:fill-box;transform-origin:0% 100%;animation:sparm .6s ease-in-out infinite alternate}
+@keyframes sparm{from{transform:rotate(-25deg)}to{transform:rotate(30deg)}}
+#splash .sw{fill:var(--text);stroke:var(--text)}
+#splash .bub{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;animation:spbub var(--bd,2s) ease-in infinite}
+@keyframes spbub{0%{transform:translateY(0);opacity:0}25%{opacity:.7}100%{transform:translateY(-420px);opacity:0}}
+#splash .spt{position:absolute;left:0;right:0;top:34%;text-align:center;padding:0 5vw;color:var(--text);opacity:0}
+#splash.on .spt{animation:spfade .6s .1s ease both}
+@keyframes spfade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#splash .sp1{font-size:clamp(26px,5.5vw,5.5rem);font-weight:800;line-height:1.15}
+#splash .sp2{font-size:clamp(18px,3vw,3rem);color:var(--accent);font-weight:700;margin-top:.5em}
+@media (prefers-reduced-motion:reduce){#splash svg{display:none}#splash.on .spt{animation:spfade2 .4s ease both}@keyframes spfade2{from{opacity:0}to{opacity:1}}}
+#splchk{display:inline-flex;gap:.35rem;align-items:center;cursor:pointer}
+#splchk[hidden]{display:none}
+</style>
+</head>
+<body>
+<div id="bnConn" class="banner" role="alert" hidden>Verbinding met de server verbroken – opnieuw verbinden…</div>
+<div id="bnData" class="banner" role="alert" hidden>Server ontvangt momenteel geen gegevens van het tijdsysteem.</div>
+<div class="topbar" id="topbar"><span class="tbt" id="tbTitle">Live timing</span><span class="tbr"><button type="button" class="tbtn" id="dbbtn" hidden>Database</button><label class="tbtn" id="splchk" hidden><input type="checkbox" id="splchkbox" style="margin:0"> Tussenscherm</label><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
+<main>
+<div id="layout"><div id="cur">
+<header>
+  <div class="meet" id="meet"></div>
+  <h1 id="title">Live timing</h1>
+  <div class="sub" id="sub"></div>
+</header>
+<div id="nextbar" hidden></div>
+<div class="clockbox"><div id="clock" class="idle">--.-</div></div>
+<div class="records" id="records"></div>
+<div class="toolbar">
+  <span>Volgorde:</span>
+  <div class="seg" role="group" aria-label="Sortering">
+    <button data-sort="auto" aria-pressed="true">Volg scorebord</button>
+    <button data-sort="lane" aria-pressed="false">Per baan</button>
+    <button data-sort="rank" aria-pressed="false">Per plaats</button>
+  </div>
+  <button type="button" class="jbtn" id="jbtn" aria-pressed="false">Jurymodus</button>
+</div>
+<div class="tablewrap" id="tablewrap"><div class="nodata">Wachten op gegevens…</div></div>
+<div class="legend"><span><span class="mlab">M</span>= manueel opgehoogd (geen paneeltijd)</span><span><span class="slab">!</span>fout doorgegeven door SwimTime</span><span><span class="corr" style="margin:0 4px 0 0">&#9998;</span>gecorrigeerd</span></div>
+</div><aside id="jury" aria-label="Overzicht vorige reeksen"><div id="jlist"></div></aside></div>
+<section class="hist">
+  <details id="histd">
+    <summary>Vorige reeksen (<span id="hcount">0</span>)</summary>
+    <input type="search" id="hsearch" placeholder="Zoek op naam of club…" aria-label="Zoek in vorige reeksen">
+    <div id="hlist"></div>
+  </details>
+</section>
+</main>
+<footer><span>Read-only live timing · bron: ALGE SwimTime</span><span class="keys" id="keys">sneltoetsen: F volledig scherm · T thema · J jurymodus · B baan · P plaats · S scorebord · X tussenscherm</span><span class="dbline" id="dbline"></span><span><a id="pubLink" href="/publiek" style="color:inherit;margin-right:10px">publieke weergave</a><a id="crLink" href="/callroom" style="color:inherit;margin-right:10px">oproepkamer</a><a class="gear" href="/settings" aria-label="Instellingen" title="Instellingen" style="color:inherit;text-decoration:none;margin-right:10px">&#9881;</a><span class="dot" id="dot"></span><span id="cstat">Verbinden…</span></span></footer>
+<div id="splash" aria-hidden="true"><svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g id="spg"></g></svg><div class="spt"><div class="sp1" id="sp1"></div><div class="sp2" id="sp2"></div></div></div>
+<div id="dbmodal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="dbt"><div class="mbox">
+<button type="button" class="mx" id="dbx" aria-label="Sluiten">&times;</button>
+<h2 id="dbt">SwimTime-database</h2>
+<label for="dbpath">Pad naar het bronbestand</label><input id="dbpath" type="text" autocomplete="off">
+<table class="st" id="dbstat"></table>
+<div class="conf" id="dbconf" hidden><div>Kopie nemen van de SwimTime-database? Er wordt enkel gelezen; doe dit bij voorkeur tussen reeksen.</div><div style="margin-top:8px;display:flex;gap:8px"><button type="button" class="tbtn" id="dbyes">Ja, kopie nemen</button><button type="button" class="tbtn" id="dbno">Annuleren</button></div></div>
+<div id="dbres" style="margin:6px 0;font-weight:600"></div>
+<button type="button" class="tbtn" id="dbsync" style="padding:8px 14px;font-size:15px">Synchroniseren</button>
+<div id="dblive" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+<label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" id="dblivechk" style="width:1.2em;height:1.2em;margin:0"> Live database</label>
+<div id="dblivehelp" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
+<div class="conf" id="dbliveconf" hidden><div>Live database inschakelen? De server leest dan voortdurend mee (enkel kopiëren, geen schrijven). Gebruik dit alleen als SwimTime stabiel draait.</div><div style="margin-top:8px;display:flex;gap:8px"><button type="button" class="tbtn" id="dbliveyes">Ja, inschakelen</button><button type="button" class="tbtn" id="dbliveno">Nee</button></div></div>
+<div id="dbliveres" style="margin-top:4px;font-weight:600"></div>
+</div>
+<div id="dbauto" style="margin-top:12px;font-size:13px;color:var(--muted)"></div>
+</div></div>
+<script>
+(function(){
+'use strict';
+var S=null,H=[],clk={status:'idle',rt:null,at:0},conn=false,sortMode='auto',flashAt={},prevT={},firstState=true,demo=/[?&]demo=1/.test(location.search);
+var $=function(i){return document.getElementById(i)};
+var isJury=location.pathname.replace(/\/+$/,'')==='/jury',Q=isJury?'?view=jury':'';
+document.body.classList.add(isJury?'jv':'pub');var pubSplit=!isJury;if(pubSplit)document.body.classList.add('jv');
+if(!isJury){var g0=document.querySelector('.gear'),pl0=$('pubLink');if(g0)g0.remove();var k0=$('keys');if(k0)k0.remove();var lg0=document.querySelector('.legend');if(lg0)lg0.remove();['dbline','dbbtn','dbmodal','crLink','splchk'].forEach(function(i){var x=$(i);if(x)x.remove()});if(pl0)pl0.remove()}
+
+var tcur='auto';try{tcur=localStorage.getItem('lt_theme')||'auto'}catch(e){}
+function themeApply(){var h=document.documentElement;if(tcur==='light'||tcur==='dark')h.setAttribute('data-theme',tcur);else h.removeAttribute('data-theme');
+  var b=$('themebtn');b.textContent=tcur==='light'?'\u2600 Licht':(tcur==='dark'?'\u263E Donker':'\u25D0 Auto');b.title='Thema: '+(tcur==='light'?'licht':(tcur==='dark'?'donker':'automatisch'))+' (klik om te wisselen)';b.setAttribute('aria-label',b.title)}
+$('themebtn').addEventListener('click',function(){tcur={auto:'light',light:'dark',dark:'auto'}[tcur]||'auto';try{localStorage.setItem('lt_theme',tcur)}catch(e){}themeApply()});
+themeApply();
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function p2(n){return n<10?'0'+n:''+n}
+function fmt(t){if(t==null)return '';var c=Math.floor(t/100),s=Math.floor(c/100),h=c%100,m=Math.floor(s/60);return m>0?m+':'+p2(s%60)+'.'+p2(h):s+'.'+p2(h)}
+function fmtRT(t){if(t==null)return '';var c=Math.floor(t/100);return Math.floor(c/100)+'.'+p2(c%100)}
+function fmtClock(t){var s=Math.floor(t/10000),m=Math.floor(s/60);return m+':'+p2(s%60)}
+try{var sv=localStorage.getItem('lt_sort');if(sv==='lane'||sv==='rank'||sv==='auto')sortMode=sv}catch(e){}
+function name(l){return ((l.firstName||'')+' '+(l.lastName||'')).trim()||l.team||''}
+function hasName(l){return name(l)!==''}
+function isEmpty(l){return !hasName(l)&&(!l.splits||!l.splits.length)&&l.final==null}
+
+function opt(k){if(!isJury&&(k==='show_manual'||k==='show_suspect'))return false;return !(S&&S.settings&&S.settings[k]===false)}
+function tcell(t,manual,ow,extra,rank,key,sus){
+  if(!isJury)ow=null;manual=manual&&opt('show_manual');sus=opt('show_suspect')?sus:null;
+  if(t==null)return '<td class="'+extra+'">–</td>';
+  var cls=extra+(manual?' m':(sus?' sus':'')),st='';
+  if(key){var tt=flashAt[key];if(tt){var el=Date.now()-tt;if(el<1500){cls+=' flash';st=' style="animation-delay:-'+el+'ms"'}}}
+  var h=fmt(t);
+  if(manual)h+='<span class="mlab" title="Manueel opgehoogd (geen paneeltijd)">M</span>';
+  if(sus)h+='<span class="slab" title="'+esc(sus)+'">!</span><span class="rsn">'+esc(sus)+'</span>';
+  if(ow!=null)h+='<span class="corr" title="was '+esc(fmt(ow))+'">&#9998; gecorrigeerd</span><span class="rsn">was '+esc(fmt(ow))+'</span>';
+  if(rank!=null&&extra.indexOf('sp')>=0)h+='<sup class="r">'+rank+'</sup>';
+  return '<td class="'+cls+'"'+st+'>'+h+'</td>';
+}
+function detectFlash(lanes){
+  var now=Date.now();
+  (lanes||[]).forEach(function(l){
+    (l.splits||[]).forEach(function(s){var k=l.lane+'s'+s.distance;if(s.time!=null&&prevT[k]!==s.time){flashAt[k]=now;prevT[k]=s.time}});
+    var k2=l.lane+'f';if(l.final!=null&&prevT[k2]!==l.final){flashAt[k2]=now;prevT[k2]=l.final}
+  });
+}
+var splashT=null,splashInit=false;
+function splashBuild(){
+  if(splashInit)return;splashInit=true;
+  function wp(y,a){var d='M0 '+y;for(var x=0;x<2400;x+=150)d+=' q 37.5 '+(-a)+' 75 0 t 75 0';return d+' V600 H0Z'}
+  var h='';
+  for(var i=0;i<12;i++){var cx=60+Math.random()*1080,r0=3+Math.random()*7;h+='<circle class="bub" cx="'+cx.toFixed(0)+'" cy="'+(560-Math.random()*80).toFixed(0)+'" r="'+r0.toFixed(1)+'" style="--bd:'+(1.4+Math.random()*1.6).toFixed(1)+'s;animation-delay:-'+(Math.random()*2).toFixed(1)+'s"/>'}
+  h+='<path class="wave w2" d="'+wp(440,26)+'"/>';
+  h+='<g class="swimmer"><g class="bob"><ellipse class="sw" cx="0" cy="0" rx="46" ry="11"/><circle class="sw" cx="54" cy="-4" r="11"/><path class="sw arm" d="M8 -6 Q 30 -50 64 -32" fill="none" stroke-width="8" stroke-linecap="round"/><path class="sw" d="M-44 0 Q-70 8 -88 -2" fill="none" stroke-width="7" stroke-linecap="round"/></g></g>';
+  h+='<path class="wave w1" d="'+wp(430,22)+'"/><path class="wave w3" d="'+wp(470,18)+'"/>';
+  $('spg').innerHTML=h;
+}
+function juryOn(st){
+  var o=null;
+  if(!(dbI&&dbI.canEdit)){try{o=localStorage.getItem('lt_splash_jury')}catch(e){}}
+  if(o==='1')return true;if(o==='0')return false;
+  return st.splash_jury!==false;
+}
+function splUpdate(){
+  if(!isJury)return;
+  var b=$('splchkbox'),on=juryOn((S&&S.settings)||{});
+  b.checked=on;$('splchk').title=(dbI&&dbI.canEdit)?'Tussenscherm op de jurypagina (instelling van de server)':'Enkel in deze browser';
+}
+function splToggle(){
+  if(!isJury)return;
+  var st=(S&&S.settings)||{},want=!juryOn(st);
+  if(dbI&&dbI.canEdit){
+    var h=atok();h['Content-Type']='application/json';
+    if(S){S.settings=S.settings||{};S.settings.splash_jury=want}
+    splUpdate();
+    fetch('/api/settings',{method:'POST',headers:h,body:JSON.stringify({splash_jury:want})}).catch(function(){});
+  }else{
+    try{localStorage.setItem('lt_splash_jury',want?'1':'0')}catch(e){}
+    splUpdate();
+  }
+}
+function splashAllowed(s){
+  var st=s.settings||{};
+  return st.splash_enabled!==false&&(!isJury||juryOn(st));
+}
+function showSplash(s){
+  var sp=$('splash'),e=s.event||{},h=s.heat||{},st=s.settings||{};
+  var secs=parseFloat(st.splash_seconds);if(isNaN(secs))secs=2;secs=Math.max(0.5,Math.min(5,secs));
+  splashBuild();
+  $('sp1').textContent=['Event '+(e.number||'?'),e.discipline].filter(Boolean).join(' · ');
+  $('sp2').textContent=(h.name||('Serie '+(h.number||'?')))+(h.startTime?' · gepland '+h.startTime:'');
+  sp.style.setProperty('--sd',secs+'s');
+  clearTimeout(splashT);sp.classList.remove('on');void sp.offsetWidth;sp.classList.add('on');
+  splashT=setTimeout(function(){sp.classList.remove('on')},secs*1000);
+}
+function heatKey(s){return s&&s.event&&s.heat?s.event.number+'/'+s.heat.number:''}
+
+function sortedLanes(){
+  var ls=(S.lanes||[]).slice();
+  var mode=sortMode==='auto'?(S.layout==='RankOriented'?'rank':'lane'):sortMode;
+  ls.sort(function(a,b){
+    if(mode==='rank'){var ra=a.rank==null?1e9:a.rank,rb=b.rank==null?1e9:b.rank;if(ra!==rb)return ra-rb}
+    return a.lane-b.lane});
+  return ls;
+}
+function fmtDiff(d){if(d==null)return '';var a=Math.floor(Math.abs(d)/100)/100;return (d<0?'\u2212':(d>0?'+':'\u00b1'))+a.toFixed(2)}
+function peerTxt(x){return 'peer '+fmt(x.peer)+' ('+fmtDiff(x.peerDiff)+')'}
+function memHtml(l){
+  if(!l.members||!l.members.length)return '';
+  return '<div class="mems">'+l.members.map(function(m){
+    var nm=((m.firstName||'')+' '+(m.lastName||'')).trim(),mid='',ex=false;
+    if(m.position===1){if(opt('show_reaction')&&m.reaction!=null)mid='RT '+fmtRT(m.reaction)}
+    else if(isJury&&m.takeover!=null){ex=!!m.takeoverExceeded;mid='wissel '+fmtDiff(m.takeover)+(ex?' te vroeg':'')}
+    var h='<div class="mem"><span class="mp">'+esc(m.position)+'</span><span class="mn">'+esc(nm)+'</span><span class="mw'+(ex?' ex':'')+'">'+esc(mid)+'</span><span class="ml">'+fmt(m.leg)+'</span><span class="mc">('+fmt(m.cum)+')</span></div>';
+    if(isJury&&m.splits&&m.splits.length>1)h+='<div class="chips">'+m.splits.map(function(x){return chip(Object.assign({},x,{distance:x.legDistance||x.distance}))}).join('')+'</div>';
+    return h;
+  }).join('')+'</div>';
+}
+function effSort(){return sortMode==='auto'?(S&&S.layout==='RankOriented'?'rank':'lane'):sortMode}
+function sortArrow(k){return effSort()===k?' \u25B2':''}
+function sc(){return parseFloat(getComputedStyle(document.documentElement).fontSize)||16}
+var curLines=1,curMem=0;
+function sbox(l,d,fin){
+  var sp=null;(l.splits||[]).forEach(function(x){if(x.distance===d)sp=x});
+  var t=null,man=false,ow=null,sus=null,rk=null,key=l.lane+'s'+d,pr=sp;
+  if(fin){t=l.final!=null?l.final:(sp?sp.time:null);man=!!(l.finalManual||(sp&&sp.manual));ow=sp?sp.overwrittenFrom:null;sus=sp?sp.suspect:null;key=l.lane+'f'}
+  else if(sp){t=sp.time;man=!!sp.manual;ow=sp.overwrittenFrom;sus=sp.suspect;rk=sp.rank}
+  if(t==null)return '<span class="sc empty"><span class="sd">'+d+'</span><span class="stm">–</span></span>';
+  man=man&&opt('show_manual');sus=opt('show_suspect')?sus:null;if(!isJury)ow=null;
+  var pe=isJury&&opt('show_peer')&&pr&&pr.peer!=null,pex=isJury&&pr&&pr.peerDiffExceeded;
+  var cls='sc'+(fin?' fin':'')+(man?' m':(sus?' sus':''))+(pex?' pex':''),st='';
+  var tt=flashAt[key];if(tt){var el=Date.now()-tt;if(el<1500){cls+=' flash';st=' style="animation-delay:-'+el+'ms"'}}
+  var why=[];if(man)why.push(pr&&pr.manualSource==='swimtime'?'manueel gekozen in SwimTime':'manueel opgehoogd');if(sus)why.push(sus);if(ow!=null)why.push('gecorrigeerd, was '+fmt(ow));
+  return '<span class="'+cls+'"'+st+'><span class="sd">'+d+(isJury&&pr&&pr.fromDb?'<span class="dbl">db</span>':'')+'</span><span class="stm">'+fmt(t)+(rk!=null?'<sup class="r">'+rk+'</sup>':'')+(man?'<span class="mlab">M</span>':'')+(sus?'<span class="slab">!</span>':'')+'</span>'+(pe?'<span class="peer'+(pex?' ex':'')+'">'+esc(peerTxt(pr))+'</span>':'')+why.map(function(x){return '<span class="rsn">'+esc(x)+'</span>'}).join('')+'</span>';
+}
+function renderTable(){
+  var w=$('tablewrap');
+  if(!S||!S.lanes||!S.lanes.length){w.innerHTML='<div class="nodata">Nog geen reeks actief.</div>';return}
+  var ls=sortedLanes(),dist=(S.heat&&S.heat.distance)||0,laps=(S.heat&&S.heat.laps)||0,D=[],ds={};
+  function num(a,b){return a-b}
+  if(isJury){
+    if(dist&&laps>0){for(var i=1;i<=laps;i++)D.push(Math.round(dist*i/laps))}
+    else{ls.forEach(function(l){(l.splits||[]).forEach(function(x){if(x.distance)ds[x.distance]=1})});D=Object.keys(ds).map(Number).sort(num)}
+  }else{
+    var od=S.officialDistances;
+    if(!od){ls.forEach(function(l){(l.splits||[]).forEach(function(x){if(x.distance&&(!dist||x.distance<dist))ds[x.distance]=1})});od=Object.keys(ds).map(Number)}
+    D=od.filter(function(d){return !dist||d<dist}).sort(num);
+    if(dist)D.push(dist);
+  }
+  curLines=Math.max(1,Math.ceil(D.length/4));curMem=0;
+  var rt=opt('show_reaction'),sp=D.length>0;
+  var h='<table><thead><tr><th class="sortable" data-sort="lane">Baan'+sortArrow('lane')+'</th><th class="l">Naam</th><th class="l col-club">Club</th>'+(rt?'<th class="col-rt">RT</th>':'')+(sp?'<th class="l">Tussentijden</th>':'')+'<th>Eindtijd</th><th class="sortable" data-sort="rank">Plaats'+sortArrow('rank')+'</th></tr></thead><tbody>';
+  ls.forEach(function(l){
+    if(isEmpty(l)){h+='<tr class="empty"><td class="lane">'+l.lane+'</td><td class="l" colspan="'+((rt?5:4)+(sp?1:0))+'">vrije baan</td></tr>';return}
+    h+='<tr'+(l.members&&l.members.length?' class="hasmem"':'')+'><td class="lane">'+l.lane+'</td><td class="l name">'+esc(name(l))+'<small>'+esc(l.club||'')+'</small></td><td class="l col-club">'+esc(l.club||'')+'</td>'+(rt?'<td class="rt col-rt">'+fmtRT(l.reaction)+'</td>':'');
+    if(sp)h+='<td class="sps"><div class="spg">'+D.map(function(d){return sbox(l,d,dist>0&&d===dist)}).join('')+'</div></td>';
+    var top=l.final!=null&&l.rank>=1&&l.rank<=3;
+    var lastSp=null;(l.splits||[]).forEach(function(x){if(!lastSp||x.distance>=lastSp.distance)lastSp=x});
+    var finSus=(l.final!=null&&lastSp&&lastSp.time===l.final&&(!dist||lastSp.distance>=dist))?lastSp.suspect:null;
+    var ft=tcell(l.final,l.finalManual,null,'fin'+(top?' medal p'+l.rank:''),null,l.lane+'f',finSus);
+    var fpk=(isJury&&opt('show_peer')&&lastSp&&lastSp.time===l.final&&lastSp.peer!=null)?lastSp:null;
+    if(fpk)ft=ft.replace(/<\/td>$/,'<span class="peer'+(fpk.peerDiffExceeded?' ex':'')+'">'+esc(peerTxt(fpk))+'</span></td>');
+    h+=ft;
+    h+='<td class="rank'+(top?' p'+l.rank:'')+'">'+(l.rank!=null?l.rank:'')+'</td></tr>';
+    var mh=memHtml(l);if(mh){curMem+=l.members.length;h+='<tr class="memrow"><td></td><td colspan="'+(4+(rt?1:0)+(sp?1:0))+'">'+mh+'</td></tr>'}
+  });
+  w.innerHTML=h+'</tbody></table>';
+  if(kiosk())fitTable();
+}
+function renderHead(){
+  if(!S)return;
+  var m=S.meet||{},e=S.event||{},hh=S.heat||{};
+  $('meet').textContent=[isJury?'':'Live uitslagen',m.name,m.city,m.session?'Sessie '+m.session+(m.sessionName?' ('+m.sessionName+')':''):''].filter(Boolean).join(' · ');
+  var t=[];if(e.number)t.push('Event '+e.number);if(e.discipline)t.push(e.discipline);if(hh.name||hh.number)t.push(hh.name||('Serie '+hh.number));
+  $('title').textContent=t.join(' · ')||'Live timing';
+  $('tbTitle').textContent=((isJury||pubSplit)?[m.name,e.number?'Event '+e.number:'',e.discipline,hh.name||'']:[e.number?'Event '+e.number:'',hh.name||'']).filter(Boolean).join(' · ')||'Live timing';
+  renderNext();
+  var sc=opt('show_clock');document.querySelector('.clockbox').style.display=sc?'':'none';$('mini').style.display=sc?'':'none';
+  var s=[];if(hh.startTime)s.push('Geplande start reeks: '+hh.startTime);if(e.startTime)s.push('event: '+e.startTime);if(hh.description)s.push(hh.description);
+  $('sub').textContent=s.join(' · ');
+  var r=(S.records||[]).filter(function(x){return x&&x.name});
+  $('records').innerHTML=r.map(function(x){return '<b>'+esc(x.name)+'</b> '+fmt(x.time)+' '+esc(x.athlete||'')+(x.club?' ('+esc(x.club)+')':'')}).join(' &nbsp;·&nbsp; ');
+}
+function renderNext(){
+  var b=$('nextbar'),n=S&&S.next;
+  if(!n){b.hidden=true;b.innerHTML='';return}
+  var e=n.event||{},h=n.heat||{};
+  var t=['Event '+(e.number||'?'),e.discipline,h.name||('Serie '+(h.number||'?'))].filter(Boolean).join(' · ')+(h.startTime?' · gepland '+h.startTime:'');
+  var ls=(n.lanes||[]).filter(hasName).sort(function(a,c){return a.lane-c.lane}).map(function(l){return '<span style="white-space:nowrap">'+l.lane+' '+esc(name(l))+(l.club?' ('+esc(l.club)+')':'')+'</span>'}).join(' · ');
+  b.innerHTML='<div class="nx1">Volgende: '+esc(t)+'</div>'+(ls?'<div class="nx2">'+ls+'</div>':'');
+  b.hidden=false;
+}
+function histList(){
+  var a=H;
+  if(S&&S.showing==='previous'&&a.length&&S.event&&S.heat&&a[0].event&&a[0].heat&&a[0].event.number===S.event.number&&a[0].heat.number===S.heat.number)return a.slice(1);
+  return a;
+}
+var lastDk='',lastPct=0;
+function applyPubSplit(){
+  if(isJury)return;
+  var on=!(S&&S.settings&&S.settings.public_split_layout===false);
+  if(on===pubSplit&&document.body.classList.contains('jury')===on)return;
+  pubSplit=on;jury=on;
+  document.body.classList.toggle('jv',on);document.body.classList.toggle('jury',on);
+  jKey='';lastPct=0;var w=$('tablewrap');if(w)w._f=0;
+}
+function applySplit(){
+  if(!(isJury||pubSplit))return;
+  var v=parseInt(S&&S.settings&&S.settings.jury_split_left_pct,10);if(!(v>0))v=67;v=Math.max(40,Math.min(85,v));
+  if(v===lastPct)return;lastPct=v;
+  var lay=$('layout');lay.style.setProperty('--jl',v+'fr');lay.style.setProperty('--jr',(100-v)+'fr');
+  jKey='';var w=$('tablewrap');if(w)w._f=0;
+}
+var dbI=null,dbT=0,demoDb={live:false,intervalS:0,liveIntervalS:15,lastSync:new Date().toISOString(),sourceMtime:new Date().toISOString(),error:null,busy:false,loadedAt:new Date().toISOString(),loadedFile:'swimtime_kopie.mdb',heats:44,source:'C:\\SwimTime\\Meet.mdb',autoAfterHeat:true,intervalS:0,canEdit:true};
+function atok(){var t='';try{t=sessionStorage.getItem('lt_admin')||''}catch(e){}return t?{'X-Admin-Token':t}:{}}
+function fdt(x,full){if(!x)return '\u2013';var d=new Date(x);if(isNaN(d))return String(x);return full?d.toLocaleString('nl-BE'):d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})}
+function dbRefresh(force){
+  if(!isJury)return;
+  var n=Date.now();if(!force&&n-dbT<10000)return;dbT=n;
+  if(demo){dbI=dbI||demoDb;dbRender();return}
+  fetch('/api/db',{headers:atok()}).then(function(r){return r.json()}).then(function(d){dbI=d;dbRender()}).catch(function(){});
+}
+function dbRender(){
+  if(!isJury||!dbI)return;
+  var d=dbI;
+  $('dbline').innerHTML=d.error?'<span style="color:var(--danger)">DB: fout \u2013 '+esc(d.error)+'</span>':'DB: '+(d.live?'live ('+(d.intervalS||d.liveIntervalS||'')+' s) · ':'manueel · ')+(d.lastSync?'kopie '+esc(fdt(d.lastSync))+(d.heats!=null?' \u00b7 '+d.heats+' reeksen':''):'nog geen kopie')+(d.busy?' \u00b7 bezig\u2026':'');
+  $('dbbtn').hidden=!d.canEdit;splUpdate();
+  $('dbbtn').innerHTML='Database'+(d.live?' <span style="color:var(--success);font-weight:700">● live</span>':'');
+  if(!$('dbmodal').hidden){
+    var rows=[['Laatste kopie',fdt(d.lastSync,1)],['Bronbestand gewijzigd',fdt(d.sourceMtime,1)],['Ingelezen',d.loadedFile?d.loadedFile+' om '+fdt(d.loadedAt,1):'\u2013'],['Reeksen in kopie',d.heats!=null?d.heats:'\u2013']];
+    var h=rows.map(function(x){return '<tr><td>'+x[0]+'</td><td>'+esc(x[1])+'</td></tr>'}).join('');
+    if(d.busy)h+='<tr><td>Status</td><td>bezig\u2026</td></tr>';
+    if(d.error)h+='<tr><td>Fout</td><td style="color:var(--danger);font-weight:600">'+esc(d.error)+'</td></tr>';
+    $('dbstat').innerHTML=h;
+    $('dbauto').innerHTML='Na elke reeks: '+(d.autoAfterHeat?'aan':'uit')+' \u00b7 interval: '+(d.intervalS?d.intervalS+' s':'uit')+' \u00b7 <a href="/settings" style="color:var(--accent)">aanpassen in instellingen</a>';
+    $('dbsync').disabled=!!d.busy;
+    $('dblivechk').checked=!!d.live;
+    $('dblivehelp').textContent='De server kopieert elke '+(d.liveIntervalS||15)+' s de SwimTime-database zodra die gewijzigd is en verwerkt peer/paneel-tijden, manuele keuzes en nieuwe startlijsten automatisch. Nu: '+(d.live?'aan ('+(d.intervalS||d.liveIntervalS)+' s)':'uit')+(d.error?' · fout: '+d.error:'')+'.';
+  }
+}
+function dbOpen(){$('dbmodal').hidden=false;$('dbliveconf').hidden=true;$('dbliveres').textContent='';$('dbres').textContent='';$('dbconf').hidden=true;if(dbI)$('dbpath').value=dbI.source||'';dbRefresh(true);dbRender();$('dbpath').focus()}
+function dbClose(){$('dbmodal').hidden=true}
+function dbRes(msg,bad){var e=$('dbres');e.textContent=msg;e.style.color=bad?'var(--danger)':'var(--success)'}
+function dbLiveRes(msg,bad){var e=$('dbliveres');e.textContent=msg;e.style.color=bad?'var(--danger)':'var(--success)'}
+function dbSetLive(v){
+  $('dbliveconf').hidden=true;
+  if(demo){dbI=Object.assign({},dbI||demoDb,{live:v>0,intervalS:v});dbLiveRes(v>0?'Live database ingeschakeld.':'Live database uitgeschakeld.');dbRender();return}
+  var h=atok();h['Content-Type']='application/json';
+  fetch('/api/settings',{method:'POST',headers:h,body:JSON.stringify({db_interval_s:v})}).then(function(r){return r.json().catch(function(){return {}}).then(function(d){return {s:r.status,d:d}})}).then(function(x){
+    if(x.s===403){dbLiveRes('Geen toegang (beheerderscode nodig, zie instellingen).',1);dbRender();return}
+    if(x.s>=400||(x.d&&x.d.ok===false)){dbLiveRes('Wijzigen mislukt.'+(x.d&&x.d.errors?' '+JSON.stringify(x.d.errors):''),1);dbRender();return}
+    dbLiveRes(v>0?'Live database ingeschakeld.':'Live database uitgeschakeld.');dbRefresh(true);
+  }).catch(function(){dbLiveRes('Server niet bereikbaar.',1);dbRender()});
+}
+function dbDoSync(){
+  $('dbconf').hidden=true;var e=$('dbres');e.textContent='Bezig met kopi\u00ebren\u2026';e.style.color='';
+  if(demo){setTimeout(function(){dbI=Object.assign({},demoDb,{lastSync:new Date().toISOString()});dbRes('Kopie genomen.');dbRender()},1200);return}
+  var h=atok();h['Content-Type']='application/json';
+  fetch('/api/db/sync',{method:'POST',headers:h,body:JSON.stringify({path:$('dbpath').value})}).then(function(r){return r.json().catch(function(){return {}}).then(function(d){return {s:r.status,d:d}})}).then(function(x){
+    if(x.s===403){dbRes('Geen toegang (beheerderscode nodig, zie instellingen).',1);return}
+    if(x.d&&x.d.lastSync!==undefined)dbI=x.d;
+    if(x.s>=400||x.d.ok===false||x.d.error)dbRes(x.d.error||'Synchronisatie mislukt.',1);else dbRes('Kopie genomen.');
+    dbRender();dbRefresh(true);
+  }).catch(function(){dbRes('Server niet bereikbaar.',1)});
+}
+if(isJury){
+  $('dbbtn').addEventListener('click',dbOpen);$('dbx').addEventListener('click',dbClose);
+  $('dbsync').addEventListener('click',function(){$('dbconf').hidden=false});
+  $('dbno').addEventListener('click',function(){$('dbconf').hidden=true});
+  $('dbyes').addEventListener('click',dbDoSync);
+  $('dblivechk').addEventListener('change',function(){
+    if(this.checked){this.checked=false;$('dbliveconf').hidden=false}
+    else dbSetLive(0);
+  });
+  $('dbliveno').addEventListener('click',function(){$('dbliveconf').hidden=true});
+  $('dbliveyes').addEventListener('click',function(){dbSetLive((dbI&&dbI.liveIntervalS)||15)});
+  $('dbmodal').addEventListener('mousedown',function(e){if(e.target===$('dbmodal'))dbClose()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('dbmodal').hidden)dbClose()});
+}
+function allFinished(){
+  if(!S||!S.lanes)return null;
+  var n=S.lanes.filter(hasName);if(!n.length)return null;
+  if(!n.every(function(l){return l.finished}))return null;
+  var best=null;n.forEach(function(l){if(l.final!=null&&(best==null||l.final<best))best=l.final});return best;
+}
+function frame(){
+  var el=$('clock'),st=clk.status,txt,cls,fin=allFinished();
+  if(fin!=null&&st!=='ready'){txt=fmt(fin);cls='stopped'}
+  else if(st==='running'&&clk.rt!=null){txt=fmtClock(clk.rt+Math.min(300,performance.now()-clk.at)*10);cls='running'}
+  else if(st==='ready'){txt='Klaar voor start';cls='ready'}
+  else{txt=(S&&S.showing==='previous')?'—':((S&&S.heat&&S.heat.startTime)||'--.-');cls='idle'}
+  if(el.textContent!==txt)el.textContent=txt;
+  if(el.className!==cls)el.className=cls;
+  var mi=$('mini'),mt=cls==='ready'?'Klaar':txt;if(mi.textContent!==mt)mi.textContent=mt;if(mi.className!=='mini '+cls)mi.className='mini '+cls;
+  requestAnimationFrame(frame);
+}
+function applyState(s){
+  if(!s)return;
+  if(S&&heatKey(S)&&heatKey(s)&&heatKey(S)!==heatKey(s)&&splashAllowed(s))showSplash(s);
+  if(S&&heatKey(S)!==heatKey(s)){flashAt={};prevT={};firstState=true}
+  if(firstState){(s.lanes||[]).forEach(function(l){(l.splits||[]).forEach(function(x){prevT[l.lane+'s'+x.distance]=x.time});prevT[l.lane+'f']=l.final});firstState=false}
+  else detectFlash(s.lanes);
+  S=s;
+  if(s.clock){clk.status=s.clock.status;clk.rt=s.clock.rt;clk.at=performance.now()}
+  var dk=(s.showing||'')+'|'+heatKey(s);if(dk!==lastDk){lastDk=dk;renderHist()}
+  applyPubSplit();applySplit();renderHead();renderTable();setConn(conn);renderJury();dbRefresh(false);splUpdate();
+}
+function applyClock(c){if(!c)return;clk.status=c.status;clk.rt=c.rt;clk.at=performance.now()}
+
+var jury=true,jKey='';
+function kiosk(){return (isJury||pubSplit)&&jury&&window.matchMedia('(min-width:1000px)').matches}
+function fitBox(box,key,start,min,max){
+  var f=start;
+  function set(v){box.style.setProperty(key,v+'px')}
+  function over(){return box.scrollHeight>box.clientHeight+1||box.scrollWidth>box.clientWidth+1}
+  set(f);
+  while(over()&&f>min){f-=0.5;set(f)}
+  while(f<max){set(f+0.5);if(over()){set(f);break}f+=0.5}
+  box._f=f;return f;
+}
+function autoScroll(el){
+  if(el._raf)cancelAnimationFrame(el._raf);
+  el.scrollTop=0;
+  if(el.scrollHeight<=el.clientHeight+1)return;
+  var max=el.scrollHeight-el.clientHeight,pos=0,dir=1,wait=2500,last=performance.now();
+  function step(now){
+    if(!el.isConnected||!kiosk())return;
+    var dt=now-last;last=now;
+    if(wait>0){wait-=dt}else{pos+=dir*20*dt/1000;if(pos>=max){pos=max;dir=-1;wait=2500}else if(pos<=0){pos=0;dir=1;wait=2500}el.scrollTop=pos}
+    el._raf=requestAnimationFrame(step);
+  }
+  el._raf=requestAnimationFrame(step);
+}
+function tableScroll(w){
+  if(w._ts)return;w._ts=true;
+  var pos=0,dir=1,wait=2500,last=performance.now();
+  (function step(now){
+    if(!kiosk()){w._ts=false;return}
+    var dt=now-last;last=now;
+    var max=w.scrollHeight-w.clientHeight;
+    if(max<=1){pos=0;if(w.scrollTop)w.scrollTop=0;wait=2500;dir=1}
+    else if(wait>0)wait-=dt;
+    else{pos+=dir*20*dt/1000;if(pos>=max){pos=max;dir=-1;wait=2500}else if(pos<=0){pos=0;dir=1;wait=2500}w.scrollTop=pos}
+    requestAnimationFrame(step);
+  })(last);
+}
+function fitTable(){
+  var w=$('tablewrap'),tb=w.querySelector('table');if(!tb)return;
+  var rowH=Math.max(1.9,curLines*1.75+0.2);
+  fitBox(w,'--tf',w._f||Math.max(12,Math.min(sc()*2.8,w.clientHeight/(0.8+(tb.querySelectorAll('tr:not(.memrow)').length-1)*rowH+curMem*0.95))),12,sc()*2.8);
+  tableScroll(w);
+}
+function fitJury(){
+  var cs=document.querySelectorAll('#jlist .jcard'),mx=(cs.length===1?40:26)*sc()/16;
+  cs.forEach(function(c){c._f=0;fitBox(c,'--jf',mx,12,mx);autoScroll(c)});
+}
+var rzT=null;
+window.addEventListener('resize',function(){clearTimeout(rzT);rzT=setTimeout(function(){jKey='';renderJury();if(S)renderTable()},150)});
+if(isJury){try{if(localStorage.getItem('lt_jury')==='0')jury=false}catch(e){}}
+function problems(sp){
+  var w=[];
+  if(sp.manual&&opt('show_manual'))w.push(sp.manualSource==='swimtime'?'manueel gekozen in SwimTime':'manueel opgehoogd');
+  if(sp.suspect&&opt('show_suspect'))w.push(sp.suspect);
+  if(isJury&&sp.overwrittenFrom!=null)w.push('gecorrigeerd, was '+fmt(sp.overwrittenFrom));
+  return w;
+}
+function chip(sp){
+  var w=problems(sp),ex=isJury&&!!sp.peerDiffExceeded,pe=isJury&&opt('show_peer')&&sp.peer!=null;
+  return '<span class="chip '+((w.length||ex)?'bad':'ok')+'"><span class="ct"><b>'+sp.distance+'m</b>'+fmt(sp.time)+(isJury&&sp.fromDb?'<span class="dbl">db</span>':'')+'</span>'+(pe?'<span class="peer'+(ex?' ex':'')+'">'+esc(peerTxt(sp))+'</span>':'')+w.map(function(x){return '<span class="why">'+esc(x)+'</span>'}).join('')+'</span>';
+}
+function chipsFor(it,l){
+  var od=it.officialDistances,sp=l.splits||[];
+  if(od&&od.length){
+    return od.slice().sort(function(a,b){return a-b}).map(function(d){
+      var m=null;sp.forEach(function(x){if(x.distance===d)m=x});
+      return m?chip(m):'<span class="chip empty"><span class="ct"><b>'+d+'m</b>–</span></span>';
+    }).join('');
+  }
+  return sp.filter(function(x){return isJury?x.official===true:(x.official!==false&&x.time!==l.final)}).map(chip).join('');
+}
+function renderJury(){
+  if(!jury)return;
+  var n=(S&&S.settings&&S.settings.overview_heats)||1,out='';
+  var key=n+'|'+kiosk()+'|'+JSON.stringify(histList().slice(0,n))+JSON.stringify(S&&S.settings);
+  if(key===jKey)return;jKey=key;
+  histList().slice(0,n).forEach(function(it){
+    var e=it.event||{},hh=it.heat||{},iss=it.issues||[],nf=iss.filter(function(x){return x.severity==='fout'}).length;
+    out+='<div class="jcard"><h3>'+esc('Event '+(e.number||'?')+' · '+(e.discipline||'')+' · '+(hh.name||('Serie '+(hh.number||'?'))))+'<small>klaar '+esc(it.finishedAt||'')+'</small>'+(nf&&isJury?'<span class="jbadge">'+nf+(nf===1?' fout':' fouten')+'</span>':'')+'</h3>';
+    var ls=(it.lanes||[]).filter(hasName).sort(function(a,b){var ra=a.rank==null?1e9:a.rank,rb=b.rank==null?1e9:b.rank;return ra-rb||a.lane-b.lane});
+    ls.forEach(function(l){
+      var man=l.finalManual&&opt('show_manual'),pc=l.rank>=1&&l.rank<=3?' p'+l.rank:'';
+      var sp=(l.splits||[]).filter(function(x){return x.official===true});
+      var lastSp=null;(l.splits||[]).forEach(function(s2){if(!lastSp||s2.distance>=lastSp.distance)lastSp=s2});
+      var fw=[];if(man)fw.push('manueel opgehoogd');
+      var fs=(lastSp&&lastSp.time===l.final&&lastSp.suspect)?lastSp.suspect:l.suspect;
+      if(fs&&opt('show_suspect'))fw.push(fs);
+      if(isJury&&lastSp&&lastSp.time===l.final&&lastSp.overwrittenFrom!=null)fw.push('gecorrigeerd, was '+fmt(lastSp.overwrittenFrom));
+      var pk=(lastSp&&lastSp.time===l.final&&lastSp.peer!=null&&isJury&&opt('show_peer'))?lastSp:null;
+      if(pk&&pk.peerDiffExceeded)fw.push(peerTxt(pk));
+      out+='<div class="jsw'+(fw.length?' bad':'')+'"><div class="jrow"><span class="pl'+pc+'">'+(l.rank!=null?l.rank:'–')+'</span><span class="ln">'+l.lane+'</span><span class="nm">'+esc(name(l))+'<small>'+esc(l.club||'')+'</small></span><span class="rt">'+(opt('show_reaction')?fmtRT(l.reaction):'')+'</span><span class="tm'+(man?' m':'')+'">'+(l.final!=null?fmt(l.final):'–')+(man?'<span class="mlab" title="Manueel opgehoogd (geen paneeltijd)">M</span>':'')+((l.suspect&&opt('show_suspect'))?'<span class="slab" title="'+esc(l.suspect)+'">!</span>':'')+'</span></div>';
+      if(fw.length)out+='<div class="jwhy">'+fw.map(esc).join(' · ')+'</div>';
+      if(pk&&!pk.peerDiffExceeded)out+='<div class="jwhy pmut">'+esc(peerTxt(pk))+'</div>';
+      out+=memHtml(l);var chh=chipsFor(it,l);if(chh)out+='<div class="chips">'+chh+'</div>';
+      out+='</div>';
+    });
+    if(isJury&&!(it.officialDistances&&it.officialDistances.length))out+='<div class="jnone">geen officiële tussentijden</div>';
+    out+='</div>';
+  });
+  $('jlist').innerHTML=out||'<div class="nodata">Nog geen vorige reeksen.</div>';
+  if(kiosk())fitJury();
+}
+function setJury(on){
+  jury=on;try{localStorage.setItem('lt_jury',on?'1':'0')}catch(e){}
+  document.body.classList.toggle('jury',on);$('jbtn').setAttribute('aria-pressed',on?'true':'false');renderJury();if(S)renderTable();
+}
+$('jbtn').addEventListener('click',function(){setJury(!jury)});
+if(true){
+  document.addEventListener('keydown',function(e){
+    if(($('dbmodal')&&!$('dbmodal').hidden)||e.ctrlKey||e.altKey||e.metaKey||(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName)))return;
+    var k=(e.key||'').toLowerCase();
+    if(k==='f'){if(document.fullscreenElement)document.exitFullscreen();else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen()}
+    else if(k==='t')$('themebtn').click();
+    else if(k==='j'&&isJury)setJury(!jury);
+    else if(k==='x'&&isJury)splToggle();
+    else if(k==='b')setSort('lane');
+    else if(k==='p')setSort('rank');
+    else if(k==='s')setSort('auto');
+  });
+  var idleT;
+  var wake=function(){document.body.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(function(){document.body.classList.add('idle')},3000)};
+  ['mousemove','mousedown','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,wake)});
+  wake();
+}
+document.body.classList.toggle('jury',jury);$('jbtn').setAttribute('aria-pressed',jury?'true':'false');
+function applyHistory(a){H=Array.isArray(a)?a:[];renderHist();renderJury();dbRefresh(false)}
+function renderHist(){
+  $('hcount').textContent=histList().length;
+  var q=$('hsearch').value.trim().toLowerCase(),out='';
+  histList().forEach(function(it){
+    var ls=(it.lanes||[]).filter(hasName).sort(function(a,b){var ra=a.rank==null?1e9:a.rank,rb=b.rank==null?1e9:b.rank;return ra-rb||a.lane-b.lane});
+    if(q)ls=ls.filter(function(l){return (name(l)+' '+(l.club||'')).toLowerCase().indexOf(q)>=0});
+    if(!ls.length)return;
+    var e=it.event||{},hh=it.heat||{};
+    out+='<div class="hitem"><h3>'+esc('Event '+(e.number||'?')+' · '+(e.discipline||'')+' · '+(hh.name||('Serie '+(hh.number||'?'))))+' <span>klaar '+esc(it.finishedAt||'')+'</span></h3>';
+    ls.forEach(function(l){
+      var pc=l.rank>=1&&l.rank<=3?' p'+l.rank:'';
+      out+='<div class="hrow"><span class="pl'+pc+'">'+(l.rank!=null?l.rank:'–')+'</span><span class="nm">'+esc(name(l))+'</span><span class="cl">'+esc(l.club||'')+'</span><span class="tm'+((l.finalManual&&opt('show_manual'))?' m':'')+'">'+(l.final!=null?fmt(l.final):'–')+((l.finalManual&&opt('show_manual'))?'<span class="mlab" title="Manueel opgehoogd (geen paneeltijd)">M</span>':'')+((l.suspect&&opt('show_suspect'))?'<span class="slab" title="'+esc(l.suspect)+'">!</span>':'')+'</span></div>';
+      out+=memHtml(l);var hs=chipsFor(it,l);
+      if(hs)out+='<div class="chips hch">'+hs+'</div>';
+    });
+    out+='</div>';
+  });
+  $('hlist').innerHTML=out||'<div class="nodata">'+(H.length?'Geen resultaten voor deze zoekterm.':'Nog geen afgelopen reeksen.')+'</div>';
+}
+function setConn(ok){
+  conn=ok;
+  var nodata=ok&&S&&S.connected===false;
+  $('bnConn').hidden=ok;$('bnData').hidden=!nodata;
+  $('dot').className='dot'+(ok&&!nodata?' ok':'');
+  $('cstat').textContent=!ok?'Verbinding verbroken':(nodata?'Server verbonden, geen data van tijdsysteem':'Verbonden');
+}
+function setSort(m){
+  sortMode=m;try{localStorage.setItem('lt_sort',m)}catch(e){}
+  document.querySelectorAll('.seg button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.sort===m?'true':'false')});
+  renderTable();
+}
+document.querySelectorAll('.seg button').forEach(function(b){b.addEventListener('click',function(){setSort(b.dataset.sort)})});
+$('hsearch').addEventListener('input',renderHist);
+setSort(sortMode);
+$('tablewrap').addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('th[data-sort]');if(t)setSort(t.dataset.sort)});
+if(isJury){$('splchk').hidden=false;$('splchkbox').addEventListener('change',splToggle);splUpdate()}
+{
+  var vl=document.querySelector('.toolbar>span');if(vl)vl.remove();
+  var sg=document.querySelector('.seg'),tbr=document.querySelector('.tbr'),lab={auto:'Scorebord',lane:'Baan',rank:'Plaats'};
+  sg.querySelectorAll('button').forEach(function(b){b.textContent=lab[b.dataset.sort]});
+  sg.classList.add('segtop');tbr.insertBefore(sg,tbr.firstChild);
+}
+
+function live(){
+  fetch('/state'+Q).then(function(r){return r.json()}).then(applyState).catch(function(){});
+  fetch('/history'+Q).then(function(r){return r.json()}).then(applyHistory).catch(function(){});
+  var es=new EventSource('/events'+Q);
+  es.onopen=function(){setConn(true)};
+  es.onerror=function(){setConn(false)};
+  es.addEventListener('state',function(e){try{conn=true;applyState(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('clock',function(e){try{applyClock(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('history',function(e){try{applyHistory(JSON.parse(e.data))}catch(x){}});
+}
+
+function demoRun(){
+  var SW=[['Anse','Vreys','DBT'],['Lotte','Claes','DMB'],['Emma','Janssens','GZVN'],['Fien','Peeters','HZS'],['Noor','Willems','STZC'],['Elise','Maes','ZPL'],['Marie','Jacobs','DBT'],['Julie','Mertens','HZS']];
+  var heatNo=3,hist=[],TS=12;
+  function clone(x){return JSON.parse(JSON.stringify(x))}
+  function pubLane(l){if(l.members)l.members=l.members.map(function(m){return {position:m.position,firstName:m.firstName,lastName:m.lastName,club:m.club,leg:m.leg,cum:m.cum,reaction:m.reaction}});l.finalManual=false;l.suspect=null;l.splits=(l.splits||[]).filter(function(s){return s.official===true}).map(function(s){s.manual=false;s.suspect=null;s.overwrittenFrom=null;delete s.peer;delete s.peerDiff;delete s.peerDiffExceeded;delete s.manualSource;delete s.fromDb;return s});return l}
+  function vS(st){if(isJury)return st;st=clone(st);st.view='publiek';st.issues=[];st.lanes=st.lanes.map(pubLane);return st}
+  function vH(){return hist.map(function(it){if(isJury)return it;it=clone(it);delete it.issues;it.lanes=it.lanes.map(pubLane);return it})}
+  function start(){
+    heatNo++;
+    var meet={name:'PK 25m Limburg 2026',city:'Hasselt',date:'2026-10-03',session:'3',sessionName:'9:30:00'};
+    var ev={number:'22',discipline:'400m Vrije slag dames',startTime:'10:10'};
+    var heat={number:''+heatNo,name:'Serie '+heatNo,distance:400,laps:8,startTime:'10:17',description:''};
+    var nextH={event:{number:'23',discipline:'200m Rugslag dames',startTime:'10:25'},heat:{number:'1',name:'Serie 1',distance:200,laps:4,startTime:'10:31',description:''},lanes:[{lane:3,firstName:'Hanne',lastName:'Wouters',club:'ZPL'},{lane:4,firstName:'Yana',lastName:'Dewit',club:'DBT'},{lane:5,firstName:'Charlotte',lastName:'Aerts',club:'GZVN'},{lane:6,firstName:'Emilie',lastName:'Bogaerts',club:'HZS'}]};
+    var recs=[{type:'',name:'BR',time:812000,athlete:'Jan Peeters',club:'DBT',nation:'BEL'}];
+    var t0=performance.now(),readyUntil=t0+2500,base=[],rt=[],ended=false;
+    SW.forEach(function(){base.push((2600000+Math.random()*300000)|0);rt.push((6500+Math.random()*2500)|0)});
+    var iv=setInterval(function(){
+      var now=performance.now(),running=now>=readyUntil,el=running?Math.floor((now-readyUntil)*10*TS):0;
+      var lanes=SW.map(function(sw,i){
+        var l={lane:i+1,firstName:sw[0],lastName:sw[1],club:sw[2],nation:'BEL',code:sw[2]+'/'+(20000+i*37)+'/'+(10+i),reaction:null,splits:[],final:null,finalManual:false,rank:null,finished:false,suspect:null};
+        if(el>rt[i])l.reaction=rt[i];
+        for(var k=1;k<=8;k++){
+          var tk=(base[i]*(k/8)*((i===4&&k===2)?0.94:1))|0,fl=k===8;
+          if(el<=tk)break;
+          var man=fl&&i===5,tt=tk+(man?30:0);
+          var sus=(i===4&&k===2)?'fout volgens SwimTime (demo)':null;
+          if(sus)l.suspect=sus;
+          var spo={lap:k,distance:50*k,time:tt,rank:null,manual:man||(i===1&&k===5),overwrittenFrom:(i===6&&k===3)?tt+250:null,suspect:sus,official:!fl};
+          if(i===0||i===3){spo.peer=tt+(k%2?-600:400);if(i===3&&k===4)spo.peer=tt+4500;spo.peerDiff=spo.peer-tt;spo.peerDiffExceeded=Math.abs(spo.peerDiff)>3000}
+          if(i===2&&k===1)spo.fromDb=true;
+          if(i===1&&k===5)spo.manualSource='swimtime';
+          l.splits.push(spo);
+          if(fl){l.final=tt;l.finalManual=man;l.finished=true}
+        }
+        return l});
+      [50,100,150,200,250,300,350,400].forEach(function(d){var a=[];lanes.forEach(function(l){l.splits.forEach(function(s){if(s.distance===d)a.push(s)})});a.sort(function(x,y){return x.time-y.time});a.forEach(function(s,k){s.rank=k+1})});
+      lanes.forEach(function(l){var s=l.splits[l.splits.length-1];if(s)l.rank=s.rank});
+      var done=lanes.every(function(l){return l.finished});
+      var layout=done?'RankOriented':(el>base[0]*0.3?'LaneOriented':'Startlist');
+      var clock={status:done?'idle':(running?'running':'ready'),rt:running&&!done?el:null};
+      conn=true;
+      applyState(vS({view:'jury',showing:done?'previous':'current',next:done?nextH:null,issues:[],officialDistances:[50,100,150,200,250,300,350],settings:{show_clock:true,show_reaction:true,show_manual:true,show_suspect:true,show_peer:true,max_peer_panel_diff_s:0.3,public_split_layout:true,splash_enabled:true,splash_seconds:2,splash_jury:true,overview_heats:1,jury_split_left_pct:67},connected:true,lastPacketAgo:0.1,meet:meet,event:ev,heat:heat,layout:layout,clock:clock,records:recs,lanes:lanes}));
+      if(done&&!ended){ended=true;clearInterval(iv);
+        var iss=[];lanes.forEach(function(l){var nm='Baan '+l.lane+' – '+name(l);
+          if(l.finalManual)iss.push({lane:l.lane,severity:'fout',type:'manueel',text:nm+': eindtijd '+fmt(l.final)+' manueel opgehoogd (geen paneeltijd)'});
+          if(l.suspect)iss.push({lane:l.lane,severity:'waarschuwing',type:'verdacht',text:nm+': '+l.suspect});
+          if(l.splits.length<8)iss.push({lane:l.lane,severity:'waarschuwing',type:'split ontbreekt',text:nm+': tussentijd ontbreekt'});
+          if(l.splits.some(function(s){return s.overwrittenFrom!=null}))iss.push({lane:l.lane,severity:'info',type:'gecorrigeerd',text:nm+': tijd gecorrigeerd'})});
+        iss.sort(function(a,b){var o={fout:0,waarschuwing:1,info:2};return o[a.severity]-o[b.severity]});
+        var hl=JSON.parse(JSON.stringify(lanes));hl.forEach(function(l){l.splits.forEach(function(s){s.official=s.distance<=100})});
+        hist.unshift({event:ev,heat:heat,finishedAt:'10:19',issues:iss,officialDistances:[50,100],lanes:hl});applyHistory(vH());
+        setTimeout(start,6000)}
+    },120);
+  }
+  function sw(lane,f,l,c,rt,sp,fin,rank,o){o=o||{};return {lane:lane,firstName:f,lastName:l,club:c,reaction:rt,splits:sp.map(function(x,k){return {lap:k+1,distance:x[0],time:x[1]*100,rank:null,manual:!!x[2],overwrittenFrom:null,suspect:x[3]||null,official:!!x[4]}}),final:fin*100,finalManual:!!o.man,rank:rank,finished:true,suspect:o.sus||null}}
+  hist.push({event:{number:'21',discipline:'200m Wisselslag heren',startTime:'09:40'},heat:{number:'1',name:'Serie 1',distance:200,laps:4},finishedAt:'09:50',officialDistances:[50],
+    issues:[{lane:3,severity:'waarschuwing',type:'verdacht',text:'Baan 3 – Wout Dierckx: fout volgens SwimTime (demo)'}],
+    lanes:[sw(4,'Jonas','Hermans','GZVN',7100,[[50,3011,0,0,1],[100,6502],[150,10905],[200,22841]],22841,1),
+           sw(3,'Wout','Dierckx','DMB',7400,[[50,3140,0,'fout volgens SwimTime (demo)',1],[100,6600,0,'fout volgens SwimTime (demo)'],[150,10990],[200,23577]],23577,2,{sus:'fout volgens SwimTime (demo)'})]});
+  hist.push({event:{number:'20',discipline:'400m Vrije slag dames',startTime:'09:10'},heat:{number:'3',name:'Serie 3',distance:400,laps:8},finishedAt:'09:35',officialDistances:[50,100],
+    issues:[{lane:5,severity:'fout',type:'manueel',text:'Baan 5 – Mathias Kähler: eindtijd 4:28.85 manueel opgehoogd (geen paneeltijd)'},{lane:2,severity:'waarschuwing',type:'split ontbreekt',text:'Baan 2 – Lotte Claes: tussentijd 150m ontbreekt'},{lane:2,severity:'info',type:'geen reactietijd',text:'Baan 2 – Lotte Claes: geen reactietijd'}],
+    lanes:[sw(4,'Anse','Vreys','DBT',7500,[[50,2950,0,0,1],[100,6140,0,0,1],[150,9400],[400,25610]],25610,1),
+           sw(2,'Lotte','Claes','HZS',null,[[50,3010,0,0,1],[100,6290,0,0,1],[400,26402]],26402,2),
+           sw(5,'Mathias','Kähler','STZC',7000,[[50,3080,0,0,1],[100,6400,1,0,1],[400,26885,1]],26885,3,{man:1})]});
+  hist.push({event:{number:'19',discipline:'100m Schoolslag heren',startTime:'09:00'},heat:{number:'2',name:'Serie 2',distance:100,laps:2},finishedAt:'09:05',officialDistances:[50],issues:[],lanes:[
+    sw(4,'Jonas','Hermans','GZVN',7200,[[50,3500,0,0,1],[100,7352]],7352,1),
+    sw(3,'Wout','Dierckx','DMB',7300,[[50,3600,0,0,1],[100,7418]],7418,2)]});
+  function rel(lane,team,club,names,f,rank,exPos){
+    var legs=[268800,259800,261000,255500].map(function(x){return Math.round(x*f)}),cum=0;
+    var members=names.map(function(n,i){cum+=legs[i];return {position:i+1,firstName:n[0],lastName:n[1],club:club,leg:legs[i],cum:cum,reaction:i?null:7700,takeover:i?[0,4900,-800,2100][i]:null,takeoverExceeded:i===exPos,splits:[{lap:i+1,distance:50*(i+1),legDistance:50,time:cum,rank:null,manual:false,overwrittenFrom:null,suspect:null,official:i<3}]}});
+    return {lane:lane,firstName:'',lastName:'',team:team,club:club,reaction:7700,splits:members.map(function(m){return m.splits[0]}),final:cum,finalManual:false,rank:rank,finished:true,suspect:null,members:members};
+  }
+  hist.unshift({event:{number:'18',discipline:'4x50m Vrije slag heren',startTime:'08:50'},heat:{number:'1',name:'Serie 1',distance:200,laps:4},finishedAt:'09:00',officialDistances:[50,100,150],
+    issues:[{lane:4,severity:'fout',type:'te vroege wissel',text:'Baan 4 – DBT 1: te vroege wissel positie 3 (\u22120.08)'}],
+    lanes:[rel(3,'DMB 1','DMB',[['Juul','Daemen'],['Siebe','Driesen'],['Kobe','Hendrickx'],['Lars','Wuyts']],1.0,2),
+           rel(4,'DBT 1','DBT',[['Arne','Vreys'],['Thomas','Claes'],['Milan','Peeters'],['Ruben','Jacobs']],0.98,1,2),
+           rel(5,'GZVN 1','GZVN',[['Seppe','Maes'],['Tim','Willems'],['Jens','Aerts'],['Bram','Mertens']],1.03,3)]});
+  applyHistory(vH());setConn(true);start();
+}
+
+requestAnimationFrame(frame);
+document.title=isJury?'Jury – Live timing':'Live uitslagen';
+if(demo){document.title+=' (demo)';demoRun()}else live();
+})();
+</script>
+</body>
+</html>

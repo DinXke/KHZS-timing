@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instellingen – Live timing</title>
+<script id="themeinit">
+try{var t=localStorage.getItem('lt_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}
+</script>
+<style>
+:root{color-scheme:dark;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--onacc:#04121c;--onwarn:#111;--onok:#04121c;}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--onacc:#fff;--onwarn:#fff;--onok:#fff;}}
+:root[data-theme="light"]{color-scheme:light;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--onacc:#fff;--onwarn:#fff;--onok:#fff;}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--onacc:#04121c;--onwarn:#111;--onok:#04121c;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow-x:hidden}
+main{max-width:760px;margin:0 auto;padding:12px 16px 40px}
+a{color:var(--accent)}
+h1{font-size:24px;margin:8px 0 4px}
+fieldset{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:16px 0;padding:8px 14px 14px}
+legend{font-weight:700;padding:0 6px}
+.row{padding:10px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.row label.lbl{display:block;font-weight:600;margin-bottom:6px}
+.help{font-size:12px;color:var(--muted);margin-top:4px}
+select,input[type=number],input[type=password],input[type=text]{width:100%;max-width:220px;padding:9px;font-size:16px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-variant-numeric:tabular-nums}
+input:disabled{opacity:.6}
+.chk{display:flex;gap:10px;align-items:center;font-weight:600}
+.chk input{width:20px;height:20px}
+.def{font-size:12px;margin-left:10px;cursor:pointer;background:none;border:0;color:var(--accent);text-decoration:underline;padding:0}
+.def:disabled{display:none}
+.badge{font-size:11px;background:var(--warning);color:var(--onwarn);border-radius:6px;padding:1px 6px;margin-left:8px;font-weight:700;vertical-align:middle}
+.changed input{border-color:var(--accent)}
+button.save{background:var(--accent);color:var(--onacc);border:0;border-radius:8px;padding:12px 22px;font-size:16px;font-weight:700;cursor:pointer}
+button.save:disabled{opacity:.5;cursor:not-allowed}
+#msg{margin:12px 0;padding:10px 12px;border-radius:8px;display:none}
+#msg.ok{display:block;background:var(--success);color:var(--onok)}
+#msg.err{display:block;background:var(--danger);color:#fff}
+#msg ul{margin:4px 0 0 18px;padding:0}
+.lock{background:var(--card);border:1px solid var(--warning);border-radius:12px;padding:12px 14px;margin:12px 0}
+.lock[hidden]{display:none}
+
+.tbr{display:flex;align-items:center;gap:10px}
+.tbtn{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+</style>
+</head>
+<body>
+<main>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><a href="/">&larr; Terug naar live timing</a><button type="button" class="tbtn" id="themebtn"></button></div>
+<h1>Instellingen</h1>
+<div id="msg" role="alert"></div>
+<div class="lock" id="lock" hidden>
+  <label class="lbl" for="tok" style="font-weight:600">Beheerderscode</label>
+  <div style="margin:6px 0"><input type="password" id="tok" autocomplete="off"> <button type="button" class="save" id="tokbtn" style="padding:9px 14px;font-size:14px">Controleer</button></div>
+  <div class="help">Zonder beheerderscode zijn de instellingen enkel leesbaar.</div>
+</div>
+<form id="form" autocomplete="off"><div id="groups"></div>
+<button type="submit" class="save" id="save">Opslaan</button></form>
+</main>
+<script>
+(function(){
+'use strict';
+var GROUPS=[
+ {t:'Controles',f:[
+  {k:'manual_threshold_s',l:'Manueel ingegeven',h:'Manueel ingegeven als tijd later binnenkomt dan … s na aantikken',n:1},
+  {k:'official_split_distances',l:'Officiële tussentijden',h:'Afstanden (m) die als officiële tussentijd tellen bij enkelvoudige slagen. Wisselslag: 50 bij 200, 100 bij 400. Aflossing: enkel eerste zwemmer.',txt:1},
+  {k:'relay_min_takeover_s',l:'Minimale overnametijd aflossingen (s)',h:'Wissel sneller dan dit t.o.v. het aantikken van de vorige zwemmer = te vroeg (op basis van SwimTime-database)',n:1},
+  {k:'max_peer_panel_diff_s',l:'Max. verschil peer/paneel (s)',h:'Boven dit verschil (in seconden) wordt de tijd in de jurymodus rood gemarkeerd',n:1}
+  ]},
+ {t:'Publieke weergave',f:[
+  {k:'show_clock',l:'Klok tonen',b:1},{k:'hold_previous_until_start',l:'Afgelopen reeks in beeld houden tot de volgende start (anders meteen de nieuwe startlijst na "volgende")',b:1},{k:'public_all_splits',l:'Publiek: alle 50m-tussentijden tonen (anders enkel officiële afstanden)',b:1},{k:'show_reaction',l:'Reactietijden tonen',b:1},
+  {k:'show_manual',l:'Manuele tijden markeren (rode M)',b:1},{k:'show_suspect',l:'Fouten die SwimTime zelf doorgeeft markeren (oranje !)',b:1},
+  {k:'show_peer',l:'Jury: handtijd (peer) onder de tijd tonen',b:1},
+  {k:'splash_enabled',l:'Tussenscherm bij nieuwe reeks (globaal)',b:1},
+  {k:'splash_seconds',l:'Duur tussenscherm (s)',h:'Tussen 0.5 en 5 seconden',n:1,step:0.5,min:0.5,max:5},
+  {k:'splash_jury',l:'Tussenscherm op jurypagina',b:1},
+  {k:'splash_callroom',l:'Tussenscherm in oproepkamer',b:1},
+  {k:'public_split_layout',l:'Publiek: huidige reeks links + vorige reeks(en) rechts',b:1},
+  {k:'jury_split_left_pct',l:'Jury: verdeling huidige reeks / vorige reeksen',h:'Breedte van de linkerkolom (huidige reeks); de rest gaat naar de vorige reeksen',sel:[[50,'50 / 50'],[60,'60 / 40'],[67,'67 / 33'],[70,'70 / 30'],[75,'75 / 25'],[80,'80 / 20']]},
+  {k:'overview_heats',l:'Jury: aantal vorige reeksen (1–5)',h:'Aantal vorige reeksen in jurymodus (1–5)',n:1,int:1,min:1,max:5}]},
+ {t:'Oproepkamer',f:[
+  {k:'callroom_heats',l:'Aantal aankomende reeksen',h:'Maximaal aantal aankomende reeksen op het oproepkamer-scherm (1–8)',n:1,int:1,min:1,max:8},
+  {k:'callroom_next_big',l:'Eerstvolgende reeks groter tonen',b:1},
+  {k:'callroom_next_scale',l:'Vergroting eerstvolgende reeks',h:'Factor 1.0–2.5',n:1,step:0.1,min:1,max:2.5},
+  {k:'callroom_show_previous',l:'Vorige reeks tonen (rechts, onder de huidige)',b:1},
+  {k:'callroom_split_left_pct',l:'Verdeling aankomende reeksen / huidige reeks',h:'Breedte van de linkerkolom (aankomende reeksen)',sel:[[50,'50 / 50'],[55,'55 / 45'],[60,'60 / 40'],[65,'65 / 35'],[70,'70 / 30'],[75,'75 / 25']]}]},
+ {t:'Systeem',f:[
+  {k:'clear_grace_s',l:'Wachttijd na wissen',h:'Als SwimTime een baantijd wist (-1) zonder nieuwe tijd, wordt die na zoveel seconden ook hier gewist',n:1},
+  {k:'stale_after_s',l:'Geen data na',h:'Na zoveel seconden zonder data wordt de verbinding met het tijdsysteem als verbroken gemeld',n:1},
+  {k:'history_max',l:'Max. aantal vorige reeksen',h:'Aantal reeksen dat bewaard blijft in de historiek',n:1,int:1}]},
+ {t:'Database (SwimTime)',f:[
+  {k:'db_source_path',l:'Pad naar SwimTime-database',h:'Bronbestand waarvan een kopie wordt genomen (enkel lezen)',txt:1},
+  {k:'db_auto_after_heat',l:'Na elke reeks automatisch kopie nemen',b:1},
+  {k:'db_after_heat_delay_s',l:'Wachttijd na laden volgende startlijst (s)',h:'Seconden wachten nadat de volgende startlijst geladen is, voor de kopie genomen wordt',n:1},
+  {k:'db_interval_s',l:'Live database: actief interval in s (0 = uit; wordt gezet door het vinkje op /jury)',h:'Enkel kopiëren als het bestand gewijzigd is',n:1},
+  {k:'db_live_interval_s',l:'Live database: interval dat het vinkje gebruikt (s)',h:'Tussen 5 en 120 seconden',n:1,int:1,min:5,max:120}]},
+ {t:'Beveiliging',f:[
+  {k:'admin_token',l:'Beheerderscode',h:'Beheerderscode nodig om instellingen te wijzigen van buiten deze pc / via cloudflared. Leeg laten = niet wijzigen.',pw:1}]}
+];
+var $=function(i){return document.getElementById(i)};
+var tcur='auto';try{tcur=localStorage.getItem('lt_theme')||'auto'}catch(e){}
+function themeApply(){var h=document.documentElement;if(tcur==='light'||tcur==='dark')h.setAttribute('data-theme',tcur);else h.removeAttribute('data-theme');
+  var b=$('themebtn');b.textContent=tcur==='light'?'\u2600 Licht':(tcur==='dark'?'\u263E Donker':'\u25D0 Auto');b.title='Thema: '+(tcur==='light'?'licht':(tcur==='dark'?'donker':'automatisch'))+' (klik om te wisselen)';b.setAttribute('aria-label',b.title)}
+$('themebtn').addEventListener('click',function(){tcur={auto:'light',light:'dark',dark:'auto'}[tcur]||'auto';try{localStorage.setItem('lt_theme',tcur)}catch(e){}themeApply()});
+themeApply();
+
+var cur={},defs={},canEdit=false,tokenSet=false,token='';
+try{token=sessionStorage.getItem('lt_admin')||''}catch(e){}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function msg(kind,text,list){var m=$('msg');if(!kind){m.className='';m.innerHTML='';return}
+ m.className=kind;m.innerHTML=esc(text)+(list&&list.length?'<ul>'+list.map(function(x){return '<li>'+esc(typeof x==='string'?x:JSON.stringify(x))+'</li>'}).join('')+'</ul>':'')}
+function hdr(){var h={'Content-Type':'application/json'};if(token)h['X-Admin-Token']=token;return h}
+function build(){
+ var h='';
+ GROUPS.forEach(function(g){
+  h+='<fieldset><legend>'+esc(g.t)+'</legend>';
+  g.f.forEach(function(f){
+   h+='<div class="row" data-k="'+f.k+'">';
+   if(f.b){h+='<label class="chk"><input type="checkbox" id="f_'+f.k+'"> '+esc(f.l)+'</label><button type="button" class="def" data-k="'+f.k+'">Standaardwaarde</button>'}
+   else{
+    h+='<label class="lbl" for="f_'+f.k+'">'+esc(f.l)+(f.soon?'<span class="badge">nog niet beschikbaar in de broadcast</span>':'')+'</label>';
+    h+=f.sel?'<select id="f_'+f.k+'">'+f.sel.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>'}).join('')+'</select>':'<input id="f_'+f.k+'" '+(f.pw?'type="password" autocomplete="new-password" placeholder="(ongewijzigd)"':(f.txt?'type="text"'+(f.k==='official_split_distances'?' placeholder="50,100,400,800"':''):'type="number" step="'+(f.step||(f.int?'1':'0.01'))+'" inputmode="decimal"'+(f.min!=null?' min="'+f.min+'" max="'+f.max+'"':'')))+'>';
+    if(!f.pw)h+='<button type="button" class="def" data-k="'+f.k+'">Standaardwaarde</button>';
+    h+='<div class="help">'+esc(f.h)+'</div>';
+   }
+   h+='</div>';
+  });
+  h+='</fieldset>';
+ });
+ $('groups').innerHTML=h;
+ document.querySelectorAll('.def').forEach(function(b){b.addEventListener('click',function(){setDef(b.dataset.k)})});
+ document.querySelectorAll('#groups input,#groups select').forEach(function(i){i.addEventListener('input',mark)});
+}
+function field(k){for(var g=0;g<GROUPS.length;g++)for(var i=0;i<GROUPS[g].f.length;i++)if(GROUPS[g].f[i].k===k)return GROUPS[g].f[i]}
+function getVal(f){var el=$('f_'+f.k);if(f.b)return el.checked;if(f.sel)return Number(el.value);if(f.pw||f.txt)return el.value;return el.value===''?null:Number(el.value)}
+function setVal(f,v){var el=$('f_'+f.k);if(f.sel&&v!=null&&!Array.prototype.some.call(el.options,function(o){return +o.value===+v}))el.add(new Option(v+' / '+(100-v),v));if(f.b)el.checked=!!v;else if(!f.pw)el.value=v==null?'':v}
+function setDef(k){var f=field(k);if(defs[k]!==undefined){setVal(f,defs[k]);mark()}}
+function mark(){
+ document.querySelectorAll('.row').forEach(function(r){
+  var f=field(r.dataset.k),ch;
+  if(f.pw)ch=$('f_'+f.k).value!=='';else ch=getVal(f)!==cur[f.k];
+  r.className='row'+(ch?' changed':'');
+ });
+}
+function lockUI(){
+ var dis=!canEdit;
+ document.querySelectorAll('#groups input,#groups select').forEach(function(i){i.disabled=dis});
+ document.querySelectorAll('.def').forEach(function(b){b.disabled=dis});
+ $('save').disabled=dis;$('lock').hidden=canEdit;
+ if(canEdit&&token)$('lock').hidden=true;
+}
+function load(){
+ return fetch('/api/settings',{headers:token?{'X-Admin-Token':token}:{}}).then(function(r){return r.json()}).then(function(d){
+  cur=d.settings||{};defs=d.defaults||{};canEdit=!!d.canEdit;tokenSet=!!d.tokenSet;
+  GROUPS.forEach(function(g){g.f.forEach(function(f){if(!f.pw)setVal(f,cur[f.k])})});
+  lockUI();mark();
+ });
+}
+$('tokbtn').addEventListener('click',function(){
+ token=$('tok').value;
+ load().then(function(){
+  if(canEdit){try{sessionStorage.setItem('lt_admin',token)}catch(e){}msg('ok','Beheerderscode aanvaard.')}
+  else{try{sessionStorage.removeItem('lt_admin')}catch(e){}msg('err','Beheerderscode onjuist.')}
+ }).catch(function(){msg('err','Kon de server niet bereiken.')});
+});
+$('form').addEventListener('submit',function(e){
+ e.preventDefault();msg();
+ var body={},n=0;
+ GROUPS.forEach(function(g){g.f.forEach(function(f){
+  var v=getVal(f);
+  if(f.pw){if(v!==''){body[f.k]=v;n++}return}
+  if(v!==cur[f.k]){if(v===null||(typeof v==='number'&&isNaN(v))){return}body[f.k]=v;n++}
+ })});
+ if(!n){msg('ok','Niets gewijzigd.');return}
+ $('save').disabled=true;
+ fetch('/api/settings',{method:'POST',headers:hdr(),body:JSON.stringify(body)}).then(function(r){
+  return r.json().catch(function(){return {}}).then(function(d){return {s:r.status,d:d}})
+ }).then(function(x){
+  if(x.s===403){msg('err','Geen toegang: beheerderscode nodig of onjuist.');canEdit=false;lockUI();return}
+  if(x.s>=400||!x.d.ok){msg('err','Opslaan mislukt.',x.d.errors);$('save').disabled=!canEdit;return}
+  if(body.admin_token){token=body.admin_token;try{sessionStorage.setItem('lt_admin',token)}catch(e){}}
+  $('f_admin_token').value='';
+  msg('ok','Instellingen opgeslagen.');return load();
+ }).catch(function(){msg('err','Kon de server niet bereiken.')}).then(function(){$('save').disabled=!canEdit});
+});
+build();
+load().catch(function(){msg('err','Kon de instellingen niet laden.')});
+})();
+</script>
+</body>
+</html>

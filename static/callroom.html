@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oproepkamer – Live timing</title>
+<script id="themeinit">
+try{var t=localStorage.getItem('lt_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}
+</script>
+<style>
+:root{color-scheme:dark;--amber:#ffa726;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--gold:#f5c542;--silver:#cfd8e0;--bronze:#d9884a;--onacc:#04121c;--onwarn:#111}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;--amber:#b45309;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--gold:#8a6400;--silver:#5b6b78;--bronze:#a2561c;--onacc:#fff;--onwarn:#fff}}
+:root[data-theme="light"]{color-scheme:light;--amber:#b45309;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--gold:#8a6400;--silver:#5b6b78;--bronze:#a2561c;--onacc:#fff;--onwarn:#fff}
+:root[data-theme="dark"]{color-scheme:dark;--amber:#ffa726;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--gold:#f5c542;--silver:#cfd8e0;--bronze:#d9884a;--onacc:#04121c;--onwarn:#111}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow-x:hidden}
+body{display:flex;flex-direction:column;min-height:100vh}
+.banner{padding:8px 16px;font-weight:600;text-align:center;background:var(--danger);color:#fff}
+.banner[hidden]{display:none}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.tbt{font-size:clamp(14px,1.4vw,22px);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tbt span{color:var(--accent)}
+.tbr{display:flex;align-items:center;gap:10px}
+.tbtn{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer}
+.mini{font-size:clamp(26px,3.4vw,52px);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini.running{color:var(--accent)}.mini.stopped{color:var(--success)}.mini.idle{color:var(--muted)}.mini.ready{color:var(--warning);font-size:18px}
+main{flex:1 1 auto;min-height:0;padding:8px 12px;display:grid;grid-template-columns:1fr;gap:12px}
+#up,#right{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.5em .7em;font-size:var(--cf,16px);min-height:0;overflow:hidden;position:relative}
+.card.first{border:2px solid var(--accent)}
+.card h3{margin:0 0 .35em;font-size:1.1em;line-height:1.25}
+.card h3 .when{background:var(--accent);color:var(--onacc);border-radius:6px;padding:0 .4em;margin-left:.3em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge{display:inline-block;background:var(--warning);color:var(--onwarn);border-radius:6px;font-size:.7em;font-weight:700;padding:.05em .5em;margin-right:.5em;vertical-align:middle}
+.tag{display:inline-block;background:var(--card2);border:1px solid var(--border);border-radius:6px;font-size:.75em;font-weight:700;padding:.05em .5em;margin-right:.5em;vertical-align:middle;color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:1em}
+th,td{padding:.18em .45em;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+th{font-size:.6em;color:var(--muted);text-transform:uppercase;font-weight:600}
+td.lane{text-align:center;font-weight:700;color:var(--muted);width:2.2em}
+td.r,th.r{text-align:right}
+td.nm{font-weight:600;max-width:20em;overflow:hidden;text-overflow:ellipsis}
+td.entry{text-align:right;font-weight:700;font-size:1.1em}
+td.entry.nt{color:var(--muted);font-weight:500}
+tr.free td{color:var(--muted);opacity:.5;font-size:.8em}
+tr.dim td{opacity:.45}
+.st{font-size:.65em;color:var(--danger);font-weight:700;border:1px solid var(--danger);border-radius:4px;padding:0 .3em;margin-left:.5em}
+.sps{white-space:normal}
+.spg{display:grid;grid-template-columns:repeat(4,minmax(4.2em,1fr));gap:2px .5em}
+.sc{display:flex;flex-direction:column;line-height:1.1}
+.sd{font-size:.5em;color:var(--muted);font-weight:600}
+.stm{font-weight:600;white-space:nowrap}
+.sc.fin .stm{font-weight:800}
+.sc.empty .stm{color:var(--muted)}
+sup.r{font-size:.55em;color:var(--muted);margin-left:2px}
+.p1{color:var(--gold)}.p2{color:var(--silver)}.p3{color:var(--bronze)}
+td.fin{font-weight:800;font-size:1.1em;text-align:right}
+td.rank{font-weight:700;text-align:center}
+.msg{padding:1.2em;text-align:center;color:var(--muted);font-size:1.1em}
+.big{font-size:clamp(18px,2.4vw,34px);padding:2em 1em;color:var(--warning);font-weight:700}
+footer{padding:3px 16px;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+footer .w{color:var(--danger);font-weight:700}
+body.idle,body.idle *{cursor:none}
+@media (min-width:1000px){
+ html,body{height:100vh;height:100dvh;overflow:hidden}
+ body{min-height:0}
+ main{grid-template-columns:minmax(0,var(--cl,60fr)) minmax(0,var(--cr,40fr))}
+ #up .card,#right .card{flex:1 1 0}
+ .card{overflow:hidden}
+}
+@media (max-width:999px){#up .card,#right .card{flex:none}.mini{font-size:28px}}
+
+html{font-size:clamp(16px,calc(.55vw + .6vh),40px)}
+body{font-size:1rem}
+.tbt{font-size:clamp(14px,1.4vw,1.4rem)}
+.mini{font-size:clamp(26px,3.4vw,3.3rem)}
+.mini.ready{font-size:max(12px,1rem)}
+th{font-size:max(11px,.6em)}
+.badge{font-size:max(11px,.7em)}
+.tag{font-size:max(11px,.75em)}
+.st{font-size:max(11px,.65em)}
+.sd{font-size:max(11px,.5em)}
+sup.r{font-size:max(11px,.55em)}
+tr.free td{font-size:max(12px,.8em)}
+footer{font-size:max(11px,.7rem)}
+.ucols{display:flex;gap:10px;flex:1 1 auto;min-height:0}
+.ucol{display:flex;flex-direction:column;gap:10px;flex:1 1 0;min-width:0;min-height:0}
+.more{flex:0 0 auto;text-align:center;font-weight:700;color:var(--muted);font-size:max(12px,.9rem);padding:2px}
+#prev[hidden]{display:none}
+.card.nextbig{border-width:3px}
+.card.nextbig h3{font-size:1.2em}
+@media (min-width:1000px){main{grid-template-rows:minmax(0,1fr)}}
+@media (max-width:999px){.ucols,.ucol{display:block}.card{margin-bottom:10px;overflow-x:auto}}
+#splash{position:fixed;inset:0;z-index:200;pointer-events:none;visibility:hidden;opacity:0;background:linear-gradient(180deg,var(--bg) 0%,var(--card2) 100%);transition:opacity .45s ease,visibility 0s linear .45s;overflow:hidden}
+#splash.on{visibility:visible;opacity:1;transition:opacity .3s ease}
+#splash svg{position:absolute;inset:0;width:100%;height:100%}
+#splash .wave{fill:var(--accent);animation:spwv linear infinite}
+#splash .w1{opacity:.22;animation-duration:3.2s}
+#splash .w2{opacity:.16;animation-duration:4.6s;animation-direction:reverse}
+#splash .w3{opacity:.30;animation-duration:2.4s}
+@keyframes spwv{to{transform:translateX(-1200px)}}
+#splash .swimmer{animation:spsw var(--sd,2s) cubic-bezier(.35,.1,.65,.9) both}
+@keyframes spsw{from{transform:translate(-200px,410px)}to{transform:translate(1400px,410px)}}
+#splash .bob{animation:spbob .5s ease-in-out infinite alternate}
+@keyframes spbob{to{transform:translateY(-9px)}}
+#splash .arm{transform-box:fill-box;transform-origin:0% 100%;animation:sparm .6s ease-in-out infinite alternate}
+@keyframes sparm{from{transform:rotate(-25deg)}to{transform:rotate(30deg)}}
+#splash .sw{fill:var(--text);stroke:var(--text)}
+#splash .bub{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;animation:spbub var(--bd,2s) ease-in infinite}
+@keyframes spbub{0%{transform:translateY(0);opacity:0}25%{opacity:.7}100%{transform:translateY(-420px);opacity:0}}
+#splash .spt{position:absolute;left:0;right:0;top:34%;text-align:center;padding:0 5vw;color:var(--text);opacity:0}
+#splash.on .spt{animation:spfade .6s .1s ease both}
+@keyframes spfade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#splash .sp1{font-size:clamp(26px,5.5vw,5.5rem);font-weight:800;line-height:1.15}
+#splash .sp2{font-size:clamp(18px,3vw,3rem);color:var(--accent);font-weight:700;margin-top:.5em}
+@media (prefers-reduced-motion:reduce){#splash svg{display:none}#splash.on .spt{animation:spfade2 .4s ease both}@keyframes spfade2{from{opacity:0}to{opacity:1}}}
+</style>
+</head>
+<body>
+<div id="bnConn" class="banner" role="alert" hidden>Verbinding met de server verbroken – opnieuw verbinden…</div>
+<div class="topbar"><span class="tbt" id="tbt"><span>Oproepkamer</span></span><span class="tbr"><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
+<main>
+ <section id="up" aria-label="Aankomende reeksen"></section>
+ <section id="right"><div class="card" id="now"></div><div class="card" id="prev" hidden></div></section>
+</main>
+<footer><span id="f1"></span><span>sneltoetsen: F volledig scherm · T thema · <span id="cstat">Verbinden…</span></span></footer>
+<div id="splash" aria-hidden="true"><svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g id="spg"></g></svg><div class="spt"><div class="sp1" id="sp1"></div><div class="sp2" id="sp2"></div></div></div>
+<script>
+(function(){
+'use strict';
+var S=null,H=[],CR=null,clk={status:'idle',rt:null,at:0},demo=/[?&]demo=1/.test(location.search);
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function p2(n){return n<10?'0'+n:''+n}
+function fmt(t){if(t==null)return '';var c=Math.floor(t/100),s=Math.floor(c/100),h=c%100,m=Math.floor(s/60);return m>0?m+':'+p2(s%60)+'.'+p2(h):s+'.'+p2(h)}
+function fmtRT(t){if(t==null)return '';var c=Math.floor(t/100);return Math.floor(c/100)+'.'+p2(c%100)}
+function fmtClock(t){var s=Math.floor(t/10000),m=Math.floor(s/60);return m+':'+p2(s%60)}
+function fdt(x){if(!x)return '';var d=new Date(x);if(isNaN(d))return String(x);return d.toLocaleString('nl-BE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+function name(l){return ((l.firstName||'')+' '+(l.lastName||'')).trim()||l.team||''}
+function kiosk(){return window.matchMedia('(min-width:1000px)').matches}
+function heatKey(s){return s&&s.event&&s.heat?s.event.number+'/'+s.heat.number:''}
+function title(e,h){return ['Event '+(e&&e.number||'?'),e&&e.discipline,(h&&(h.name||('Serie '+(h.number||'?'))))].filter(Boolean).join(' · ')}
+
+/* thema */
+var tcur='auto';try{tcur=localStorage.getItem('lt_theme')||'auto'}catch(e){}
+function themeApply(){var h=document.documentElement;if(tcur==='light'||tcur==='dark')h.setAttribute('data-theme',tcur);else h.removeAttribute('data-theme');
+  var b=$('themebtn');b.textContent=tcur==='light'?'☀ Licht':(tcur==='dark'?'☾ Donker':'◐ Auto');b.setAttribute('aria-label','Thema wisselen')}
+$('themebtn').addEventListener('click',function(){tcur={auto:'light',light:'dark',dark:'auto'}[tcur]||'auto';try{localStorage.setItem('lt_theme',tcur)}catch(e){}themeApply()});
+themeApply();
+
+/* fit */
+function fitBox(box,key,start,min,max){
+  var f=start;
+  function set(v){box.style.setProperty(key,v+'px')}
+  function over(){return box.scrollHeight>box.clientHeight+1||box.scrollWidth>box.clientWidth+1}
+  set(f);
+  while(over()&&f>min){f-=0.5;set(f)}
+  while(f<max){set(f+0.5);if(over()){set(f);break}f+=0.5}
+  box._f=f;return f;
+}
+function persistScroll(w){
+  if(w._ts)return;w._ts=true;
+  var pos=0,dir=1,wait=2500,last=performance.now();
+  (function step(now){
+    if(!kiosk()){w._ts=false;return}
+    var dt=now-last;last=now;var max=w.scrollHeight-w.clientHeight;
+    if(max<=1){pos=0;if(w.scrollTop)w.scrollTop=0;wait=2500;dir=1}
+    else if(wait>0)wait-=dt;
+    else{pos+=dir*20*dt/1000;if(pos>=max){pos=max;dir=-1;wait=2500}else if(pos<=0){pos=0;dir=1;wait=2500}w.scrollTop=pos}
+    requestAnimationFrame(step);
+  })(last);
+}
+function fitEl(el){if(!kiosk())return;fitBox(el,'--cf',el._f||26*sc()/16,12,26*sc()/16);persistScroll(el)}
+
+/* aankomende reeksen */
+var upSig='';
+function upcomingList(){
+  var cur=(S&&S.showing!=='previous'&&S.event&&S.heat)?heatKey(S):null;
+  return ((CR&&CR.upcoming)||[]).filter(function(h){
+    if(h.finished)return false;
+    if(cur&&h.event&&h.heat&&(h.event.number+'/'+h.heat.number)===cur)return false;
+    return true;
+  });
+}
+function maxLane(h){var m=8;(h.lanes||[]).forEach(function(l){if(l.lane>m)m=l.lane});return m}
+function needPx(h){return (h.lanesKnown===false||!(h.lanes&&h.lanes.length))?60:60+maxLane(h)*20}
+function sc(){return parseFloat(getComputedStyle(document.documentElement).fontSize)||16}
+function cardHtml(h,i){
+    var hh=h.heat||{};
+    if(h.lanesKnown===false||!(h.lanes&&h.lanes.length))
+      return '<section class="card'+(i===0?' first':'')+'" style="flex:0 0 auto"><h3>'+(i===0?'<span class="badge">Volgende</span>':'')+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+'</h3><div class="msg" style="padding:.3em">Startlijst nog niet beschikbaar — synchroniseer de database</div></section>';
+    var ls=h.lanes||[],by={},mx=8;
+    ls.forEach(function(l){by[l.lane]=l;if(l.lane>mx)mx=l.lane});
+    var rows='';
+    for(var n=1;n<=mx;n++){
+      var l=by[n];
+      if(!l||(!name(l)&&!l.club)){rows+='<tr class="free"><td class="lane">'+n+'</td><td colspan="3">—</td></tr>';continue}
+      rows+='<tr'+(l.status?' class="dim"':'')+'><td class="lane">'+n+'</td><td class="nm">'+esc(name(l))+(l.status?'<span class="st">'+esc(l.status)+'</span>':'')+'</td><td>'+esc(l.club||'')+'</td><td class="entry'+(l.entryTime==null?' nt':'')+'">'+(l.entryTime!=null?fmt(l.entryTime):'NT')+'</td></tr>';
+    }
+    return '<section class="card'+(i===0?' first':'')+'" style="flex:'+(mx+2)+' 1 0"><h3>'+(i===0?'<span class="badge">Volgende</span>':'')+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+'</h3><table><thead><tr><th>Baan</th><th>Naam</th><th>Club</th><th class="r">Inschrijftijd</th></tr></thead><tbody>'+rows+'</tbody></table></section>';
+}
+function packCols(up,nc,av){
+  var cols=[],used=[],cur=0,n=0,GAP=10,i;
+  for(i=0;i<nc;i++){cols.push([]);used.push(0)}
+  for(i=0;i<up.length;i++){
+    var need=needPx(up[i])+GAP;
+    if(used[cur]+need>av+GAP){cur++;if(cur>=nc)break;if(need>av+GAP)break}
+    cols[cur].push(up[i]);used[cur]+=need;n++;
+  }
+  return {cols:cols,n:n};
+}
+function bigify(html,px,full){
+  return html.replace('class="card','class="card nextbig').replace(/style="[^"]*"/,'style="flex:'+(full?'1 1 0':'0 0 '+px+'px')+'"');
+}
+function so(k,d){var v=S&&S.settings&&S.settings[k];return v==null?d:v}
+function nextBig(){return so('callroom_next_big',true)!==false}
+function nextScale(){var v=parseFloat(so('callroom_next_scale',1.6));return isNaN(v)?1.6:Math.max(1,Math.min(2.5,v))}
+function showPrev(){return so('callroom_show_previous',false)===true}
+var lastSet='';
+function applySettings(){
+  var pct=parseInt(so('callroom_split_left_pct',60),10);if(!(pct>0))pct=60;pct=Math.max(40,Math.min(80,pct));
+  var key=pct+'|'+nextBig()+'|'+nextScale()+'|'+showPrev()+'|'+so('callroom_heats',0);
+  if(key===lastSet)return;lastSet=key;
+  var m=document.querySelector('main');m.style.setProperty('--cl',pct+'fr');m.style.setProperty('--cr',(100-pct)+'fr');
+  upSig='';prevSig='';$('now')._f=0;$('prev')._f=0;
+}
+function renderUp(){
+  var all=upcomingList(),box=$('up'),k=kiosk();
+  var cap=(S&&S.settings&&S.settings.callroom_heats>0)?S.settings.callroom_heats:all.length;
+  var up=all.slice(0,cap),avail=k?box.clientHeight:0,W=box.clientWidth;
+  var sig=JSON.stringify(up)+'|'+k+'|'+avail+'|'+W+'|'+all.length+'|'+nextBig()+'|'+nextScale();
+  if(sig===upSig)return;upSig=sig;
+  if(!up.length){box.innerHTML='<div class="card"><div class="msg big">Geen programma beschikbaar — synchroniseer de database via /jury → Database</div></div>';return}
+  var first=up[0],bigOK=nextBig()&&!!(first&&first.lanesKnown!==false&&first.lanes&&first.lanes.length);
+  var rest=bigOK?up.slice(1):up,bigH=0,full=false;
+  if(k&&avail>0&&bigOK){full=!rest.length;bigH=full?avail:Math.max(needPx(first),Math.round(avail*0.45))}
+  var availRest=avail-(bigH&&!full?bigH+10:0);
+  var cols=[rest],shown=up.length;
+  if(k&&avail>0){
+    var pk=function(nc){var p=packCols(rest,nc,availRest);if(p.n<rest.length)p=packCols(rest,nc,availRest-30);return p};
+    var best=pk(1);
+    if(W>=600){var p2=pk(2);if(p2.n>best.n)best=p2}
+    cols=best.cols.filter(function(c){return c.length});shown=(bigOK?1:0)+best.n;
+  }
+  var more=all.length-shown;
+  var bigHtml=bigOK?(k?bigify(cardHtml(first,0),bigH,full):cardHtml(first,0).replace('class="card','class="card nextbig')):'';
+  box.innerHTML=bigHtml+(cols.length?'<div class="ucols">'+cols.map(function(col){return '<div class="ucol">'+col.map(function(h){return cardHtml(h,up.indexOf(h))}).join('')+'</div>'}).join('')+'</div>':'')+(more>0?'<div class="more">+'+more+' volgende '+(more===1?'reeks':'reeksen')+'</div>':'');
+  if(k)Array.prototype.forEach.call(box.querySelectorAll('.card'),function(c){c._f=0;var mxf=(c.classList.contains('nextbig')?26*nextScale():26)*sc()/16;fitBox(c,'--cf',mxf,12,mxf);if(c.scrollHeight>c.clientHeight+1)persistScroll(c)});
+}
+
+/* nu + vorige */
+function sbox(l,d,fin){
+  var sp=null;(l.splits||[]).forEach(function(x){if(x.distance===d)sp=x});
+  var t=fin?(l.final!=null?l.final:(sp?sp.time:null)):(sp?sp.time:null);
+  if(t==null)return '<span class="sc empty"><span class="sd">'+d+'</span><span class="stm">–</span></span>';
+  return '<span class="sc'+(fin?' fin':'')+'"><span class="sd">'+d+'</span><span class="stm">'+fmt(t)+(!fin&&sp&&sp.rank!=null?'<sup class="r">'+sp.rank+'</sup>':'')+'</span></span>';
+}
+function liveTable(s){
+  var dist=(s.heat&&s.heat.distance)||0,D=(s.officialDistances||[]).filter(function(d){return !dist||d<dist}).sort(function(a,b){return a-b});
+  if(dist)D.push(dist);
+  var ls=(s.lanes||[]).slice().sort(function(a,b){
+    if(s.layout==='RankOriented'){var ra=a.rank==null?1e9:a.rank,rb=b.rank==null?1e9:b.rank;if(ra!==rb)return ra-rb}
+    return a.lane-b.lane});
+  var h='<table><thead><tr><th>Baan</th><th>Naam</th><th>Club</th><th class="r">RT</th>'+(D.length?'<th>Tussentijden</th>':'')+'<th class="r">Eindtijd</th><th>Pl.</th></tr></thead><tbody>';
+  ls.forEach(function(l){
+    if(!name(l)&&(!l.splits||!l.splits.length)&&l.final==null){h+='<tr class="free"><td class="lane">'+l.lane+'</td><td colspan="'+(D.length?6:5)+'">—</td></tr>';return}
+    var top=l.final!=null&&l.rank>=1&&l.rank<=3;
+    h+='<tr><td class="lane">'+l.lane+'</td><td class="nm">'+esc(name(l))+'</td><td>'+esc(l.club||'')+'</td><td class="r" style="color:var(--muted)">'+fmtRT(l.reaction)+'</td>';
+    if(D.length)h+='<td class="sps"><div class="spg">'+D.map(function(d){return sbox(l,d,dist>0&&d===dist)}).join('')+'</div></td>';
+    h+='<td class="fin'+(top?' p'+l.rank:'')+'">'+(l.final!=null?fmt(l.final):'')+'</td><td class="rank'+(top?' p'+l.rank:'')+'">'+(l.rank!=null?l.rank:'')+'</td></tr>';
+  });
+  return h+'</tbody></table>';
+}
+function renderNow(){
+  var b=$('now');
+  if(!S){b.innerHTML='<div class="msg">Wachten op gegevens…</div>';return}
+  if(S.showing==='previous'){
+    var n=S.next,t=n?title(n.event,n.heat)+(n.heat&&n.heat.startTime?' · gepland '+n.heat.startTime:''):'';
+    b.innerHTML='<h3><span class="tag">Nu</span>Wachten op start van de volgende reeks</h3>'+(t?'<div class="msg">'+esc(t)+'</div>':'');
+  }else b.innerHTML='<h3><span class="tag">Nu</span>'+esc(title(S.event,S.heat))+'</h3>'+liveTable(S);
+  fitEl(b);
+}
+var prevSig='';
+function prevHeat(){
+  if(S&&S.showing==='previous')return {event:S.event,heat:S.heat,lanes:S.lanes};
+  return H[0]||null;
+}
+function renderPrev(){
+  var b=$('prev');
+  if(!showPrev()){b.hidden=true;prevSig='';return}
+  b.hidden=false;
+  var hp=prevHeat(),sig=JSON.stringify(hp)+kiosk();
+  if(sig===prevSig)return;prevSig=sig;
+  if(!hp){b.innerHTML='<h3><span class="tag">Vorige reeks</span></h3><div class="msg">Nog geen afgelopen reeks.</div>';return}
+  var ls=(hp.lanes||[]).filter(function(l){return name(l)}).sort(function(a,b){var ra=a.rank==null?1e9:a.rank,rb=b.rank==null?1e9:b.rank;return ra-rb||a.lane-b.lane});
+  b.innerHTML='<h3><span class="tag">Vorige reeks</span>'+esc(title(hp.event,hp.heat))+'</h3><table><thead><tr><th>Pl.</th><th>Baan</th><th>Naam</th><th>Club</th><th class="r">Eindtijd</th></tr></thead><tbody>'+ls.map(function(l){
+    var pc=l.rank>=1&&l.rank<=3?' p'+l.rank:'';
+    return '<tr><td class="rank'+pc+'">'+(l.rank!=null?l.rank:'–')+'</td><td class="lane">'+l.lane+'</td><td class="nm">'+esc(name(l))+'</td><td>'+esc(l.club||'')+'</td><td class="fin'+pc+'">'+(l.final!=null?fmt(l.final):'–')+'</td></tr>';
+  }).join('')+'</tbody></table>';
+  b._f=0;fitEl(b);
+}
+
+/* kop / footer / klok */
+function renderHead(){
+  var m=S&&S.meet&&S.meet.name;
+  $('tbt').innerHTML=(m?esc(m)+' · ':'')+'<span>Oproepkamer</span>';
+  var f='';
+  if(CR&&CR.db&&CR.db.loadedAt)f='programma uit databasekopie van '+esc(fdt(CR.db.loadedAt));
+  if(CR&&CR.matched===false)f+=(f?' · ':'')+'<span class="w">huidige reeks niet gevonden in het programma — synchroniseer de database</span>';
+  $('f1').innerHTML=f;
+}
+function allFinished(){
+  if(!S||!S.lanes)return null;
+  var n=S.lanes.filter(function(l){return name(l)});if(!n.length)return null;
+  if(!n.every(function(l){return l.finished}))return null;
+  var best=null;n.forEach(function(l){if(l.final!=null&&(best==null||l.final<best))best=l.final});return best;
+}
+function frame(){
+  var el=$('mini'),st=clk.status,txt,cls,fin=allFinished();
+  if(fin!=null&&st!=='ready'){txt=fmt(fin);cls='stopped'}
+  else if(st==='running'&&clk.rt!=null){txt=fmtClock(clk.rt+Math.min(300,performance.now()-clk.at)*10);cls='running'}
+  else if(st==='ready'){txt='Klaar voor start';cls='ready'}
+  else{txt='--.-';cls='idle'}
+  if(el.textContent!==txt)el.textContent=txt;
+  if(el.className!=='mini '+cls)el.className='mini '+cls;
+  requestAnimationFrame(frame);
+}
+
+/* data */
+function pollCR(){
+  if(demo)return;
+  fetch('/api/callroom').then(function(r){return r.json()}).then(function(d){CR=d;renderHead();renderUp()}).catch(function(){});
+}
+var lastKey='';
+function applyState(s){
+  if(!s)return;
+  if(S&&heatKey(S)&&heatKey(s)&&heatKey(S)!==heatKey(s)&&splashAllowed(s))showSplash(s);
+  var k=(s.showing||'')+'|'+heatKey(s);
+  S=s;if(s.clock){clk.status=s.clock.status;clk.rt=s.clock.rt;clk.at=performance.now()}
+  if(k!==lastKey){lastKey=k;pollCR()}
+  applySettings();
+  renderHead();renderUp();renderNow();renderPrev();
+}
+function applyHistory(a){H=Array.isArray(a)?a:[];renderPrev();renderUp()}
+var splashT=null,splashInit=false;
+function splashBuild(){
+  if(splashInit)return;splashInit=true;
+  function wp(y,a){var d='M0 '+y;for(var x=0;x<2400;x+=150)d+=' q 37.5 '+(-a)+' 75 0 t 75 0';return d+' V600 H0Z'}
+  var h='';
+  for(var i=0;i<12;i++){var cx=60+Math.random()*1080,r0=3+Math.random()*7;h+='<circle class="bub" cx="'+cx.toFixed(0)+'" cy="'+(560-Math.random()*80).toFixed(0)+'" r="'+r0.toFixed(1)+'" style="--bd:'+(1.4+Math.random()*1.6).toFixed(1)+'s;animation-delay:-'+(Math.random()*2).toFixed(1)+'s"/>'}
+  h+='<path class="wave w2" d="'+wp(440,26)+'"/>';
+  h+='<g class="swimmer"><g class="bob"><ellipse class="sw" cx="0" cy="0" rx="46" ry="11"/><circle class="sw" cx="54" cy="-4" r="11"/><path class="sw arm" d="M8 -6 Q 30 -50 64 -32" fill="none" stroke-width="8" stroke-linecap="round"/><path class="sw" d="M-44 0 Q-70 8 -88 -2" fill="none" stroke-width="7" stroke-linecap="round"/></g></g>';
+  h+='<path class="wave w1" d="'+wp(430,22)+'"/><path class="wave w3" d="'+wp(470,18)+'"/>';
+  $('spg').innerHTML=h;
+}
+function splashAllowed(s){
+  var st=s.settings||{};
+  return st.splash_enabled!==false&&st.splash_callroom!==false;
+}
+function showSplash(s){
+  var sp=$('splash'),e=s.event||{},h=s.heat||{},st=s.settings||{};
+  var secs=parseFloat(st.splash_seconds);if(isNaN(secs))secs=2;secs=Math.max(0.5,Math.min(5,secs));
+  splashBuild();
+  $('sp1').textContent=['Event '+(e.number||'?'),e.discipline].filter(Boolean).join(' · ');
+  $('sp2').textContent=(h.name||('Serie '+(h.number||'?')))+(h.startTime?' · gepland '+h.startTime:'');
+  sp.style.setProperty('--sd',secs+'s');
+  clearTimeout(splashT);sp.classList.remove('on');void sp.offsetWidth;sp.classList.add('on');
+  splashT=setTimeout(function(){sp.classList.remove('on')},secs*1000);
+}
+function applyClock(c){if(c){clk.status=c.status;clk.rt=c.rt;clk.at=performance.now()}}
+function setConn(ok){$('bnConn').hidden=ok;$('cstat').textContent=ok?'Verbonden':'Verbinding verbroken'}
+function live(){
+  fetch('/state').then(function(r){return r.json()}).then(applyState).catch(function(){});
+  fetch('/history').then(function(r){return r.json()}).then(applyHistory).catch(function(){});
+  pollCR();setInterval(pollCR,5000);
+  var es=new EventSource('/events');
+  es.onopen=function(){setConn(true)};
+  es.onerror=function(){setConn(false)};
+  es.addEventListener('state',function(e){try{setConn(true);applyState(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('history',function(e){try{applyHistory(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('clock',function(e){try{applyClock(JSON.parse(e.data))}catch(x){}});
+}
+
+/* demo */
+function demoRun(){
+  var names=[['Anse','Vreys','DBT'],['Lotte','Claes','DMB'],['Emma','Janssens','GZVN'],['Fien','Peeters','HZS'],['Noor','Willems','STZC'],['Elise','Maes','ZPL']];
+  function ent(){return (650000+Math.random()*300000)|0}
+  function lane(n,i,t){return {lane:n,firstName:names[i][0],lastName:names[i][1],club:names[i][2],team:'',entryTime:t===undefined?ent():t,status:''}}
+  CR={matched:true,count:3,db:{loadedAt:new Date().toISOString(),loadedFile:'kopie.mdb',heats:44},upcoming:[
+    {session:'3',event:{number:'23',discipline:'100m Wisselslag dames'},heat:{number:'2',name:'Serie 2',distance:100,startTime:'14:02'},relay:false,finished:false,
+     lanes:[lane(1,0),lane(2,1),lane(3,2,null),lane(4,3),lane(5,4),lane(6,5)].map(function(l,i){if(i===4)l.status='afgemeld';return l})},
+    {session:'3',event:{number:'24',discipline:'4x50m Vrije slag gemengd'},heat:{number:'1',name:'Serie 1',distance:200,startTime:'14:11'},relay:true,finished:false,
+     lanes:[{lane:3,team:'DMB 1',club:'DMB',entryTime:1180000,firstName:'',lastName:'',status:''},{lane:4,team:'DBT 1',club:'DBT',entryTime:1195000,firstName:'',lastName:'',status:''},{lane:5,team:'HZS 1',club:'HZS',entryTime:null,firstName:'',lastName:'',status:''}]},
+    {session:'3',event:{number:'26',discipline:'50m Vlinderslag dames'},heat:{number:'1',name:'Serie 1',distance:50,startTime:'14:35'},relay:false,finished:false,lanesKnown:false,lanes:[]},
+    {session:'3',event:{number:'25',discipline:'200m Rugslag heren'},heat:{number:'1',name:'Serie 1',distance:200,startTime:'14:20'},relay:false,finished:false,
+     lanes:[lane(2,1),lane(3,0),lane(4,2),lane(5,3),lane(6,4)]}]};
+  H=[{event:{number:'21',discipline:'100m Schoolslag heren'},heat:{number:'3',name:'Serie 3'},lanes:[
+    {lane:4,firstName:'Jonas',lastName:'Hermans',club:'GZVN',final:735210,rank:1},{lane:3,firstName:'Wout',lastName:'Dierckx',club:'DMB',final:741877,rank:2},{lane:5,firstName:'Tibo',lastName:'Smets',club:'STZC',final:758002,rank:3}]}];
+  var hn=4,t0=performance.now(),base=names.map(function(){return (700000+Math.random()*150000)|0}),doneAt=0;
+  setInterval(function(){
+    var now=performance.now(),el=Math.floor((now-t0)*10*4),lanes=names.map(function(n,i){
+      var l={lane:i+1,firstName:n[0],lastName:n[1],club:n[2],reaction:7000+i*300,splits:[],final:null,rank:null,finished:false};
+      if(el>base[i]*0.48)l.splits.push({distance:50,time:(base[i]*0.48)|0,rank:null});
+      if(el>base[i]){l.final=base[i];l.finished=true}
+      return l});
+    var a=lanes.filter(function(l){return l.splits.length}).sort(function(x,y){return x.splits[0].time-y.splits[0].time});a.forEach(function(l,k){l.splits[0].rank=k+1});
+    var f=lanes.filter(function(l){return l.final!=null}).sort(function(x,y){return x.final-y.final});f.forEach(function(l,k){l.rank=k+1});
+    lanes.forEach(function(l){if(l.rank==null&&l.splits.length)l.rank=l.splits[0].rank});
+    var done=lanes.every(function(l){return l.finished});
+    if(done&&!doneAt)doneAt=now;
+    if(done&&now-doneAt>6000){t0=now;doneAt=0;hn++}
+    applyState({settings:{callroom_heats:4,callroom_next_big:true,callroom_next_scale:1.6,callroom_show_previous:true,callroom_split_left_pct:60,splash_enabled:true,splash_seconds:2,splash_callroom:true},meet:{name:'PK 25m Limburg 2026'},event:{number:'22',discipline:'100m Vrije slag dames'},heat:{number:''+hn,name:'Serie '+hn,startTime:'14:'+(50+hn),distance:100,laps:2},layout:done?'RankOriented':'LaneOriented',officialDistances:[50],clock:{status:done?'idle':'running',rt:done?null:el},lanes:lanes});
+  },200);
+  setConn(true);
+}
+
+window.addEventListener('resize',function(){upSig='';prevSig='';renderUp();renderNow();renderPrev()});
+document.addEventListener('keydown',function(e){
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
+  var k=(e.key||'').toLowerCase();
+  if(k==='f'){if(document.fullscreenElement)document.exitFullscreen();else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen()}
+  else if(k==='t')$('themebtn').click();
+});
+var idleT,wake=function(){document.body.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(function(){document.body.classList.add('idle')},3000)};
+['mousemove','mousedown','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,wake)});wake();
+requestAnimationFrame(frame);
+renderUp();renderNow();renderPrev();
+if(demo){document.title+=' (demo)';demoRun()}else live();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Persoonsgegevens (namen/geboortedata van zwemmers): NIET committen zolang de repo openbaar is.
+# Zodra de repo privé is, bewust toevoegen met: git add -f db/ logs/ history.json *.pcapng
+db/
+logs/
+history.json
+*.pcapng
+*.evtx
+*.smb
+*.mdb
+*.ldb
+# runtime / tijdelijk
+__pycache__/
+*.pyc
+*.part
+*.tmp
+tools/_patch_*.py
+tools/_db_block.py

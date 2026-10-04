@@ -1,0 +1,22 @@
+{
+  "manual_threshold_s": 1.5,
+  "clear_grace_s": 3.0,
+  "stale_after_s": 10.0,
+  "history_max": 200,
+  "show_reaction": true,
+  "show_manual": true,
+  "show_suspect": true,
+  "show_clock": true,
+  "official_split_distances": "50,100,200,400,800",
+  "public_all_splits": true,
+  "hold_previous_until_start": false,
+  "overview_heats": 2,
+  "db_source_path": "W:\\2026_PK.mdb",
+  "db_auto_after_heat": false,
+  "db_after_heat_delay_s": 10.0,
+  "db_interval_s": 0.0,
+  "relay_min_takeover_s": -0.03,
+  "max_peer_panel_diff_s": 0.3,
+  "show_peer": true,
+  "admin_token": ""
+}
