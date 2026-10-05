@@ -1260,7 +1260,7 @@ def gh_check():
     if not u.get("repo"):
         raise RuntimeError("geen GitHub-repo ingesteld")
     rel = json.loads(gh_request(f"https://api.github.com/repos/{u['repo']}/releases/latest", u.get("token")))
-    asset = next((a for a in rel.get("assets", []) if re.match(r"khzs-timing-.*\.zip$", a.get("name", ""))), None)
+    asset = next((a for a in rel.get("assets", []) if re.fullmatch(r"khzs-timing-[0-9][0-9.]*\.zip", a.get("name", ""))), None)   # niet het image-zip
     ver = (rel.get("tag_name") or "").lstrip("vV")
     info = {"version": ver, "name": rel.get("name") or rel.get("tag_name"), "notes": (rel.get("body") or "")[:2000],
             "published": rel.get("published_at"), "asset": asset and asset["url"],

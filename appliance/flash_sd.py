@@ -80,7 +80,7 @@ def fail(what):
 
 def open_disk(n):
     h = k32.CreateFileW(rf"\\.\PhysicalDrive{n}", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                        None, OPEN_EXISTING, FILE_FLAG_WRITE_THROUGH, None)
+                        None, OPEN_EXISTING, 0, None)          # zonder write-through: veel sneller; FlushFileBuffers op het einde
     if h in (None, INVALID):
         fail("schijf openen")
     return h
