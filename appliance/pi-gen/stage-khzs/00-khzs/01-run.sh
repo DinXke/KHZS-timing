@@ -24,6 +24,9 @@ install -m 644 "${F}/conf/motd" "${ROOTFS_DIR}/etc/motd"
 if [ -f "${F}/wifi-home.nmconnection" ]; then
 	install -d -m 700 "${ROOTFS_DIR}/etc/NetworkManager/system-connections"
 	install -m 600 "${F}/wifi-home.nmconnection" "${ROOTFS_DIR}/etc/NetworkManager/system-connections/wifi-home.nmconnection"
+else
+	# publiek image: nooit een Wi-Fi uit een vorige (privé)build meenemen (ONLY_KHZS hergebruikt de rootfs)
+	rm -f "${ROOTFS_DIR}/etc/NetworkManager/system-connections/wifi-home.nmconnection"
 fi
 
 # ---- gegevensmap met standaardinstellingen (beheerderscode, hotspot)
@@ -49,6 +52,8 @@ grep -q "consoleblank=0" "${CMD}" || sed -i '1 s/$/ consoleblank=0 quiet logleve
 
 on_chroot << EOF
 set -e
+# noodwachtwoord altijd opnieuw zetten (ONLY_KHZS hergebruikt de gebruikers van de vorige build)
+echo "${FIRST_USER_NAME}:${FIRST_USER_PASS}" | chpasswd
 # gebruikers: 'khzs' (server, bestaat al als eerste gebruiker), 'kiosk' (HDMI-scherm)
 id kiosk >/dev/null 2>&1 || useradd -m -s /usr/sbin/nologin -G video,render,input kiosk
 chown -R khzs:khzs /var/lib/khzs
