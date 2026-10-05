@@ -15,3 +15,22 @@ __pycache__/
 *.tmp
 tools/_patch_*.py
 tools/_db_block.py
+relay/
+
+# geheimen
+*.env
+proxmox.env
+relay_cache.json
+relay_cache.json.tmp
+dist/
+info.json
+info.json.tmp
+stats.json
+stats.json.tmp
+# lokale instellingen (bevatten codes/tokens): voorbeeld = settings.example.json
+settings.json
+settings.json.tmp
+.claude/
+appliance/secrets.env
+appliance/plymouth/preview.png
+appliance/plymouth/bron/woordmerk-voorbeeld.png

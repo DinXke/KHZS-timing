@@ -1,190 +1,1047 @@
 <!DOCTYPE html>
 <html lang="nl-BE">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Instellingen – Live timing</title>
-<script id="themeinit">
-try{var t=localStorage.getItem('lt_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}
-</script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Beheer – KHZS Timing</title>
+<script>try{var t=localStorage.getItem('lt_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <style>
-:root{color-scheme:dark;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--onacc:#04121c;--onwarn:#111;--onok:#04121c;}
-@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--onacc:#fff;--onwarn:#fff;--onok:#fff;}}
-:root[data-theme="light"]{color-scheme:light;--bg:#eef3f7;--card:#fff;--card2:#f2f7fb;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e;--success:#047857;--warning:#92600a;--onacc:#fff;--onwarn:#fff;--onok:#fff;}
-:root[data-theme="dark"]{color-scheme:dark;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d;--success:#34d399;--warning:#fbbf24;--onacc:#04121c;--onwarn:#111;--onok:#04121c;}
+:root{color-scheme:dark;--bg:#07131f;--bg2:#0a1928;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;
+--accent:#38bdf8;--accent2:#0ea5e9;--onacc:#06121c;--ok:#34d399;--warn:#fbbf24;--bad:#ff5d5d;--amber:#ffa726;--shadow:0 6px 24px rgba(0,0,0,.25);--r:14px}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#eef3f7;--bg2:#e4ecf2;--card:#fff;--card2:#f4f8fb;--border:#c9d7e2;--text:#0b1f30;--muted:#51697d;--accent:#0369a1;--accent2:#0284c7;--onacc:#fff;--ok:#047857;--warn:#a16207;--bad:#c81e1e;--amber:#b45309;--shadow:0 4px 18px rgba(15,40,60,.08)}}
+:root[data-theme="light"]{color-scheme:light;--bg:#eef3f7;--bg2:#e4ecf2;--card:#fff;--card2:#f4f8fb;--border:#c9d7e2;--text:#0b1f30;--muted:#51697d;--accent:#0369a1;--accent2:#0284c7;--onacc:#fff;--ok:#047857;--warn:#a16207;--bad:#c81e1e;--amber:#b45309;--shadow:0 4px 18px rgba(15,40,60,.08)}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow-x:hidden}
-main{max-width:760px;margin:0 auto;padding:12px 16px 40px}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 a{color:var(--accent)}
-h1{font-size:24px;margin:8px 0 4px}
-fieldset{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:16px 0;padding:8px 14px 14px}
-legend{font-weight:700;padding:0 6px}
-.row{padding:10px 0;border-bottom:1px solid var(--border)}
-.row:last-child{border-bottom:0}
-.row label.lbl{display:block;font-weight:600;margin-bottom:6px}
-.help{font-size:12px;color:var(--muted);margin-top:4px}
-select,input[type=number],input[type=password],input[type=text]{width:100%;max-width:220px;padding:9px;font-size:16px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-variant-numeric:tabular-nums}
-input:disabled{opacity:.6}
-.chk{display:flex;gap:10px;align-items:center;font-weight:600}
-.chk input{width:20px;height:20px}
-.def{font-size:12px;margin-left:10px;cursor:pointer;background:none;border:0;color:var(--accent);text-decoration:underline;padding:0}
-.def:disabled{display:none}
-.badge{font-size:11px;background:var(--warning);color:var(--onwarn);border-radius:6px;padding:1px 6px;margin-left:8px;font-weight:700;vertical-align:middle}
-.changed input{border-color:var(--accent)}
-button.save{background:var(--accent);color:var(--onacc);border:0;border-radius:8px;padding:12px 22px;font-size:16px;font-weight:700;cursor:pointer}
-button.save:disabled{opacity:.5;cursor:not-allowed}
-#msg{margin:12px 0;padding:10px 12px;border-radius:8px;display:none}
-#msg.ok{display:block;background:var(--success);color:var(--onok)}
-#msg.err{display:block;background:var(--danger);color:#fff}
-#msg ul{margin:4px 0 0 18px;padding:0}
-.lock{background:var(--card);border:1px solid var(--warning);border-radius:12px;padding:12px 14px;margin:12px 0}
-.lock[hidden]{display:none}
-
-.tbr{display:flex;align-items:center;gap:10px}
-.tbtn{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+button,input,select,textarea{font:inherit;color:inherit}
+/* ---- kop */
+.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;padding:10px 18px;background:var(--card);border-bottom:1px solid var(--border)}
+.brand{font-weight:800;font-size:17px;white-space:nowrap}.brand span{color:var(--accent)}
+.sub{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.top .sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;background:var(--card2);border:1px solid var(--border);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:0 0 auto}.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card2);cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap;text-decoration:none;color:var(--text)}
+.btn:hover{border-color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--onacc)}.btn.pri:hover{background:var(--accent2)}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 50%,var(--border))}
+.btn.sm{padding:4px 10px;font-size:13px;border-radius:8px}
+.icon-btn{background:none;border:1px solid var(--border);border-radius:10px;padding:6px 10px;cursor:pointer;color:var(--text)}
+/* ---- indeling */
+.layout{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:calc(100vh - 54px)}
+nav{background:var(--bg2);border-right:1px solid var(--border);padding:14px 10px;position:sticky;top:54px;height:calc(100vh - 54px);overflow:auto}
+nav h4{margin:14px 10px 6px;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;color:var(--text);text-decoration:none;font-weight:500;margin:1px 0}
+nav a:hover{background:var(--card2)}
+nav a.on{background:var(--card);box-shadow:inset 3px 0 0 var(--accent);font-weight:700}
+nav a .ic{width:22px;text-align:center;opacity:.9}
+nav a .badge{margin-left:auto;background:var(--amber);color:#111;border-radius:999px;font-size:11px;font-weight:800;padding:0 7px}
+main{padding:22px clamp(14px,3vw,36px) 120px;max-width:1100px;width:100%}
+.page{display:none}.page.on{display:block}
+body.wide main{max-width:none}
+.simframe{padding:0;overflow:hidden}.simframe iframe{display:block;width:100%;height:min(860px,calc(100vh - 120px));min-height:520px;border:0;background:#e6ebf1}
+.page>h1{margin:0 0 4px;font-size:24px}.page>.lead{margin:0 0 18px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin:0 0 16px;box-shadow:var(--shadow)}
+.card>h2{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:8px}
+.card>.desc{margin:0 0 14px;color:var(--muted);font-size:13.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
+.stat .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.stat .v{font-size:19px;font-weight:700;margin-top:4px;word-break:break-word}
+.stat .s{color:var(--muted);font-size:13px;margin-top:2px}
+/* ---- velden */
+.f{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,300px);gap:6px 20px;align-items:center;padding:12px 0;border-top:1px solid var(--border)}
+.f:first-of-type{border-top:0}
+.f .lbl{font-weight:600}.f .help{color:var(--muted);font-size:13px;margin-top:2px;font-weight:400}
+.f .ctl{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+.f.wide{grid-template-columns:1fr}.f.wide .ctl{justify-content:flex-start}
+.f.dirty .lbl::after{content:" •";color:var(--amber)}
+input[type=text],input[type=password],input[type=number],input[type=url],select,textarea{width:100%;padding:8px 11px;border-radius:9px;border:1px solid var(--border);background:var(--card2);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+input[type=number]{max-width:140px;text-align:right}
+.unit{color:var(--muted);font-size:13px;white-space:nowrap}
+.sw{position:relative;display:inline-block;vertical-align:middle;width:46px;height:26px;flex:0 0 auto}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw span{position:absolute;inset:0;border-radius:999px;background:var(--border);transition:.2s;cursor:pointer}
+.sw span::before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw input:checked+span{background:var(--accent)}.sw input:checked+span::before{transform:translateX(20px)}
+.sw input:disabled+span{opacity:.5;cursor:default}
+.seg{display:inline-flex;flex-wrap:wrap;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:3px;gap:3px}
+.seg button{border:0;background:none;padding:7px 13px;border-radius:8px;cursor:pointer;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--accent);color:var(--onacc)}
+.seg button:disabled{opacity:.5;cursor:default}
+.pwrap{position:relative;width:100%}.pwrap button{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;color:var(--muted)}
+/* ---- meldingen */
+.banner{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-radius:12px;margin:0 0 14px;border:1px solid}
+.banner b{font-weight:700}
+.banner.warn{background:color-mix(in srgb,var(--warn) 14%,var(--card));border-color:color-mix(in srgb,var(--warn) 55%,var(--border))}
+.banner.info{background:color-mix(in srgb,var(--accent) 12%,var(--card));border-color:color-mix(in srgb,var(--accent) 50%,var(--border))}
+.banner.bad{background:color-mix(in srgb,var(--bad) 12%,var(--card));border-color:color-mix(in srgb,var(--bad) 50%,var(--border))}
+.banner .sp{flex:1;min-width:200px}
+.savebar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(140%);transition:transform .25s;z-index:40;display:flex;align-items:center;gap:12px;
+  background:var(--card);border:1px solid var(--accent);border-radius:14px;padding:10px 12px 10px 18px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.savebar.on{transform:translateX(-50%) translateY(0)}
+.toast{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast div{padding:10px 14px;border-radius:11px;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);animation:tin .25s}
+.toast .ok{border-left:4px solid var(--ok)}.toast .err{border-left:4px solid var(--bad)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+/* ---- netwerk */
+.flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:stretch;margin:6px 0 4px}
+@media (max-width:1180px){.flow{grid-template-columns:minmax(0,1fr)}.flow .arrow{transform:rotate(90deg);justify-self:center}}
+.node{min-width:0;overflow-wrap:anywhere}main{min-width:0}
+.node{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.node .t{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:6px}
+.node .row{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:14px}
+.node .row .m{color:var(--muted);font-size:12.5px;margin-left:auto;text-align:right}
+.node.pi{border-color:var(--accent);text-align:center;display:flex;flex-direction:column;justify-content:center}
+.node.pi .name{font-weight:800;font-size:16px}
+.arrow{align-self:center;color:var(--muted);font-size:22px}
+.iface{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin:12px 0;background:var(--card2)}
+.iface h3{margin:0 0 2px;font-size:15.5px;display:flex;align-items:center;gap:8px}
+.iface .st{color:var(--muted);font-size:13px;margin-bottom:10px}
+.sub-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px;margin-top:12px}
+.sub-f label{display:block;font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:3px}
+table.list{width:100%;border-collapse:collapse}
+table.list td,table.list th{padding:9px 8px;border-top:1px solid var(--border);text-align:left;vertical-align:middle}
+table.list th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-top:0}
+.bars{display:inline-flex;gap:2px;align-items:flex-end;height:14px}.bars i{width:4px;background:var(--border);border-radius:1px}.bars i.on{background:var(--accent)}
+.muted{color:var(--muted)}.mono{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.log{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;max-height:260px;overflow:auto;font:12.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
+.drop{border:2px dashed var(--border);border-radius:12px;padding:22px;text-align:center;color:var(--muted);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--text)}
+.portal{position:relative;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;max-width:1024px}
+.portal img{display:block;width:100%;cursor:crosshair}
+.portal .ph{padding:60px 20px;text-align:center;color:#555}
+.urlbar{display:flex;gap:8px;margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:70;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.on{display:flex}
+.modal .box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 22px;width:min(460px,100%);box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.modal h3{margin:0 0 10px}.modal .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.lock{position:fixed;inset:0;z-index:80;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px}
+.lock.on{display:flex}
+.lock .box{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:26px;width:min(400px,100%);box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center}
+.lock .box h2{margin:0 0 6px}.lock .box p{color:var(--muted);margin:0 0 16px}
+.role{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.role button{text-align:left;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--card2);cursor:pointer}
+.role button b{display:block;font-size:16px;margin-bottom:4px}.role button span{color:var(--muted);font-size:13px}
+.role button.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card2))}
+.hide{display:none!important}
+.mobnav{display:none}
+@media (max-width:560px){.top{gap:8px;padding:8px 10px}.pill>span:last-child{display:none}.pill{padding:7px}.icon-btn{padding:5px 8px}}
+@media (max-width:860px){
+ .layout{grid-template-columns:1fr}
+ .layout{align-content:start}
+ nav{position:static;height:auto;display:flex;align-items:center;gap:4px;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--border)}
+ nav h4{display:none}nav a{flex:0 0 auto;padding:7px 11px}nav a .badge{margin-left:4px}
+ .f{grid-template-columns:1fr}.f .ctl{justify-content:flex-start}
+ .f.bool{grid-template-columns:minmax(0,1fr) auto}.f.bool .ctl{justify-content:flex-end}
+ .flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}
+ .top .sub{display:none}
+}
+@media (max-width:760px){#wSaved table,#wSaved tbody{display:block}#wSaved tr:first-child{display:none}
+#wSaved tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 10px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;background:var(--card2)}
+#wSaved td{display:block;border:0;padding:0}#wSaved td:nth-child(1){grid-row:1/span 4;display:flex;flex-direction:column;gap:4px}
+#wSaved td:nth-child(2){grid-column:2}#wSaved td:nth-child(3),#wSaved td:nth-child(4),#wSaved td:nth-child(5){grid-column:2;font-size:13px}
+#wSaved td:nth-child(5)::before{content:"laatst: "}#wSaved td:nth-child(6){grid-column:3;grid-row:1}#wSaved td:nth-child(7){grid-column:2/span 2;text-align:left!important;margin-top:6px}}
+.term{background:#04090f;border:1px solid var(--border);border-radius:10px;padding:6px;height:min(460px,60vh);margin-top:12px}
+.term.hide{display:none}
+pre.logs{background:#04090f;color:#cfe3f3;border:1px solid var(--border);border-radius:10px;padding:10px;max-height:420px;overflow:auto;font:12px/1.4 Consolas,monospace;white-space:pre-wrap;margin:12px 0 0}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.kv div{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.kv b{display:block;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.modes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.modes button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font:inherit}
+.modes button b{font-size:15px}.modes button span{font-size:12.5px;color:var(--muted)}.modes button i{font-style:normal;font-size:22px}
+.modes button.on{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.ipv{position:relative;width:100%;aspect-ratio:16/9;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#07131f}
+.ipv iframe{position:absolute;left:0;top:0;width:1600px;height:900px;border:0;transform-origin:0 0}
+.ifl{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.ifl label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:13.5px}
+.ifl input,.ifl textarea,.ifl select{width:100%;box-sizing:border-box}
 </style>
+<link rel="stylesheet" href="/vendor/xterm.css">
 </head>
 <body>
-<main>
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><a href="/">&larr; Terug naar live timing</a><button type="button" class="tbtn" id="themebtn"></button></div>
-<h1>Instellingen</h1>
-<div id="msg" role="alert"></div>
-<div class="lock" id="lock" hidden>
-  <label class="lbl" for="tok" style="font-weight:600">Beheerderscode</label>
-  <div style="margin:6px 0"><input type="password" id="tok" autocomplete="off"> <button type="button" class="save" id="tokbtn" style="padding:9px 14px;font-size:14px">Controleer</button></div>
-  <div class="help">Zonder beheerderscode zijn de instellingen enkel leesbaar.</div>
+<div class="top">
+  <div class="brand">KHZS <span>Timing</span></div>
+  <div class="sub" id="topSub">Beheer</div>
+  <div class="sp"></div>
+  <span class="pill" id="pLive" title="Live timing"><span class="dot"></span><span>…</span></span>
+  <span class="pill hide" id="pNet" title="Internet"><span class="dot"></span><span>…</span></span>
+  <button class="icon-btn" id="themeBtn" title="Thema wisselen">◐</button>
+  <button class="icon-btn" id="lockBtn" title="Afmelden">🔒</button>
 </div>
-<form id="form" autocomplete="off"><div id="groups"></div>
-<button type="submit" class="save" id="save">Opslaan</button></form>
-</main>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+<div class="savebar" id="savebar"><span id="saveTxt">Wijzigingen</span><button class="btn" id="saveCancel">Annuleren</button><button class="btn pri" id="saveBtn">Opslaan</button></div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box"><h3 id="mTitle"></h3><div id="mBody"></div><div class="acts" id="mActs"></div></div></div>
+<div class="lock" id="lock"><div class="box"><h2>🔒 Beheerderscode</h2><p>Voer de beheerderscode in om instellingen te bekijken en te wijzigen.</p>
+  <form id="lockForm"><input type="password" id="lockInput" placeholder="Beheerderscode" autocomplete="current-password" style="text-align:center;font-size:17px">
+  <div style="margin-top:12px"><button class="btn pri" style="width:100%">Ontgrendelen</button></div></form>
+  <p style="margin:14px 0 0;font-size:12.5px">Vergeten? Pas <span class="mono">beheerderscode</span> aan in <span class="mono">khzs-instellingen.txt</span> op de SD-kaart.</p></div></div>
 <script>
 (function(){
 'use strict';
-var GROUPS=[
- {t:'Controles',f:[
-  {k:'manual_threshold_s',l:'Manueel ingegeven',h:'Manueel ingegeven als tijd later binnenkomt dan … s na aantikken',n:1},
-  {k:'official_split_distances',l:'Officiële tussentijden',h:'Afstanden (m) die als officiële tussentijd tellen bij enkelvoudige slagen. Wisselslag: 50 bij 200, 100 bij 400. Aflossing: enkel eerste zwemmer.',txt:1},
-  {k:'relay_min_takeover_s',l:'Minimale overnametijd aflossingen (s)',h:'Wissel sneller dan dit t.o.v. het aantikken van de vorige zwemmer = te vroeg (op basis van SwimTime-database)',n:1},
-  {k:'max_peer_panel_diff_s',l:'Max. verschil peer/paneel (s)',h:'Boven dit verschil (in seconden) wordt de tijd in de jurymodus rood gemarkeerd',n:1}
-  ]},
- {t:'Publieke weergave',f:[
-  {k:'show_clock',l:'Klok tonen',b:1},{k:'hold_previous_until_start',l:'Afgelopen reeks in beeld houden tot de volgende start (anders meteen de nieuwe startlijst na "volgende")',b:1},{k:'public_all_splits',l:'Publiek: alle 50m-tussentijden tonen (anders enkel officiële afstanden)',b:1},{k:'show_reaction',l:'Reactietijden tonen',b:1},
-  {k:'show_manual',l:'Manuele tijden markeren (rode M)',b:1},{k:'show_suspect',l:'Fouten die SwimTime zelf doorgeeft markeren (oranje !)',b:1},
-  {k:'show_peer',l:'Jury: handtijd (peer) onder de tijd tonen',b:1},
-  {k:'splash_enabled',l:'Tussenscherm bij nieuwe reeks (globaal)',b:1},
-  {k:'splash_seconds',l:'Duur tussenscherm (s)',h:'Tussen 0.5 en 5 seconden',n:1,step:0.5,min:0.5,max:5},
-  {k:'splash_jury',l:'Tussenscherm op jurypagina',b:1},
-  {k:'splash_callroom',l:'Tussenscherm in oproepkamer',b:1},
-  {k:'public_split_layout',l:'Publiek: huidige reeks links + vorige reeks(en) rechts',b:1},
-  {k:'jury_split_left_pct',l:'Jury: verdeling huidige reeks / vorige reeksen',h:'Breedte van de linkerkolom (huidige reeks); de rest gaat naar de vorige reeksen',sel:[[50,'50 / 50'],[60,'60 / 40'],[67,'67 / 33'],[70,'70 / 30'],[75,'75 / 25'],[80,'80 / 20']]},
-  {k:'overview_heats',l:'Jury: aantal vorige reeksen (1–5)',h:'Aantal vorige reeksen in jurymodus (1–5)',n:1,int:1,min:1,max:5}]},
- {t:'Oproepkamer',f:[
-  {k:'callroom_heats',l:'Aantal aankomende reeksen',h:'Maximaal aantal aankomende reeksen op het oproepkamer-scherm (1–8)',n:1,int:1,min:1,max:8},
-  {k:'callroom_next_big',l:'Eerstvolgende reeks groter tonen',b:1},
-  {k:'callroom_next_scale',l:'Vergroting eerstvolgende reeks',h:'Factor 1.0–2.5',n:1,step:0.1,min:1,max:2.5},
-  {k:'callroom_show_previous',l:'Vorige reeks tonen (rechts, onder de huidige)',b:1},
-  {k:'callroom_split_left_pct',l:'Verdeling aankomende reeksen / huidige reeks',h:'Breedte van de linkerkolom (aankomende reeksen)',sel:[[50,'50 / 50'],[55,'55 / 45'],[60,'60 / 40'],[65,'65 / 35'],[70,'70 / 30'],[75,'75 / 25']]}]},
- {t:'Systeem',f:[
-  {k:'clear_grace_s',l:'Wachttijd na wissen',h:'Als SwimTime een baantijd wist (-1) zonder nieuwe tijd, wordt die na zoveel seconden ook hier gewist',n:1},
-  {k:'stale_after_s',l:'Geen data na',h:'Na zoveel seconden zonder data wordt de verbinding met het tijdsysteem als verbroken gemeld',n:1},
-  {k:'history_max',l:'Max. aantal vorige reeksen',h:'Aantal reeksen dat bewaard blijft in de historiek',n:1,int:1}]},
- {t:'Database (SwimTime)',f:[
-  {k:'db_source_path',l:'Pad naar SwimTime-database',h:'Bronbestand waarvan een kopie wordt genomen (enkel lezen)',txt:1},
-  {k:'db_auto_after_heat',l:'Na elke reeks automatisch kopie nemen',b:1},
-  {k:'db_after_heat_delay_s',l:'Wachttijd na laden volgende startlijst (s)',h:'Seconden wachten nadat de volgende startlijst geladen is, voor de kopie genomen wordt',n:1},
-  {k:'db_interval_s',l:'Live database: actief interval in s (0 = uit; wordt gezet door het vinkje op /jury)',h:'Enkel kopiëren als het bestand gewijzigd is',n:1},
-  {k:'db_live_interval_s',l:'Live database: interval dat het vinkje gebruikt (s)',h:'Tussen 5 en 120 seconden',n:1,int:1,min:5,max:120}]},
- {t:'Beveiliging',f:[
-  {k:'admin_token',l:'Beheerderscode',h:'Beheerderscode nodig om instellingen te wijzigen van buiten deze pc / via cloudflared. Leeg laten = niet wijzigen.',pw:1}]}
-];
-var $=function(i){return document.getElementById(i)};
-var tcur='auto';try{tcur=localStorage.getItem('lt_theme')||'auto'}catch(e){}
-function themeApply(){var h=document.documentElement;if(tcur==='light'||tcur==='dark')h.setAttribute('data-theme',tcur);else h.removeAttribute('data-theme');
-  var b=$('themebtn');b.textContent=tcur==='light'?'\u2600 Licht':(tcur==='dark'?'\u263E Donker':'\u25D0 Auto');b.title='Thema: '+(tcur==='light'?'licht':(tcur==='dark'?'donker':'automatisch'))+' (klik om te wisselen)';b.setAttribute('aria-label',b.title)}
-$('themebtn').addEventListener('click',function(){tcur={auto:'light',light:'dark',dark:'auto'}[tcur]||'auto';try{localStorage.setItem('lt_theme',tcur)}catch(e){}themeApply()});
-themeApply();
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token='';try{token=sessionStorage.getItem('lt_admin')||''}catch(e){}
+let twoSrv=null,relayMode=false,relayAdmin=false,relayInfo={},defTok=false,cur={},defs={},canEdit=false,sys=null,sysLocked=false,dirty={},stateNow=null,users=null,scan=null;
 
-var cur={},defs={},canEdit=false,tokenSet=false,token='';
-try{token=sessionStorage.getItem('lt_admin')||''}catch(e){}
-function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function msg(kind,text,list){var m=$('msg');if(!kind){m.className='';m.innerHTML='';return}
- m.className=kind;m.innerHTML=esc(text)+(list&&list.length?'<ul>'+list.map(function(x){return '<li>'+esc(typeof x==='string'?x:JSON.stringify(x))+'</li>'}).join('')+'</ul>':'')}
-function hdr(){var h={'Content-Type':'application/json'};if(token)h['X-Admin-Token']=token;return h}
-function build(){
- var h='';
- GROUPS.forEach(function(g){
-  h+='<fieldset><legend>'+esc(g.t)+'</legend>';
-  g.f.forEach(function(f){
-   h+='<div class="row" data-k="'+f.k+'">';
-   if(f.b){h+='<label class="chk"><input type="checkbox" id="f_'+f.k+'"> '+esc(f.l)+'</label><button type="button" class="def" data-k="'+f.k+'">Standaardwaarde</button>'}
-   else{
-    h+='<label class="lbl" for="f_'+f.k+'">'+esc(f.l)+(f.soon?'<span class="badge">nog niet beschikbaar in de broadcast</span>':'')+'</label>';
-    h+=f.sel?'<select id="f_'+f.k+'">'+f.sel.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>'}).join('')+'</select>':'<input id="f_'+f.k+'" '+(f.pw?'type="password" autocomplete="new-password" placeholder="(ongewijzigd)"':(f.txt?'type="text"'+(f.k==='official_split_distances'?' placeholder="50,100,400,800"':''):'type="number" step="'+(f.step||(f.int?'1':'0.01'))+'" inputmode="decimal"'+(f.min!=null?' min="'+f.min+'" max="'+f.max+'"':'')))+'>';
-    if(!f.pw)h+='<button type="button" class="def" data-k="'+f.k+'">Standaardwaarde</button>';
-    h+='<div class="help">'+esc(f.h)+'</div>';
-   }
-   h+='</div>';
-  });
-  h+='</fieldset>';
- });
- $('groups').innerHTML=h;
- document.querySelectorAll('.def').forEach(function(b){b.addEventListener('click',function(){setDef(b.dataset.k)})});
- document.querySelectorAll('#groups input,#groups select').forEach(function(i){i.addEventListener('input',mark)});
+/* ---------------------------------------------------------------- thema */
+let tcur='auto';try{tcur=localStorage.getItem('lt_theme')||'auto'}catch(e){}
+function themeApply(){const h=document.documentElement;if(tcur==='light'||tcur==='dark')h.setAttribute('data-theme',tcur);else h.removeAttribute('data-theme');
+  $('themeBtn').textContent=tcur==='light'?'☀':(tcur==='dark'?'☾':'◐');$('themeBtn').title='Thema: '+({light:'licht',dark:'donker',auto:'automatisch'}[tcur])}
+$('themeBtn').onclick=()=>{tcur={auto:'light',light:'dark',dark:'auto'}[tcur]||'auto';try{localStorage.setItem('lt_theme',tcur)}catch(e){}themeApply()};themeApply();
+
+/* ---------------------------------------------------------------- hulpfuncties */
+function toast(msg,kind){const d=document.createElement('div');d.className=kind||'ok';d.textContent=msg;$('toast').appendChild(d);setTimeout(()=>d.remove(),kind==='err'?7000:3500)}
+function hdr(extra){const h=Object.assign({},extra||{});if(token)h['X-Admin-Token']=token;return h}
+async function api(path,opts){
+  opts=opts||{};const o={method:opts.method||'GET',headers:hdr(opts.headers)};
+  if(opts.json!==undefined){o.method=opts.method||'POST';o.headers['Content-Type']='application/json';o.body=JSON.stringify(opts.json)}
+  if(opts.body){o.method='POST';o.body=opts.body}
+  const r=await fetch(path,o);let d=null;
+  if(opts.raw)return r;
+  try{d=await r.json()}catch(e){d={}}
+  if(r.status===403){showLock();throw new Error(d.error||'beheerderscode nodig')}
+  if(!r.ok||d.ok===false||d.error)throw new Error(d.error||(d.errors||[]).join(', ')||('fout '+r.status));
+  return d;
 }
-function field(k){for(var g=0;g<GROUPS.length;g++)for(var i=0;i<GROUPS[g].f.length;i++)if(GROUPS[g].f[i].k===k)return GROUPS[g].f[i]}
-function getVal(f){var el=$('f_'+f.k);if(f.b)return el.checked;if(f.sel)return Number(el.value);if(f.pw||f.txt)return el.value;return el.value===''?null:Number(el.value)}
-function setVal(f,v){var el=$('f_'+f.k);if(f.sel&&v!=null&&!Array.prototype.some.call(el.options,function(o){return +o.value===+v}))el.add(new Option(v+' / '+(100-v),v));if(f.b)el.checked=!!v;else if(!f.pw)el.value=v==null?'':v}
-function setDef(k){var f=field(k);if(defs[k]!==undefined){setVal(f,defs[k]);mark()}}
-function mark(){
- document.querySelectorAll('.row').forEach(function(r){
-  var f=field(r.dataset.k),ch;
-  if(f.pw)ch=$('f_'+f.k).value!=='';else ch=getVal(f)!==cur[f.k];
-  r.className='row'+(ch?' changed':'');
- });
+async function act(btn,fn,okMsg){if(btn)btn.disabled=true;try{const r=await fn();if(okMsg)toast(okMsg);return r}catch(e){toast(e.message,'err')}finally{if(btn)btn.disabled=false}}
+function modal(title,body,acts){$('mTitle').textContent=title;$('mBody').innerHTML=body;$('mActs').innerHTML='';
+  (acts||[{t:'Sluiten'}]).forEach(a=>{const b=document.createElement('button');b.className='btn'+(a.pri?' pri':'')+(a.danger?' danger':'');b.textContent=a.t;
+    b.onclick=async()=>{if(a.fn){const keep=await a.fn(b);if(keep===false)return}$('modal').classList.remove('on')};$('mActs').appendChild(b)});
+  $('modal').classList.add('on');const f=$('mBody').querySelector('input');if(f)setTimeout(()=>f.focus(),50)}
+function confirmBox(title,text,okTxt,fn,danger){modal(title,'<p>'+text+'</p>',[{t:'Annuleren'},{t:okTxt,pri:!danger,danger:!!danger,fn}])}
+function fmtDur(s){if(s==null)return '–';s=Math.round(s);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return (d?d+'d ':'')+(h||d?h+'u ':'')+m+'m'}
+function bars(sig){const n=sig>=75?4:sig>=55?3:sig>=35?2:sig>0?1:0;return '<span class="bars" title="'+sig+'%">'+[6,9,12,14].map((h,i)=>'<i style="height:'+h+'px" class="'+(i<n?'on':'')+'"></i>').join('')+'</span>'}
+function showLock(){$('lock').classList.add('on');setTimeout(()=>$('lockInput').focus(),50)}
+$('lockForm').onsubmit=e=>{e.preventDefault();token=$('lockInput').value.trim();try{sessionStorage.setItem('lt_admin',token)}catch(x){}$('lock').classList.remove('on');boot()};
+$('lockBtn').onclick=()=>{token='';try{sessionStorage.removeItem('lt_admin')}catch(e){}location.reload()};
+
+/* ---------------------------------------------------------------- instellingen (settings.json van de server) */
+const F={
+ show_clock:{l:'Klok tonen',b:1},
+ hold_previous_until_start:{l:'Afgelopen reeks in beeld houden tot de volgende start',h:'Anders verschijnt de nieuwe startlijst meteen na "volgende" in SwimTime.',b:1},
+ public_all_splits:{l:'Publiek: alle 50m-tussentijden',h:'Anders enkel de officiële afstanden.',b:1},
+ show_reaction:{l:'Reactietijden tonen',b:1},
+ show_manual:{l:'Manuele tijden markeren',h:'Rode M bij een tijd die manueel werd opgehoogd.',b:1},
+ show_suspect:{l:'Fouten van SwimTime markeren',h:'Oranje ! bij wat SwimTime zelf als fout doorgeeft.',b:1},
+ show_peer:{l:'Jury: handtijd (peer) onder de tijd',b:1},
+ public_split_layout:{l:'Publiek: vorige reeks rechts naast de huidige',b:1},
+ jury_split_left_pct:{l:'Jury: breedte huidige reeks',h:'De rest gaat naar de vorige reeksen.',sel:[[50,'50 / 50'],[60,'60 / 40'],[67,'67 / 33'],[70,'70 / 30'],[75,'75 / 25'],[80,'80 / 20']]},
+ overview_heats:{l:'Jury: aantal vorige reeksen',n:1,int:1,min:1,max:5},
+ splash_enabled:{l:'Tussenscherm bij een nieuwe reeks',h:'Geanimeerd scherm met wedstrijd, reeks en namen.',b:1},
+ splash_seconds:{l:'Duur tussenscherm',n:1,step:.5,min:.5,max:5,u:'s'},
+ splash_jury:{l:'Tussenscherm op de jurypagina',b:1},
+ splash_callroom:{l:'Tussenscherm in de oproepkamer',b:1},
+ pool_lanes:{l:'Banen in het bad',h:'Automatisch = zoals in de startlijsten. Vast aantal: de oproepkamer toont ook de lege banen.',sel:[[0,'Automatisch'],[6,'6 banen (1–6)'],[8,'8 banen (1–8)'],[10,'10 banen (0–9)']]},
+ callroom_heats:{l:'Reeksen in de oproepkamer',h:'De reeks aan de startblok komt daar nog bij (groene balk).',n:1,int:1,min:1,max:8},
+ callroom_splash_seconds:{l:'Duur "Naar de oproepkamer"',n:1,step:.5,min:.5,max:60,u:'s'},
+ callroom_splash_heat:{l:'Aangekondigde reeks',h:'0 = de reeks die net in de oproepkamer bijkomt, 1 = de eerste in de oproepkamer, …',n:1,int:1,min:0,max:8},
+ callroom_next_big:{l:'Eerstvolgende reeks groter tonen',b:1},
+ callroom_next_scale:{l:'Vergroting eerstvolgende reeks',n:1,step:.1,min:1,max:2.5,u:'×'},
+ callroom_show_previous:{l:'Vorige reeks tonen (onder de live reeks)',b:1},
+ callroom_split_left_pct:{l:'Breedte oproepkamer / live',sel:[[50,'50 / 50'],[55,'55 / 45'],[60,'60 / 40'],[65,'65 / 35'],[70,'70 / 30'],[75,'75 / 25']]},
+ manual_threshold_s:{l:'Manueel ingegeven na',h:'Een tijd die later dan dit binnenkomt (na het aantikken) telt als manueel.',n:1,step:.1,u:'s'},
+ official_split_distances:{l:'Officiële tussentijden',h:'Afstanden in meter bij enkelvoudige slagen. Wisselslag: 50 bij 200, 100 bij 400.',txt:1},
+ relay_min_takeover_s:{l:'Minimale overnametijd aflossing',h:'Sneller dan dit na het aantikken = te vroeg (uit de SwimTime-database).',n:1,step:.01,u:'s'},
+ max_peer_panel_diff_s:{l:'Max. verschil peer / paneel',h:'Groter verschil wordt rood in de jurymodus.',n:1,step:.01,u:'s'},
+ clear_grace_s:{l:'Wachttijd na wissen',h:'Wist SwimTime een tijd zonder nieuwe, dan verdwijnt ze hier na deze tijd.',n:1,step:.5,u:'s'},
+ stale_after_s:{l:'"Geen gegevens" na',h:'Zonder pakketten van het tijdsysteem gedurende deze tijd verschijnt een melding.',n:1,u:'s'},
+ history_max:{l:'Bewaarde reeksen',n:1,int:1,min:10,max:2000},
+ db_source_path:{l:'Pad naar de SwimTime-database',h:'Er wordt enkel een kopie gelezen. Laptop: W:\\2026_PK.mdb · kastje: \\\\SWIMTIME-PC\\share\\2026_PK.mdb (rechtstreeks van de share, zonder schijf te koppelen).',txt:1},
+ db_access_mode:{l:'Lezen',h:'Kopie: eerst een kopie nemen en die inlezen (veiligst als SwimTime volop schrijft). Rechtstreeks: enkel op het kastje, het bestand op een alleen-lezen gekoppelde netwerkschijf zelf inlezen – nooit schrijfrechten, geen lockbestand.',sel:[['kopie','Via een kopie'],['rechtstreeks','Rechtstreeks (alleen-lezen, kastje)']]},
+ db_smb_user:{l:'Gebruiker voor de share',h:'Enkel op het kastje bij een \\\\pc\\share-pad. Leeg = gasttoegang. Een account met enkel leesrechten volstaat.',txt:1},
+ db_smb_password:{l:'Wachtwoord voor de share',h:'Leeg laten = ongewijzigd.',pw:1},
+ db_smb_domain:{l:'Domein of werkgroep',h:'Optioneel.',txt:1},
+ db_auto_after_heat:{l:'Na elke reeks automatisch een kopie nemen',b:1},
+ db_after_heat_delay_s:{l:'Wachttijd na laden volgende startlijst',n:1,u:'s'},
+ db_live_interval_s:{l:'Interval "live database"',h:'Gebruikt door het vinkje op /jury.',n:1,int:1,min:5,max:120,u:'s'},
+ relay_url:{l:'Adres van de publieke server',h:'bv. https://timing.khzs.be — leeg = niet doorsturen. Enkel uitgaand verkeer.',txt:1,wide:1},
+ relay_token:{l:'Token',h:'Zelfde geheim als op de publieke server. Leeg laten = ongewijzigd.',pw:1},
+ remote_admin:{l:'Beheer op afstand toestaan',h:'Via de publieke server (…/kastje/<naam>/settings) dit beheer openen, bv. van thuis. Vraagt het beheerwachtwoord van de cloudserver én de beheerderscode van dit toestel. Enkel uitgaand HTTPS.',b:1},
+ udp_interface:{l:'Luisteren op verbinding',h:'Leeg = alle verbindingen. Op het kastje bv. eth0 (kabel), wlan0 (Wi-Fi) of usb0. Wordt meteen toegepast.',txt:1},
+ udp_allow_from:{l:'Enkel van deze afzender',h:'IP-adres of subnet van de SwimTime-pc, bv. 192.168.0.188 of 192.168.0.0/24 (meerdere: komma). Leeg = iedereen. Andere pakketten worden genegeerd.',txt:1},
+ feed_port:{l:'TCP-poort simulator',h:'0 = uit. Wijziging vraagt een herstart van de server.',n:1,int:1},
+ feed_bind:{l:'Simulator toelaten van',h:'127.0.0.1 = enkel dit toestel, 0.0.0.0 = ook een andere pc.',txt:1},
+ admin_token:{l:'Beheerderscode',h:'Nodig om dit beheer te openen vanaf een ander toestel. Leeg laten = ongewijzigd.',pw:1},
+ device_label:{l:'Naam van dit toestel',h:'Vrije naam, bv. "Server zwembad" of "Scherm cafetaria". Zichtbaar bovenaan in het beheer, in Kastjes op de cloudserver, bij de gevonden toestellen en op het scherm.',txt:1},
+ jury_password:{l:'Wachtwoord jury (publieke server)',h:'Enkel op de publieke server: voor /jury en /settings. Leeg laten = ongewijzigd.',pw:1},
+ sim_speed:{l:'Snelheid',h:'×1 = echte tijd. Ook live aan te passen in het bedieningsvenster.',sel:[[1,'×1 (echte tijd)'],[2,'×2'],[4,'×4'],[8,'×8'],[16,'×16'],[32,'×32']]},
+ sim_events:{l:'Aantal wedstrijden',n:1,int:1,min:1,max:60},
+ sim_per_event:{l:'Deelnemers per wedstrijd',h:'Gemiddeld; bepaalt het aantal reeksen.',n:1,int:1,min:1,max:80},
+ sim_lanes:{l:'Aantal banen',sel:[[6,'6 banen (1–6)'],[8,'8 banen (1–8)'],[10,'10 banen (0–9)']]},
+ sim_manual:{l:'Zelf bedienen',h:'Geen automatisch verloop: starten, stoppen en volgende reeks in het bedieningsvenster.',b:1},
+ sim_loop:{l:'Opnieuw beginnen na de laatste reeks',h:'Bij automatisch verloop start er dan een nieuw programma (handig als demo).',b:1},
+ sim_pause:{l:'Tijd tot de start',h:'Tussen startlijst en start (automatisch verloop, aan snelheid ×1).',n:1,min:2,max:300,u:'s'},
+ sim_result_time:{l:'Uitslag in beeld',n:1,min:2,max:300,u:'s'},
+ sim_extra_touch_chance:{l:'Kans op een extra tik',h:'Per zwemmer: het paneel registreert te vroeg, de echte tik corrigeert.',n:1,step:.01,min:0,max:1},
+ sim_manual_chance:{l:'Kans op een manuele eindtijd',n:1,step:.01,min:0,max:1},
+ sim_dns_chance:{l:'Kans op niet gestart',n:1,step:.01,min:0,max:1},
+ sim_seed:{l:'Vast programma',h:'0 = telkens een ander programma; een ander getal = altijd hetzelfde programma.',n:1,int:1,min:0},
+ sim_meet_name:{l:'Naam van de wedstrijd',txt:1,wide:1},
+ sim_autostart:{l:'Automatisch starten',h:'De simulator start mee met de server (demo-kastje). Echte SwimTime-gegevens stoppen hem.',b:1},
+ sim_stop_on_real:{l:'Stoppen bij echte gegevens',h:'Aanbevolen: komt er data van SwimTime binnen, dan stopt de simulator meteen.',b:1}
+};
+function fieldHtml(k){
+  const f=F[k];if(!f||!(k in cur||k in defs))return '';
+  const id='f_'+k,dis=canEdit?'':' disabled';let c='';
+  if(f.b)c='<label class="sw"><input type="checkbox" id="'+id+'"'+dis+'><span></span></label>';
+  else if(f.sel)c='<select id="'+id+'"'+dis+'>'+f.sel.map(o=>'<option value="'+o[0]+'">'+esc(o[1])+'</option>').join('')+'</select>';
+  else if(f.pw)c='<div class="pwrap"><input type="password" id="'+id+'" autocomplete="new-password" placeholder="(ongewijzigd)"'+dis+'><button type="button" data-eye="'+id+'">👁</button></div>';
+  else if(f.n)c='<input type="number" id="'+id+'"'+(f.step?' step="'+f.step+'"':'')+(f.min!=null?' min="'+f.min+'"':'')+(f.max!=null?' max="'+f.max+'"':'')+dis+'>'+(f.u?'<span class="unit">'+f.u+'</span>':'');
+  else c='<input type="text" id="'+id+'"'+dis+'>';
+  return '<div class="f'+(f.wide?' wide':'')+(f.b?' bool':'')+'" data-k="'+k+'"><div><div class="lbl">'+esc(f.l)+'</div>'+(f.h?'<div class="help">'+esc(f.h)+'</div>':'')+'</div><div class="ctl">'+c+'</div></div>';
 }
-function lockUI(){
- var dis=!canEdit;
- document.querySelectorAll('#groups input,#groups select').forEach(function(i){i.disabled=dis});
- document.querySelectorAll('.def').forEach(function(b){b.disabled=dis});
- $('save').disabled=dis;$('lock').hidden=canEdit;
- if(canEdit&&token)$('lock').hidden=true;
+function fieldsCard(title,desc,keys,extra){return '<div class="card"><h2>'+title+'</h2>'+(desc?'<p class="desc">'+desc+'</p>':'')+keys.map(fieldHtml).join('')+(extra||'')+'</div>'}
+function readField(k){const f=F[k],el=$('f_'+k);if(!el)return undefined;
+  if(f.b)return el.checked;if(f.pw)return el.value;if(f.n){const v=parseFloat(el.value);return isNaN(v)?null:(f.int?Math.round(v):v)}
+  if(f.sel){const v=el.value;return typeof cur[k]==='number'?Number(v):v}return el.value}
+function fillFields(){Object.keys(F).forEach(k=>{const el=$('f_'+k);if(!el)return;const v=cur[k];
+  if(F[k].b)el.checked=!!v;else if(F[k].pw)el.value='';else el.value=v==null?'':v})}
+function onFieldChange(e){const row=e.target.closest('.f');if(!row)return;const k=row.dataset.k;if(!F[k])return;
+  const v=readField(k);const d=F[k].pw?v!=='':v!==cur[k];if(d)dirty[k]=v;else delete dirty[k];row.classList.toggle('dirty',d);updateSavebar()}
+function updateSavebar(){const n=Object.keys(dirty).length;$('savebar').classList.toggle('on',n>0);$('saveTxt').textContent=n+' '+(n===1?'wijziging':'wijzigingen')+' niet opgeslagen'}
+$('saveCancel').onclick=()=>{dirty={};fillFields();document.querySelectorAll('.f.dirty').forEach(r=>r.classList.remove('dirty'));updateSavebar()};
+$('saveBtn').onclick=()=>act($('saveBtn'),async()=>{const body={};Object.keys(dirty).forEach(k=>{if(dirty[k]!==null&&dirty[k]!=='')body[k]=dirty[k];else if(!F[k].pw)body[k]=dirty[k]});
+  await api('/api/settings',{json:body});if(body.admin_token){token=body.admin_token;try{sessionStorage.setItem('lt_admin',token)}catch(e){}}
+  dirty={};await loadSettings();updateSavebar()},'Instellingen opgeslagen');
+document.addEventListener('input',onFieldChange);document.addEventListener('change',onFieldChange);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-eye]');if(b){const i=$(b.dataset.eye);i.type=i.type==='password'?'text':'password'}});
+async function loadSettings(){const r=await fetch('/api/settings',{headers:hdr()});const d=await r.json();cur=d.settings||{};defs=d.defaults||{};canEdit=!!d.canEdit;
+  if(d.relay){relayMode=true;try{const w=await (await fetch('/api/whoami')).json();relayAdmin=!!w.admin;relayInfo=w}catch(e){}fillFields();return}defTok=!!d.defaultToken;
+  if(!canEdit){showLock()}fillFields();document.querySelectorAll('.f.dirty').forEach(r=>r.classList.remove('dirty'))}
+
+/* ---------------------------------------------------------------- tabbladen */
+const TABS=[
+ {g:'Wedstrijd'},
+ {id:'overzicht',ic:'🏠',t:'Overzicht'},
+ {id:'weergave',ic:'🖥',t:'Weergave'},
+ {id:'oproepkamer',ic:'📋',t:'Oproepkamer'},
+ {id:'info',ic:'📺',t:'Infoscherm',r:1},
+ {id:'kijkers',ic:'👥',t:'Kijkers',r:2},
+ {id:'kastjes',ic:'🛰',t:'Kastjes',r:2},
+ {id:'controles',ic:'⏱',t:'Controles'},
+ {id:'gegevens',ic:'🗂',t:'Gegevens'},
+ {id:'doorsturen',ic:'☁',t:'Doorsturen'},
+ {id:'simulator',ic:'🏊',t:'Simulator'},
+ {id:'cloud',ic:'🛰',t:'Cloudserver'},
+ {g:'Kastje',pi:1},
+ {id:'rol',ic:'🎛',t:'Rol & scherm',pi:1},
+ {id:'netwerk',ic:'🌐',t:'Netwerk & router',pi:1},
+ {id:'portal',ic:'🔑',t:'Hotspot-login',pi:1},
+ {id:'schijven',ic:'🗄',t:'Netwerkschijven',pi:1},
+ {id:'gebruikers',ic:'👤',t:'Gebruikers & SSH',pi:1},
+ {id:'updates',ic:'⬆',t:'Updates',pi:1},
+ {id:'console',ic:'⌨',t:'Console',pi:1},
+ {g:'Algemeen'},
+ {id:'systeem',ic:'⚙',t:'Systeem'}
+];
+function buildNav(){$('nav').innerHTML=TABS.filter(t=>relayMode?(t.r||(t.g&&t.g==='Wedstrijd')):(t.r!==2&&(!t.pi||sys))).map(t=>t.g?'<h4>'+t.g+'</h4>':'<a href="#'+t.id+'" data-tab="'+t.id+'"><span class="ic">'+t.ic+'</span>'+t.t+'<span class="badge hide" id="bd_'+t.id+'"></span></a>').join('')}
+function showTab(){let id=(location.hash||(relayMode?'#info':'#overzicht')).slice(1);if(!$('pg_'+id))id='overzicht';
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='pg_'+id));
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.tab===id));
+  document.body.classList.toggle('wide',id==='simulator');
+  const sf=$('simFrame');if(sf){if(id==='simulator'){if(!sf.dataset.on){sf.dataset.on='1';sf.src='/simulator'+(token?'#k='+encodeURIComponent(token):'')}}else if(sf.dataset.on){sf.dataset.on='';sf.src='about:blank'}}
+  if(id==='cloud'&&!clLoaded)loadCloud();
+  if(id==='info')loadInfo();
+  if(id==='gegevens')loadUdp();
+  if(id==='kijkers')loadCloudStats();
+  if(id==='kastjes')loadBoxes();
+  if(relayMode&&!['info','kijkers','kastjes'].includes(id)){location.hash='#info';return}
+  if(id==='schijven')loadShares();
+  if(id==='netwerk'&&$('dhLeases'))dhLoad();
+  if(id==='rol')loadPeers();
+  if(id==='gebruikers')loadUsers();if(id==='updates')loadUpdates();if(id==='portal')portalShow();else portalStop(false);
+  window.scrollTo(0,0)}
+window.addEventListener('hashchange',showTab);
+
+function pages(){
+ const P={};
+ P.overzicht='<h1>Overzicht</h1><p class="lead">Stand van de live timing'+(sys?' en van dit kastje':'')+'.</p><div id="banners"></div><div class="grid3" id="ovStats"></div>'+
+  '<div class="card" style="margin-top:16px"><h2>Pagina\'s</h2><p class="desc">Openen in een nieuw venster.</p><div class="chips">'+
+  [['/','Publiek'],['/jury','Jury'],['/callroom','Oproepkamer'],['/display','Scherm-/statuspagina']].map(x=>'<a class="btn sm" target="_blank" href="'+x[0]+'">'+x[1]+' ↗</a>').join('')+'</div></div>';
+ P.weergave='<h1>Weergave</h1><p class="lead">Publieke pagina, jurymodus en tussenscherm.</p>'+
+  fieldsCard('Publiek en jury','',['show_clock','hold_previous_until_start','public_all_splits','public_split_layout','show_reaction','show_manual','show_suspect','show_peer','jury_split_left_pct','overview_heats'])+
+  fieldsCard('Tussenscherm','Kort geanimeerd scherm met wedstrijd, reeks en de namen in het water.',['splash_enabled','splash_seconds','splash_jury','splash_callroom'])+
+  fieldsCard('Zwembad','Alle pagina\'s passen zich aan het aantal banen in de startlijst aan (tot 10, ook 0–9).',['pool_lanes']);
+ P.oproepkamer='<h1>Oproepkamer</h1><p class="lead">Live → aan de startblok (groene balk) → oproepkamer.</p>'+
+  fieldsCard('Indeling','',['callroom_heats','callroom_split_left_pct','callroom_next_big','callroom_next_scale','callroom_show_previous'])+
+  fieldsCard('"Naar de oproepkamer"','Tussenscherm bij elke nieuwe reeks.',['callroom_splash_seconds','callroom_splash_heat']);
+ P.info=(relayMode?'<div class="banner '+(relayAdmin?'info':'warn')+'"><span class="sp">'+(relayAdmin?'☁ Beheer op de <b>cloudserver</b>: wijzigingen gelden hier meteen. Een lokale server die later iets instelt, overschrijft dit.':(relayInfo.adminConfigured?'🔒 Je bent aangemeld als jury. Meld je aan met het <b>beheerwachtwoord</b> van de cloudserver om te wijzigen.':'🔒 Er is nog geen beheerwachtwoord ingesteld op deze cloudserver (lokaal beheer › Cloudserver).'))+'</span>'+(relayAdmin?'<a class="btn" href="/logout">Afmelden</a>':'<a class="btn pri" href="/logout?next=/login">Aanmelden als beheerder</a>')+'</div>':'')+'<h1>Infoscherm</h1><p class="lead">Een scherm in de stijl van de splash screens voor als er geen race loopt: geen wedstrijd, volgende wedstrijd, pauze, … Het verschijnt op de publieke pagina en in de oproepkamer – hier en op de publieke server – en altijd op <a href="/info" target="_blank">/info</a> (handig voor een tv in de cafetaria).</p>'+
+  '<div class="card"><h2>Wat tonen?</h2><div class="modes" id="imModes">'+[['off','⏹','Uit','gewone live uitslagen'],['auto','🗓','Automatisch','volgens de agenda'],['geen','🌙','Geen wedstrijd','met de volgende wedstrijd'],['volgende','📅','Volgende wedstrijd','met aftellen'],['welkom','👋','Welkom','voor de start'],['inzwemmen','🏊','Inzwemmen','aftellen tot de start'],['pauze','🥤','Pauze','aftellen tot de hervatting'],['prijsuitreiking','🏅','Prijsuitreiking',''],['einde','🏁','Einde','bedankt en tot ziens'],['bericht','📣','Eigen bericht','titel en tekst']].map(m=>'<button type="button" data-mode="'+m[0]+'"><i>'+m[1]+'</i><b>'+m[2]+'</b><span>'+m[3]+'</span></button>').join('')+'</div>'+
+  '<div id="imStat" class="muted" style="margin-top:12px"></div></div>'+
+  '<div class="card"><h2>Inhoud</h2><p class="desc">Alles is optioneel: lege velden krijgen een passende standaardtekst.</p><div class="ifl">'+
+   '<label>Wedstrijd<input type="text" id="imMeet" placeholder="bv. PK Limburg 25 m"></label>'+
+   '<label>Datum<input type="date" id="imDate"></label>'+
+   '<label>Plaats<input type="text" id="imPlace" placeholder="bv. Zwembad Hasselt"></label>'+
+   '<label>Aftellen tot (uur)<input type="time" id="imUntil"></label>'+
+   '<label>… of een duur (minuten)<input type="number" id="imDur" min="1" max="600" placeholder="bv. 15 – telt af vanaf Tonen"></label>'+
+   '<label>Titel (eigen)<input type="text" id="imTitle" placeholder="standaard volgens de keuze"></label>'+
+   '<label>Bovenschrift (eigen)<input type="text" id="imKicker" placeholder="bv. JURYVERGADERING"></label>'+
+   '<label>Voettekst<input type="text" id="imFoot" placeholder="leeg = Live uitslagen: adres van de site · - = geen"></label></div>'+
+   '<div class="ifl" style="margin-top:12px"><label>Tekst<textarea id="imText" rows="2" placeholder="bv. De prijsuitreiking vindt plaats aan de tribune"></textarea></label>'+
+   '<label>Lopende tekst onderaan (één bericht per regel)<textarea id="imTicker" rows="2" placeholder="Leeg = geen lopende tekst. Bv. een mededeling of de sponsors."></textarea></label></div>'+
+   '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px">'+
+   '<label class="chk"><input type="checkbox" id="imAuto" checked> Verbergen zodra er een race loopt</label>'+
+   '<label class="chk"><input type="checkbox" id="imClose" checked> Kijkers mogen het wegklikken</label>'+
+   '<label class="chk"><input type="checkbox" id="imPub" checked> Op de publieke pagina</label>'+
+   '<label class="chk"><input type="checkbox" id="imCr" checked> In de oproepkamer</label></div>'+
+   '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn pri" id="imShow">📺 Tonen</button><button class="btn" id="imOff">⏹ Uitzetten</button><a class="btn" href="/info" target="_blank">/info openen ↗</a></div></div>'+
+  '<div class="card"><h2>Agenda</h2><p class="desc">Voor de modus <b>Automatisch</b>: de komende wedstrijden. Het scherm toont dan zelf "Volgende wedstrijd" (met aftellen) vanaf het aantal dagen hieronder, "Welkom" op de dag zelf tot de start, en anders "Geen wedstrijd" met de eerstvolgende. Zodra er live gegevens zijn, verdwijnt het.</p>'+
+   '<div id="imSched"></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="imAdd" type="button">＋ Wedstrijd toevoegen</button>'+
+   '<label style="display:flex;gap:8px;align-items:center">Volgende wedstrijd tonen vanaf <input type="number" id="imDays" min="0" max="90" value="7" style="width:70px"> dagen vooraf</label></div></div>'+
+  '<div class="card"><h2>Voorbeeld</h2><div class="ipv" id="imPv"><iframe id="imFrame" title="Voorbeeld infoscherm" tabindex="-1"></iframe></div></div>';
+ if(relayMode)P.kastjes='<h1>Kastjes</h1><p class="lead">Lokale servers en schermkastjes met <b>beheer op afstand</b> aan. Je opent hun beheer hier via een tunnel over HTTPS; de beheerderscode van het kastje blijft nodig.</p><div class="card"><div id="kjBoxes" class="muted">…</div><div style="margin-top:12px"><button class="btn" id="kjBoxRefresh">↻ Vernieuwen</button></div></div>';
+ if(relayMode)P.kijkers='<h1>Kijkers</h1><p class="lead">Bezoekers van deze publieke server.</p><div class="card"><div id="clStats" class="muted">…</div><div style="margin-top:12px"><button class="btn" id="kjRefresh">↻ Vernieuwen</button></div></div>';
+ P.controles='<h1>Controles</h1><p class="lead">Drempels voor markeringen in de jurymodus.</p>'+
+  fieldsCard('Tijden','',['manual_threshold_s','official_split_distances','relay_min_takeover_s','max_peer_panel_diff_s'])+
+  fieldsCard('Verwerking','',['clear_grace_s','stale_after_s','history_max']);
+ P.gegevens='<h1>Gegevens</h1><p class="lead">SwimTime-database (enkel lezen) en het programma van Meet Manager.</p>'+
+  '<div class="card"><h2>Programma (Meet Manager)</h2><p class="desc">Meet Manager-backup (.smb) of Lenex-export (.lxf/.lef) met de startlijsten – voor de oproepkamer, ook voor reeksen die SwimTime nog niet kent. Wedstrijden over meerdere dagen en dagdelen worden herkend.</p><div id="progStat" class="muted">…</div>'+
+  '<div class="drop" id="progDrop" style="margin-top:12px">Sleep de backup (.smb) of het Lenex-bestand hierheen of <b>klik om te kiezen</b><input type="file" id="progFile" accept=".smb,.lxf,.lef,.xml,.zip" hidden></div>'+
+  '<div style="margin-top:10px"><button class="btn danger sm" id="progClear">Programma wissen</button></div></div>'+
+  fieldsCard('SwimTime-ontvangst (UDP/26)','De broadcast van SwimTime. Standaard op alle verbindingen van iedereen.',['udp_interface','udp_allow_from'],'<div id="udpStat" class="muted" style="margin-top:10px"></div>')+
+  fieldsCard('SwimTime-database','Er wordt nooit in het origineel geschreven: enkel een kopie wordt gelezen.',['db_source_path','db_access_mode','db_smb_user','db_smb_password','db_smb_domain','db_auto_after_heat','db_after_heat_delay_s','db_live_interval_s'],
+   '<div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="dbSync">Nu synchroniseren</button><span id="dbStat" class="muted"></span></div>');
+ P.doorsturen='<h1>Doorsturen</h1><p class="lead">De live stand naar de publieke server sturen (bv. timing.khzs.be).</p>'+
+  '<div id="relayStat"></div>'+fieldsCard('Publieke server','Dit kastje stuurt enkel uitgaand via HTTPS; er moet niets opengezet worden.',['relay_url','relay_token','remote_admin']);
+ P.simulator='<h1>Simulator</h1><p class="lead">Een volledige nep-wedstrijd zonder SwimTime: verzonnen programma, deelnemers en tijden, ingebouwd in de server.</p>'+
+  '<div class="card"><h2>Status</h2><div id="simStat" class="muted">…</div>'+
+  '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn pri" id="simStart">▶ Starten</button><button class="btn danger" id="simStop">■ Stoppen</button>'+
+  '<a class="btn" id="simOpen" href="/simulator" target="_blank">Apart venster ↗</a><a class="btn" href="/jury" target="_blank">Jury ↗</a><a class="btn" href="/callroom" target="_blank">Oproepkamer ↗</a></div>'+
+  '<p class="desc" style="margin-top:12px">Starten gebruikt de waarden hieronder (ook als ze nog niet opgeslagen zijn). Gegevens van de simulatie zijn gemarkeerd als SIMULATIE en verdwijnen zodra er echte gegevens zijn.</p></div>'+
+  '<div class="card simframe"><iframe id="simFrame" title="Bedieningsvenster van de simulator"></iframe></div>'+
+  fieldsCard('Programma','',['sim_meet_name','sim_events','sim_per_event','sim_lanes','sim_seed'])+
+  fieldsCard('Verloop','',['sim_speed','sim_manual','sim_loop','sim_pause','sim_result_time'])+
+  fieldsCard('Realisme','Wat er in een echte wedstrijd ook gebeurt.',['sim_extra_touch_chance','sim_manual_chance','sim_dns_chance'])+
+  fieldsCard('Veiligheid en demo','',['sim_stop_on_real','sim_autostart']);
+ P.cloud='<h1>Cloudserver</h1><p class="lead">De publieke server (bv. timing.khzs.be) beheren via dit toestel. Alles loopt over HTTPS met het token van Doorsturen – ook op wifi waar enkel het web open is.</p>'+
+  '<div class="card"><h2>Status</h2><div id="clStat" class="muted">…</div>'+
+  '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="clRefresh">↻ Vernieuwen</button><button class="btn pri" id="clUpdate">⬆ Bijwerken naar deze versie</button><button class="btn" id="clRelease" title="De kastjes kunnen dit pakket daarna ophalen (Updates › Van de publieke server)">📦 Pakket aanbieden aan de kastjes</button>'+
+  '<button class="btn" id="clRestart">Live timing herstarten</button><button class="btn" id="clRestartCf">Tunnel herstarten</button><button class="btn danger" id="clClear">Laatste stand wissen</button></div></div>'+
+  '<div class="card"><h2>Kijkers</h2><p class="desc">Op de publieke server. Unieke bezoekers worden geteld zonder IP-adressen te bewaren (hash met dagelijks wisselend zout).</p><div id="clStats" class="muted">…</div></div>'+
+  '<div class="card"><h2>Instellingen van de cloudserver</h2><p class="desc">De weergave-instellingen (tussenscherm, oproepkamer, …) gaan automatisch mee met de live stand. Hier staat wat enkel op de cloudserver leeft.</p>'+
+  '<div class="f"><div><div class="lbl">Wachtwoord jury (publieke server)</div><div class="help" id="clPwHelp">Voor /jury en /settings op de publieke server. Leeg = ongewijzigd.</div></div><div class="ctl"><div class="pwrap"><input type="password" id="clJuryPw" autocomplete="new-password" placeholder="(ongewijzigd)"><button type="button" data-eye="clJuryPw">👁</button></div></div></div>'+
+  '<div class="f"><div><div class="lbl">Beheerwachtwoord (cloudserver)</div><div class="help">Om het infoscherm, de agenda en de kijkers ook zonder kastje te beheren op <b>/settings</b> van de publieke server. Leeg = ongewijzigd.</div></div><div class="ctl"><div class="pwrap"><input type="password" id="clAdminPw" autocomplete="new-password" placeholder="(ongewijzigd)"><button type="button" data-eye="clAdminPw">👁</button></div></div></div>'+
+  '<div style="margin-top:12px"><button class="btn pri" id="clSave">Opslaan op de cloudserver</button></div></div>'+
+  '<div class="card"><h2>Logboek</h2><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="clLogUnit"><option value="livetiming">Live timing</option><option value="cloudflared">Tunnel (cloudflared)</option><option value="agent">Beheerdienst</option></select>'+
+  '<select id="clLogN"><option>100</option><option selected>300</option><option>1000</option></select><button class="btn" id="clLogs">Ophalen</button></div><pre class="logs hide" id="clLogText"></pre></div>'+
+  '<div class="card"><h2>Console</h2><p class="desc">Root-terminal op de cloudserver. Vraagt bij elk gebruik het consolewachtwoord; dat wordt nergens op dit toestel bewaard. Na 15 minuten zonder gebruik sluit de console vanzelf.</p>'+
+  '<form id="clConForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><div class="pwrap" style="max-width:280px"><input type="password" id="clConPw" autocomplete="off" placeholder="Consolewachtwoord"><button type="button" data-eye="clConPw">👁</button></div>'+
+  '<button class="btn pri" id="clConOpen" type="submit">Console openen</button><button class="btn danger hide" id="clConClose" type="button">Console sluiten</button><button class="btn sm" id="clConPwChange" type="button">Wachtwoord wijzigen</button><span id="clConStat" class="muted"></span></form>'+
+  '<div class="term hide" id="clTerm"></div></div>';
+ if(sys){
+ P.console='<h1>Console</h1><p class="lead">Root-terminal op dit kastje, rechtstreeks in de browser (ook via de hotspot). Bedoeld voor debugging: <code>khzs help</code> toont alle hulpcommando\'s.</p>'+
+  '<div class="card"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn pri" id="lcOpen">⌨ Console openen</button><button class="btn danger hide" id="lcClose">Console sluiten</button><span id="lcStat" class="muted"></span></div>'+
+  '<div class="chips" id="lcCmds" style="margin-top:12px">'+[['khzs status','Status'],['khzs logs all -n 80','Logboek'],['khzs net','Netwerk'],['khzs wifi scan','Wi-Fi'],['khzs diag','Diagnose'],['htop','htop'],['df -h','Schijf']].map(x=>'<button class="btn sm" data-cmd="'+esc(x[0])+'" title="'+esc(x[0])+'">'+x[1]+'</button>').join('')+'</div>'+
+  '<div class="term hide" id="lcTerm"></div></div>';
+ P.schijven='<h1>Netwerkschijven</h1><p class="lead">Windows-shares (bv. de SwimTime-pc) koppelen op dit kastje – altijd <b>alleen-lezen</b>: het kastje kan er technisch niets schrijven, ook geen lockbestanden.</p>'+
+  '<div class="card"><h2>Gekoppelde shares</h2><div id="shList" class="muted">…</div><div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn pri" id="shAdd">＋ Share toevoegen</button><button class="btn" id="shReload">↻ Vernieuwen</button></div></div>'+
+  '<div class="card hide" id="shBrowse"><h2 id="shBTitle">Bestanden</h2><p class="desc">Kies het SwimTime-bestand (.mdb). Het wordt de database van de live timing.</p><div id="shFiles"></div></div>';
+ P.rol='<h1>Rol & scherm</h1><p class="lead">Wat dit kastje doet en wat het HDMI-scherm toont.</p>'+
+  '<div class="card"><h2>Rol van dit kastje</h2><p class="desc">Eén image voor alle kastjes: kies hier de rol.</p><div class="role" id="roleSel">'+
+   '<button data-r="uit"><b>⏸ Uit</b><span>Enkel beheer. Het scherm toont de naam en de adressen van dit kastje.</span></button>'+
+   '<button data-r="server"><b>⏱ Server</b><span>Live timing: ontvangt SwimTime, toont jury/publiek/oproepkamer en stuurt door.</span></button>'+
+   '<button data-r="scherm"><b>📺 Scherm</b><span>Toont een andere bron: de server op dit netwerk of de publieke server.</span></button></div>'+
+   '<div class="sub-f" style="margin-top:14px"><div><label>Naam van dit kastje</label><input type="text" id="devName" placeholder="khzs-timing"><div class="muted" style="font-size:12px;margin-top:3px">Ook bereikbaar als <span class="mono" id="devNameLocal"></span></div></div></div>'+
+   '<div id="roleServer" class="hide" style="margin-top:14px"><div class="sub-f"><div><label>Pagina op het HDMI-scherm</label><select id="kPage"><option value="http://localhost/jury">Jury</option><option value="http://localhost/">Publiek</option><option value="http://localhost/callroom">Oproepkamer</option><option value="custom">Eigen adres…</option></select></div><div id="kCustomW" class="hide"><label>Eigen adres</label><input type="text" id="kCustom" placeholder="http://localhost/jury"></div></div></div>'+
+   '<div id="roleScreen" class="hide" style="margin-top:14px"><div class="sub-f"><div><label>Bron</label><select id="sSrc"><option value="pub">Publieke server (timing.khzs.be)</option><option value="auto">Automatisch: de server op dit netwerk</option><option value="lan">Server op een vast adres</option><option value="custom">Eigen adres…</option></select></div>'+
+   '<div id="sLanW"><label>Naam of IP van de server</label><input type="text" id="sLan" placeholder="khzs-server.local"></div>'+
+   '<div id="sPageW"><label>Pagina</label><select id="sPage"><option value="/callroom">Oproepkamer</option><option value="/">Publiek</option><option value="/jury">Jury</option></select></div>'+
+   '<div id="sCustomW" class="hide"><label>Eigen adres</label><input type="text" id="sCustom" placeholder="https://… of auto (= server op dit netwerk)"></div>'+
+   '<div><label>Reservebron (als de bron wegvalt)</label><input type="text" id="sBackup" placeholder="auto = server op hetzelfde netwerk · of een adres · leeg = geen"></div>'+
+   '<div class="wide"><label>Gevonden op dit netwerk</label><div id="sPeers" class="muted">zoeken…</div></div>'+
+   '<div id="sKeyW"><label>Schermsleutel (jury op de publieke server)</label><div class="pwrap"><input type="password" id="sKey" placeholder="(ongewijzigd)" autocomplete="new-password"><button type="button" data-eye="sKey">👁</button></div></div></div></div>'+
+   '<div class="sub-f"><div><label>Vergroting scherm</label><select id="kZoom">'+[.75,1,1.25,1.5,1.75,2].map(z=>'<option value="'+z+'">'+z+'×</option>').join('')+'</select></div>'+
+   '<div><label>HDMI-scherm</label><label class="sw" style="margin-top:4px"><input type="checkbox" id="kOn"><span></span></label></div></div>'+
+   '<div class="sub-f"><div><label>Resolutie</label><select id="kMode">'+[['auto','Automatisch (voorkeur van de tv)'],['1920x1080','1920 × 1080 (Full HD)'],['1680x1050','1680 × 1050'],['1600x900','1600 × 900'],['1366x768','1366 × 768'],['1280x1024','1280 × 1024'],['1280x720','1280 × 720 (HD)'],['1024x768','1024 × 768'],['1920x1200','1920 × 1200']].map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select></div>'+
+   '<div><label>Draaiing</label><select id="kRot"><option value="0">Liggend (normaal)</option><option value="90">Staand – 90°</option><option value="270">Staand – 270°</option><option value="180">Ondersteboven – 180°</option></select></div></div>'+
+   '<p class="desc" style="margin:6px 0 0">Automatisch past zich aan elk scherm aan, ook als je later een andere tv aansluit. Alle pagina\'s schalen mee; met "Vergroting" maak je tekst groter of kleiner.</p>'+
+   '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" id="roleSave">Toepassen</button><button class="btn" id="kRestart">Scherm herladen</button></div></div>';
+ P.netwerk='<h1>Netwerk & router</h1><p class="lead">Verbindingen, internet, delen met NAT en DHCP. Elke wijziging moet je binnen 2 minuten bevestigen, anders komt de vorige instelling terug.</p>'+
+  '<div id="netBanners"></div>'+
+  '<div class="card"><h2>Overzicht</h2><div class="flow" id="flow"></div></div>'+
+  '<div class="card"><h2>Internet</h2><p class="desc">Uit = geen verbinding met internet (geen doorsturen, geen updates); het lokale netwerk blijft werken.</p>'+
+   '<div class="f"><div><div class="lbl">Internet toestaan</div><div class="help" id="inetHelp"></div></div><div class="ctl"><label class="sw"><input type="checkbox" id="nInet"><span></span></label></div></div>'+
+   '<div class="f"><div><div class="lbl">Internet via (WAN)</div><div class="help">Automatisch = de verbinding die werkt (bv. 4G als het zwembadnetwerk geen internet heeft).</div></div><div class="ctl"><div class="seg" id="nWan"><button data-v="auto">Automatisch</button><button data-v="ethernet">Ethernet</button><button data-v="wifi">Wi-Fi</button><button data-v="usb">USB</button></div></div></div></div>'+
+  '<div class="card"><h2>Poorten</h2>'+
+   '<div class="iface"><h3>🔌 Ethernet</h3><div class="st" id="stEth"></div><div class="seg" id="nEthRole"><button data-v="wan">WAN – verbinden</button><button data-v="lan">LAN – delen (DHCP + NAT)</button><button data-v="off">Uit</button></div>'+
+    '<div id="ethWan" class="sub-f"><div><label>IP-adres</label><div class="seg" id="nEthIp"><button data-v="dhcp">Automatisch (DHCP)</button><button data-v="static">Vast</button></div></div>'+
+    '<div class="eStatic"><label>Adres / prefix</label><input type="text" id="nEthAddr" placeholder="192.168.1.50/24"></div><div class="eStatic"><label>Gateway</label><input type="text" id="nEthGw" placeholder="192.168.1.1"></div><div class="eStatic"><label>DNS</label><input type="text" id="nEthDns" placeholder="1.1.1.1"></div></div>'+
+    '<div id="ethLan" class="sub-f"><div><label>Adres van de Pi</label><input type="text" id="lEthAddr"></div><div><label>DHCP van</label><input type="text" id="lEthStart"></div><div><label>DHCP tot</label><input type="text" id="lEthEnd"></div><div><label>Leasetijd (uur)</label><input type="number" id="lEthLease" step="0.5" min="0.1" max="168"></div><div><label>DNS voor toestellen</label><input type="text" id="lEthDns" placeholder="leeg = via de Pi"></div></div></div>'+
+   '<div class="iface"><h3>📶 Wi-Fi</h3><div class="st" id="stWifi"></div><div class="seg" id="nWifiRole"><button data-v="client">Client</button><button data-v="hotspot">Hotspot</button><button data-v="client+hotspot">Client + hotspot</button><button data-v="off">Uit</button></div>'+
+    '<div class="muted" style="font-size:12.5px;margin-top:8px">Client + hotspot: zelfde kanaal als het verbonden netwerk. Met een USB-Wi-Fi-stick gebruikt de hotspot automatisch de stick.</div></div>'+
+   '<div class="iface"><h3>📱 USB-modem (4G-router, gsm)</h3><div class="st" id="stUsb"></div><div class="f" style="border:0;padding:0"><div><div class="lbl">Gebruiken als WAN</div></div><div class="ctl"><label class="sw"><input type="checkbox" id="nUsb"><span></span></label></div></div></div>'+
+   '<div class="iface"><h3>📡 Eigen hotspot</h3><div class="st" id="stAp"></div><div class="sub-f"><div><label>Naam (SSID)</label><input type="text" id="hSsid" maxlength="32"></div>'+
+    '<div><label>Wachtwoord</label><div class="pwrap"><input type="password" id="hPw" placeholder="(ongewijzigd)" autocomplete="new-password"><button type="button" data-eye="hPw">👁</button></div></div>'+
+    '<div><label>Noodhotspot na (s zonder netwerk)</label><input type="number" id="hAfter" min="20" max="600"></div>'+
+    '<div><label>Adres van de Pi</label><input type="text" id="lApAddr"></div><div><label>DHCP van</label><input type="text" id="lApStart"></div><div><label>DHCP tot</label><input type="text" id="lApEnd"></div><div><label>Leasetijd (uur)</label><input type="number" id="lApLease" step="0.5" min="0.1" max="168"></div><div><label>DNS voor toestellen</label><input type="text" id="lApDns" placeholder="leeg = via de Pi"></div></div>'+
+    '<div class="muted" style="font-size:12.5px;margin-top:8px">🛟 De noodhotspot staat altijd aan als vangnet: zonder netwerk start hij vanzelf, zodat je dit kastje altijd terugvindt.</div></div>'+
+   '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"><button class="btn pri" id="netApply">Toepassen</button><button class="btn" id="netReload">Opnieuw laden</button><span class="sp"></span><button class="btn danger" id="netReset">Standaardinstellingen</button></div></div>'+
+  '<div class="card"><h2>DHCP: toestellen en vaste adressen</h2><p class="desc">Toestellen die een adres van dit kastje kregen (Ethernet-LAN of hotspot). Geef de SwimTime-pc een <b>vast adres</b>: dan klopt het share-pad en de afzenderfilter altijd. De SwimTime-broadcast komt gewoon binnen als de pc aan de LAN-kant hangt.</p>'+
+   '<div id="dhLeases" class="muted">…</div><h3 style="font-size:14px;margin:16px 0 6px">Vaste adressen</h3><div id="dhRes"></div>'+
+   '<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="dhAdd" type="button">＋ Vast adres</button><button class="btn" id="dhReload" type="button">↻ Vernieuwen</button><span class="muted" style="align-self:center">Opslaan met <b>Toepassen</b> hierboven.</span></div></div>'+
+  '<div class="card"><h2>Wi-Fi-netwerken</h2><p class="desc">Verbinden als client. Staat de Pi zelf als hotspot aan op dezelfde radio, dan valt die even weg tijdens het verbinden.</p>'+
+   '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap"><button class="btn" id="wScan">🔍 Zoeken</button><button class="btn" id="wHidden">Verborgen netwerk…</button><button class="btn" id="wAdd">＋ Netwerk toevoegen</button></div><div id="wList" class="muted">Klik op Zoeken.</div>'+
+   '<h3 style="font-size:14px;margin:18px 0 6px">Bewaarde netwerken</h3><p class="desc" style="margin:0 0 8px">Zoals op een gsm: het kastje verbindt vanzelf met het bekende netwerk met de hoogste voorrang dat in de buurt is. Ook netwerken die nu niet in bereik zijn kan je vooraf toevoegen.</p><div id="wSaved" class="muted">–</div></div>';
+ P.portal='<h1>Hotspot-login</h1><p class="lead">Aanmelden op een Wi-Fi met een aanmeldpagina (captive portal). Dit is een browser op de Pi zelf: klik en typ in het beeld. Toestellen achter de Pi gebruiken daarna dezelfde aanmelding.</p>'+
+  '<div class="card"><div class="urlbar"><input type="text" id="pUrl" placeholder="http://neverssl.com"><button class="btn" id="pGo">Ga</button><button class="btn" id="pStart">Start</button><button class="btn danger" id="pStop">Sluiten</button></div>'+
+  '<div class="portal" id="pBox"><div class="ph">Klik op <b>Start</b>: de aanmeldpagina van het netwerk verschijnt hier.</div></div>'+
+  '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><input type="text" id="pText" placeholder="Tekst om te typen (in het actieve veld)" style="flex:1;min-width:220px"><button class="btn" id="pType">Typen</button>'+
+  '<button class="btn sm" data-key="Enter">⏎ Enter</button><button class="btn sm" data-key="Tab">⇥ Tab</button><button class="btn sm" data-key="Backspace">⌫</button></div>'+
+  '<p class="muted" style="font-size:12.5px;margin:10px 0 0" id="pInfo"></p></div>';
+ P.gebruikers='<h1>Gebruikers & SSH</h1><p class="lead">Toegang tot het systeem (SSH en seriële console).</p>'+
+  '<div class="card"><h2>SSH</h2><div class="f"><div><div class="lbl">SSH-toegang</div><div class="help" id="sshHelp"></div></div><div class="ctl"><label class="sw"><input type="checkbox" id="sshOn"><span></span></label></div></div>'+
+  '<div class="f"><div><div class="lbl">Aanmelden met wachtwoord</div><div class="help">Uitschakelen kan pas als een gebruiker met sudo-rechten een SSH-sleutel heeft.</div></div><div class="ctl"><label class="sw"><input type="checkbox" id="sshPw"><span></span></label></div></div></div>'+
+  '<div class="card"><h2>Gebruikers</h2><div id="uList" class="muted">…</div><div style="margin-top:12px"><button class="btn pri" id="uAdd">+ Gebruiker toevoegen</button></div></div>';
+ P.updates='<h1>Updates</h1><p class="lead">Nieuwe versies zonder opnieuw te flashen. De vorige versie blijft bewaard: start een nieuwe niet goed, dan komt de vorige vanzelf terug.</p>'+
+  '<div id="sysPending"></div><div class="grid3" id="upStats"></div>'+
+  '<div class="card" style="margin-top:16px"><h2>Pakket uploaden</h2><div class="drop" id="upDrop">Sleep <span class="mono">khzs-timing-*.zip</span> hierheen of <b>klik om te kiezen</b><input type="file" id="upFile" accept=".zip" hidden></div></div>'+
+  '<div class="card"><h2>Van de publieke server</h2><p class="desc">Het pakket dat het laatst naar de cloudserver gestuurd werd (lokaal beheer › Cloudserver). Geen GitHub-token nodig: enkel het adres en token van Doorsturen.</p>'+
+   '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="cuCheck">Controleren</button><button class="btn pri" id="cuApply" disabled>Installeren</button></div><div id="cuStat" class="muted" style="margin-top:10px"></div></div>'+
+  '<div class="card"><h2>GitHub</h2><p class="desc">Releases van de (privé) repository. Automatische updates gebeuren nooit tijdens een reeks.</p>'+
+   '<div class="sub-f"><div><label>Repository</label><input type="text" id="gRepo" placeholder="DinXke/KHZS-timing"></div><div><label>Token (enkel lezen)</label><div class="pwrap"><input type="password" id="gTok" placeholder="(ongewijzigd)" autocomplete="new-password"><button type="button" data-eye="gTok">👁</button></div></div>'+
+   '<div><label>Pas updaten na … min zonder gegevens</label><input type="number" id="gIdle" min="1" max="240"></div><div><label>Automatisch updaten</label><label class="sw" style="margin-top:4px"><input type="checkbox" id="gAuto"><span></span></label></div></div>'+
+   '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="gSave">Opslaan</button><button class="btn" id="gCheck">Controleren</button><button class="btn pri hide" id="gApply">Installeren</button></div><div id="gInfo" class="muted" style="margin-top:10px"></div></div>'+
+  '<div class="card"><h2>Logboek</h2><div class="log" id="upLog">–</div></div>';
+ }
+ P.systeem='<h1>Systeem</h1><p class="lead">Beveiliging, simulator'+(sys?' en het kastje zelf':'')+'.</p>'+
+  fieldsCard('Dit toestel','',['device_label'])+
+  fieldsCard('Beveiliging','',['admin_token','jury_password'])+
+  fieldsCard('Simulator','Ontvangt een simulatie van simulator.py naast SwimTime.',['feed_port','feed_bind'])+
+  (sys?'<div class="card"><h2>Kastje</h2><div class="grid3" id="hwStats"></div><div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn" id="pwReboot">↻ Herstarten</button><button class="btn danger" id="pwOff">⏻ Uitschakelen</button></div></div>':'');
+ $('main').innerHTML=Object.keys(P).map(k=>'<section class="page" id="pg_'+k+'">'+P[k]+'</section>').join('');
 }
-function load(){
- return fetch('/api/settings',{headers:token?{'X-Admin-Token':token}:{}}).then(function(r){return r.json()}).then(function(d){
-  cur=d.settings||{};defs=d.defaults||{};canEdit=!!d.canEdit;tokenSet=!!d.tokenSet;
-  GROUPS.forEach(function(g){g.f.forEach(function(f){if(!f.pw)setVal(f,cur[f.k])})});
-  lockUI();mark();
- });
+
+/* ---------------------------------------------------------------- overzicht en statusbalk */
+function setPill(id,cls,txt){const p=$(id);p.classList.remove('hide');p.querySelector('.dot').className='dot '+cls;p.lastElementChild.textContent=txt}
+async function refreshStatus(){
+  try{stateNow=await (await fetch('/state?view=jury',{headers:hdr()})).json()}catch(e){stateNow=null}
+  let ver=null;try{ver=await (await fetch('/api/version')).json()}catch(e){}
+  if(ver&&!relayMode){const nm=ver.label||ver.hostname||'';if(nm){document.title='Beheer – '+nm;if(!sys)$('topSub').textContent=nm+' · '+(ver.version||'')}
+    twoSrv=(ver.role==='server'&&ver.otherServers&&ver.otherServers.length)?ver.otherServers:null}
+  const role=ver&&ver.role||'server';
+  if(role!=='server')setPill('pLive','', 'Live timing uit');
+  else if(!stateNow)setPill('pLive','bad','Server ?');
+  else setPill('pLive',stateNow.connected?'ok':'warn',stateNow.connected?(stateNow.simulated?'Simulatie':'SwimTime verbonden'):'Geen gegevens');
+  if(sys){try{sys=await api('/api/system/status');renderSys()}catch(e){}}
+  renderOverview(ver);
 }
-$('tokbtn').addEventListener('click',function(){
- token=$('tok').value;
- load().then(function(){
-  if(canEdit){try{sessionStorage.setItem('lt_admin',token)}catch(e){}msg('ok','Beheerderscode aanvaard.')}
-  else{try{sessionStorage.removeItem('lt_admin')}catch(e){}msg('err','Beheerderscode onjuist.')}
- }).catch(function(){msg('err','Kon de server niet bereiken.')});
-});
-$('form').addEventListener('submit',function(e){
- e.preventDefault();msg();
- var body={},n=0;
- GROUPS.forEach(function(g){g.f.forEach(function(f){
-  var v=getVal(f);
-  if(f.pw){if(v!==''){body[f.k]=v;n++}return}
-  if(v!==cur[f.k]){if(v===null||(typeof v==='number'&&isNaN(v))){return}body[f.k]=v;n++}
- })});
- if(!n){msg('ok','Niets gewijzigd.');return}
- $('save').disabled=true;
- fetch('/api/settings',{method:'POST',headers:hdr(),body:JSON.stringify(body)}).then(function(r){
-  return r.json().catch(function(){return {}}).then(function(d){return {s:r.status,d:d}})
- }).then(function(x){
-  if(x.s===403){msg('err','Geen toegang: beheerderscode nodig of onjuist.');canEdit=false;lockUI();return}
-  if(x.s>=400||!x.d.ok){msg('err','Opslaan mislukt.',x.d.errors);$('save').disabled=!canEdit;return}
-  if(body.admin_token){token=body.admin_token;try{sessionStorage.setItem('lt_admin',token)}catch(e){}}
-  $('f_admin_token').value='';
-  msg('ok','Instellingen opgeslagen.');return load();
- }).catch(function(){msg('err','Kon de server niet bereiken.')}).then(function(){$('save').disabled=!canEdit});
-});
-build();
-load().catch(function(){msg('err','Kon de instellingen niet laden.')});
+function renderOverview(ver){
+  if(!$('ovStats'))return;const s=stateNow||{},e=s.event||{},h=s.heat||{};let html='';
+  html+='<div class="stat"><div class="k">Live timing</div><div class="v">'+((ver&&ver.role&&ver.role!=='server')?'Uit':(s.connected?(s.simulated?'Simulatie':'Verbonden'):'Geen gegevens'))+'</div><div class="s">'+(e.number?'Wedstrijd '+esc(e.number)+' · '+esc(h.name||''):'—')+'</div></div>';
+  html+='<div class="stat"><div class="k">Versie</div><div class="v">'+esc(ver&&ver.version||'?')+'</div><div class="s">'+(sys?'kastje '+esc(sys.hostname):'laptop')+'</div></div>';
+  if(sys){const n=sys.network||{},a=n.addresses||{},ips=Object.keys(a).filter(k=>k!=='lo').map(k=>(a[k]||[]).map(x=>x.split('/')[0]+' ('+k+')').join(', ')).filter(Boolean);
+    html+='<div class="stat"><div class="k">Netwerk</div><div class="v">'+(n.internet?'Internet ✓':(n.uplink?'Lokaal':'Geen netwerk'))+'</div><div class="s">'+esc(ips.join(' · ')||'–')+'</div></div>';
+    html+='<div class="stat"><div class="k">Kastje</div><div class="v">'+(sys.temp!=null?sys.temp+' °C':'–')+'</div><div class="s">aan sinds '+fmtDur(sys.uptime)+'</div></div>'}
+  $('ovStats').innerHTML=html;
+  const b=[];
+  if(sys){
+    if(sys.confirm)b.push('<div class="banner warn"><span class="sp">⏳ <b>Netwerkwijziging bevestigen</b> – nog '+sys.confirm.remaining+' s, anders komt de vorige instelling terug.</span><button class="btn" data-net="revert">Terugdraaien</button><button class="btn pri" data-net="confirm">Bevestigen</button></div>');
+    if(sys.connectivity==='portal')b.push('<div class="banner info"><span class="sp">🔑 <b>Dit Wi-Fi-netwerk vraagt een aanmelding.</b></span><a class="btn pri" href="#portal">Aanmelden</a></div>');
+    if(sys.system&&sys.system.pending&&sys.system.pending.length)b.push('<div class="banner info"><span class="sp">🧩 <b>'+sys.system.pending.length+' systeemwijziging(en)</b> klaar na een update.</span><a class="btn pri" href="#updates">Bekijken</a></div>');
+    if(sys.throttled&&(sys.throttled.undervoltage||sys.throttled.undervoltage_seen))b.push('<div class="banner bad"><span class="sp">⚡ <b>Te lage voedingsspanning</b>'+(sys.throttled.undervoltage?' (nu)':' (eerder)')+' – gebruik een voeding van minstens 2,5 A.</span></div>');
+    if(twoSrv)b.push('<div class="banner bad"><span class="sp">⚠ <b>Meer dan één server op dit netwerk</b>: ook '+twoSrv.map(x=>esc(x.name)+' ('+esc(x.ip)+')').join(', ')+'. Er mag er maar één zijn – zet de andere op scherm of uit.</span><a class="btn" href="#rol">Rol</a></div>');
+    if(defTok)b.push('<div class="banner bad"><span class="sp">🔓 <b>Standaard beheerderscode in gebruik</b> – iedereen die "zwemclub" kent, kan dit kastje beheren (ook de root-console).</span><a class="btn pri" href="#systeem">Code wijzigen</a></div>');
+    (sys.sdErrors||[]).forEach(x=>b.push('<div class="banner warn"><span class="sp">SD-instellingenbestand: '+esc(x)+'</span></div>'));
+    if(sys.lastRevert&&Date.now()/1000-sys.lastRevert.at<600)b.push('<div class="banner warn"><span class="sp">↩ Een netwerkwijziging werd teruggedraaid ('+esc(sys.lastRevert.reason)+').</span></div>');
+  }
+  ['banners','netBanners'].forEach(id=>{if($(id))$(id).innerHTML=b.join('')});
+  const bd=$('bd_updates');if(bd){const n=sys&&sys.system&&sys.system.pending?sys.system.pending.length:0;bd.textContent=n;bd.classList.toggle('hide',!n)}
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-net]');if(!b)return;
+  act(b,()=>api('/api/system/network/'+b.dataset.net,{json:{}}),b.dataset.net==='confirm'?'Netwerk bevestigd':'Vorige instelling teruggezet').then(refreshStatus)});
+
+/* ---------------------------------------------------------------- gegevens / doorsturen */
+async function loadData(){
+  try{const d=await (await fetch('/api/db',{headers:hdr()})).json();$('dbStat').textContent=d.loadedAt?('laatste kopie '+d.loadedAt+(d.loadedFile?' ('+d.loadedFile+')':'')):(d.error?'fout: '+d.error:'nog geen kopie')}catch(e){}
+  try{const d=await (await fetch('/api/programma',{headers:hdr()})).json();
+    $('progStat').innerHTML=d.file?('<b>'+esc(d.file)+'</b> · '+(d.stats&&d.stats.format?esc(d.stats.format)+' · ':'')+(d.stats&&d.stats.events?d.stats.events+' wedstrijden · ':'')+d.heats+' reeksen'+(d.stats&&d.stats.entries?' · '+d.stats.entries+' inschrijvingen':'')+' · geladen '+esc(d.loadedAt||'')):(d.error?'<span style="color:var(--bad)">'+esc(d.error)+'</span>':'Nog geen programma geladen.')}catch(e){}
+  try{const d=await (await fetch('/api/relay',{headers:hdr()})).json();
+    $('relayStat').innerHTML=!d.enabled?'<div class="banner info"><span class="sp">Doorsturen staat uit.</span></div>':
+     '<div class="banner '+(d.ok?'info':'bad')+'"><span class="sp">'+(d.ok?'✓ Verbonden met ':'✗ Fout bij ')+'<b>'+esc(d.url)+'</b>'+(d.ok?'':' – '+esc(d.error||''))+(d.lastOk?' · laatst OK '+new Date(d.lastOk*1000).toLocaleTimeString('nl-BE'):'')+' · '+d.sent+' berichten</span></div>'}catch(e){}
+}
+function dropZone(zone,input,cb){zone.onclick=()=>input.click();input.onchange=()=>{if(input.files[0])cb(input.files[0]);input.value=''};
+  zone.ondragover=e=>{e.preventDefault();zone.classList.add('over')};zone.ondragleave=()=>zone.classList.remove('over');
+  zone.ondrop=e=>{e.preventDefault();zone.classList.remove('over');if(e.dataTransfer.files[0])cb(e.dataTransfer.files[0])}}
+function wireData(){
+  dropZone($('progDrop'),$('progFile'),f=>act(null,async()=>{const r=await api('/api/programma',{body:f,headers:{'Content-Type':'application/octet-stream','X-Filename':encodeURIComponent(f.name)}});await loadData();return r},'Programma geladen'));
+  $('progClear').onclick=()=>confirmBox('Programma wissen','Het geladen programma wordt verwijderd.','Wissen',()=>act(null,()=>api('/api/programma/clear',{json:{}}),'Programma gewist').then(loadData),true);
+  $('dbSync').onclick=e=>act(e.target,async()=>{await api('/api/db/sync',{json:{}});await loadData()},'Database gesynchroniseerd');
+}
+
+/* ---------------------------------------------------------------- kastje: rol en scherm */
+let roleSel='uit';
+function renderSys(){
+  if(!sys)return;$('topSub').textContent=((cur&&cur.device_label)||sys.hostname)+' · '+(sys.version||'');
+  const n=sys.network||{};setPill('pNet',n.internet?'ok':(n.uplink?'warn':'bad'),n.internet?'Internet':(n.uplink?'Geen internet':'Geen netwerk'));
+  if($('hwStats')){const t=sys.throttled||{};$('hwStats').innerHTML=[['Temperatuur',sys.temp!=null?sys.temp+' °C':'–',t.throttled?'vertraagd door warmte':''],['Opslag vrij',sys.disk?(sys.disk.free/1024).toFixed(1)+' GB':'–','van '+(sys.disk?(sys.disk.total/1024).toFixed(1):'?')+' GB'],
+    ['Geheugen vrij',sys.mem&&sys.mem.free!=null?sys.mem.free+' MB':'–','van '+(sys.mem&&sys.mem.total||'?')+' MB'],['Aan sinds',fmtDur(sys.uptime),''],['Voeding',t.undervoltage?'Te laag!':(t.undervoltage_seen?'Eerder te laag':'OK'),'']].map(x=>'<div class="stat"><div class="k">'+x[0]+'</div><div class="v">'+x[1]+'</div><div class="s">'+esc(x[2])+'</div></div>').join('')}
+  renderNet(false);
+}
+function fillRole(){
+  const d=sys.device||{},k=sys.kiosk||{};roleSel=d.role||'uit';
+  document.querySelectorAll('#roleSel button').forEach(b=>b.classList.toggle('on',b.dataset.r===roleSel));
+  $('devName').value=sys.hostname;$('devNameLocal').textContent=sys.hostname+'.local';
+  const known=['http://localhost/jury','http://localhost/','http://localhost/callroom'];$('kPage').value=known.indexOf(k.url)>=0?k.url:'custom';$('kCustom').value=k.url||'';
+  $('kZoom').value=String(k.zoom||1);$('kOn').checked=k.enabled!==false;$('kMode').value=k.mode||'auto';$('kRot').value=String(k.rotate||0);
+  const u=d.display_url||'';let src='custom',lan='',page='/callroom';
+  if(u.indexOf('auto')===0){src='auto';page=u.slice(5)||'/callroom'}
+  else try{const x=new URL(u);if(x.host==='timing.khzs.be'){src='pub';page=x.pathname}else if(x.protocol==='http:'){src='lan';lan=x.host;page=x.pathname}}catch(e){}
+  if(['/callroom','/','/jury'].indexOf(page)<0){src='custom'}
+  $('sSrc').value=src;$('sLan').value=lan;$('sPage').value=page;$('sCustom').value=u;$('sBackup').value=d.display_backup_url||'';$('sKey').placeholder=d.display_key?'(ongewijzigd – ingesteld)':'(geen)';
+  roleVis();
+}
+function roleVis(){$('roleServer').classList.toggle('hide',roleSel!=='server');$('roleScreen').classList.toggle('hide',roleSel!=='scherm');
+  $('kCustomW').classList.toggle('hide',$('kPage').value!=='custom');const s=$('sSrc').value;
+  $('sLanW').classList.toggle('hide',s!=='lan');$('sPageW').classList.toggle('hide',s==='custom');$('sCustomW').classList.toggle('hide',s!=='custom');
+  $('sKeyW').classList.toggle('hide',!(s==='pub'&&$('sPage').value==='/jury'))}
+function wireRole(){
+  document.querySelectorAll('#roleSel button').forEach(b=>b.onclick=()=>{roleSel=b.dataset.r;document.querySelectorAll('#roleSel button').forEach(x=>x.classList.toggle('on',x===b));roleVis()});
+  ['kPage','sSrc','sPage'].forEach(id=>$(id).onchange=roleVis);
+  $('roleSave').onclick=e=>act(e.target,async()=>{
+    const s=$('sSrc').value,url=s==='auto'?'auto:'+$('sPage').value:s==='pub'?'https://timing.khzs.be'+$('sPage').value:s==='lan'?'http://'+$('sLan').value.trim().replace(/^https?:\/\//,'').replace(/\/$/,'')+$('sPage').value:$('sCustom').value.trim();
+    const kurl=$('kPage').value==='custom'?$('kCustom').value.trim():$('kPage').value;
+    await api('/api/system/kiosk',{json:{url:kurl||'http://localhost/jury',zoom:parseFloat($('kZoom').value),mode:$('kMode').value,rotate:parseInt($('kRot').value,10),enabled:$('kOn').checked}});
+    const body={role:roleSel,display_url:url,display_backup_url:$('sBackup').value.trim(),name:$('devName').value.trim()};if($('sKey').value)body.display_key=$('sKey').value;
+    await api('/api/system/device',{json:body});$('sKey').value='';sys=await api('/api/system/status');fillRole()},'Toegepast – het scherm laadt opnieuw');
+  $('kRestart').onclick=e=>act(e.target,()=>api('/api/system/kiosk/restart',{json:{}}),'Scherm herladen');
+}
+
+/* ---------------------------------------------------------------- netwerk en router */
+let net=null;
+function segSet(id,v){document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
+function segGet(id){const b=document.querySelector('#'+id+' button.on');return b?b.dataset.v:null}
+function segWire(id,cb){document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{segSet(id,b.dataset.v);if(cb)cb()})}
+function renderNet(fill){
+  if(!sys||!$('flow'))return;const n=sys.network||{},r=sys.routing||{},hs=sys.hotspot||{},a=n.addresses||{};
+  if(fill||!net){net=JSON.parse(JSON.stringify(r));fillNet()}
+  const ip=dev=>(a[dev]||[]).map(x=>x.split('/')[0]).join(', ');
+  const usb=(n.usbModems||[]);const eth=(n.ethernet||{});const w=n.wifi;
+  const wanDev=n.gatewayDev||'';
+  const row=(ok,txt,m)=>'<div class="row"><span class="dot '+(ok===true?'ok':ok===false?'':'warn')+'"></span>'+txt+'<span class="m">'+(m||'')+'</span></div>';
+  let src='<div class="node"><div class="t">Internet / netwerk in</div>';
+  src+=row(r.ethernet&&r.ethernet.role==='wan'&&eth.carrier,'Ethernet',r.ethernet&&r.ethernet.role!=='wan'?'(geen WAN)':(eth.carrier?ip('eth0')||'kabel':'geen kabel'));
+  src+=row(!!w&&!(r.wifi&&r.wifi.role==='hotspot'),'Wi-Fi',w?esc(w.ssid)+' '+bars(w.signal):'niet verbonden');
+  src+=usb.length?usb.map(d=>row(d.state.indexOf('connected')===0,'USB '+esc(d.device),ip(d.device)||d.state)).join(''):row(false,'USB-modem','niet aangesloten');
+  src+='<div class="row" style="margin-top:6px"><b>WAN:</b>&nbsp;'+(wanDev?esc(wanDev):'–')+'<span class="m">'+(r.internet===false?'internet UIT':(n.internet?'internet ✓':'geen internet'))+(sys.connectivity==='portal'?' · aanmelding nodig':'')+'</span></div></div>';
+  let pi='<div class="node pi"><div class="t">Kastje</div><div class="name">'+esc(sys.hostname)+'</div><div class="muted" style="font-size:13px">'+esc(Object.keys(a).filter(k=>k!=='lo').map(k=>(a[k]||[])[0]&&(a[k][0].split('/')[0])).filter(Boolean).join(' · '))+'</div></div>';
+  let out='<div class="node"><div class="t">Uitdelen (LAN)</div>';
+  out+=row(r.ethernet&&r.ethernet.role==='lan'?true:false,'Ethernet-LAN',r.ethernet&&r.ethernet.role==='lan'?esc(r.lan.ethernet.address):'uit');
+  out+=row(hs.active?true:false,'Hotspot '+esc(hs.ssid||''),hs.active?(hs.clients+' toestel(len) · '+esc(hs.iface||'')):(hs.countdown!=null?'noodhotspot over '+hs.countdown+' s':'uit'));
+  out+='</div>';
+  $('flow').innerHTML=src+'<div class="arrow">→</div>'+pi+'<div class="arrow">→</div>'+out;
+  $('stEth').textContent=(eth.carrier?'Kabel aangesloten':'Geen kabel')+(ip('eth0')?' · '+ip('eth0'):'');
+  $('stWifi').innerHTML=w?'Verbonden met <b>'+esc(w.ssid)+'</b> '+bars(w.signal)+' kanaal '+esc(w.channel):'Niet verbonden als client';
+  $('stUsb').textContent=usb.length?usb.map(d=>d.device+': '+(ip(d.device)||d.state)).join(' · '):'Geen USB-modem gevonden (4G-router of gsm met USB-tethering aansluiten)';
+  $('stAp').textContent=hs.active?('Actief op '+hs.iface+' · '+hs.clients+' toestel(len)'+(hs.reason?' · '+hs.reason:'')):'Niet actief';
+  $('inetHelp').textContent=r.internet===false?'Staat uit.':(n.internet?'Werkt via '+(wanDev||'?')+'.':'Geen internet bereikbaar.');
+  renderSaved();
+}
+function fillNet(){
+  if(!net)return;$('nInet').checked=net.internet!==false;segSet('nWan',net.wan||'auto');segSet('nEthRole',net.ethernet.role);segSet('nEthIp',net.ethernet.ipv4||'dhcp');
+  $('nEthAddr').value=net.ethernet.address||'';$('nEthGw').value=net.ethernet.gateway||'';$('nEthDns').value=net.ethernet.dns||'';
+  const le=net.lan.ethernet,la=net.lan.hotspot;$('lEthAddr').value=le.address;$('lEthStart').value=le.dhcp_start;$('lEthEnd').value=le.dhcp_end;$('lEthLease').value=le.lease_h;$('lEthDns').value=le.dns||'';
+  $('lApAddr').value=la.address;$('lApStart').value=la.dhcp_start;$('lApEnd').value=la.dhcp_end;$('lApLease').value=la.lease_h;$('lApDns').value=la.dns||'';
+  segSet('nWifiRole',net.wifi.role);$('nUsb').checked=net.usb.enabled!==false;
+  const hs=sys.hotspot||{};$('hSsid').value=hs.ssid||'';$('hPw').value='';$('hAfter').value=hs.after_s||60;netVis()}
+function netVis(){const er=segGet('nEthRole');$('ethWan').classList.toggle('hide',er!=='wan');$('ethLan').classList.toggle('hide',er!=='lan');
+  document.querySelectorAll('.eStatic').forEach(x=>x.classList.toggle('hide',segGet('nEthIp')!=='static'))}
+let dhRes=[];
+function dhDraw(){const el=$('dhRes');if(!el)return;el.innerHTML=dhRes.length?'<table class="list"><tr><th>Naam</th><th>MAC-adres</th><th>Vast IP</th><th></th></tr>'+dhRes.map((r,i)=>'<tr>'+
+  '<td><input type="text" data-r="'+i+'" data-k="name" value="'+esc(r.name||'')+'" placeholder="bv. swimtime-pc"></td><td><input type="text" data-r="'+i+'" data-k="mac" value="'+esc(r.mac||'')+'" placeholder="aa:bb:cc:dd:ee:ff"></td>'+
+  '<td><input type="text" data-r="'+i+'" data-k="ip" value="'+esc(r.ip||'')+'" placeholder="10.43.0.10"></td><td><button class="btn sm danger" type="button" data-rdel="'+i+'">✕</button></td></tr>').join('')+'</table>':'<p class="muted" style="margin:0">Geen.</p>'}
+async function dhLoad(){const el=$('dhLeases');if(!el)return;let d;try{d=await api('/api/system/dhcp/leases')}catch(e){el.textContent=e.message;return}
+  if(!dhRes.length&&!dhLoad.done){dhRes=(d.reservations||[]).map(x=>Object.assign({},x));dhDraw()}dhLoad.done=true;
+  const L=d.leases||[];el.innerHTML=L.length?'<table class="list"><tr><th>Toestel</th><th>IP</th><th>MAC</th><th>Via</th><th>Lease tot</th><th></th></tr>'+L.map(l=>'<tr><td><b>'+esc(l.name||'?')+'</b></td><td>'+esc(l.ip)+'</td><td class="muted">'+esc(l.mac)+'</td><td class="muted">'+esc(l.iface)+'</td><td class="muted">'+new Date(l.expires*1000).toLocaleString('nl-BE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+'</td>'+
+    '<td>'+(dhRes.some(r=>r.mac===l.mac)?'<span class="muted">vast</span>':'<button class="btn sm" type="button" data-fix="'+esc(l.mac)+'|'+esc(l.ip)+'|'+esc(l.name||'')+'">Vast maken</button>')+'</td></tr>').join('')+'</table>':'Nog geen toestellen.'}
+function readNet(){return {reservations:dhRes.filter(r=>r.mac&&r.ip),internet:$('nInet').checked,wan:segGet('nWan'),
+  ethernet:{role:segGet('nEthRole'),ipv4:segGet('nEthIp'),address:$('nEthAddr').value.trim(),gateway:$('nEthGw').value.trim(),dns:$('nEthDns').value.trim()},
+  wifi:{role:segGet('nWifiRole')},usb:{enabled:$('nUsb').checked},
+  lan:{ethernet:{address:$('lEthAddr').value.trim(),dhcp_start:$('lEthStart').value.trim(),dhcp_end:$('lEthEnd').value.trim(),lease_h:parseFloat($('lEthLease').value)||12,dns:$('lEthDns').value.trim()},
+       hotspot:{address:$('lApAddr').value.trim(),dhcp_start:$('lApStart').value.trim(),dhcp_end:$('lApEnd').value.trim(),lease_h:parseFloat($('lApLease').value)||4,dns:$('lApDns').value.trim()}}}}
+function wireNet(){
+  ['nWan','nEthRole','nEthIp','nWifiRole'].forEach(id=>segWire(id,netVis));
+  $('netReload').onclick=async()=>{sys=await api('/api/system/status');renderNet(true)};
+  $('dhAdd').onclick=()=>{dhRes.push({name:'',mac:'',ip:''});dhDraw()};$('dhReload').onclick=()=>dhLoad();
+  $('dhRes').addEventListener('input',e=>{const t=e.target;if(t.dataset.r!=null)dhRes[+t.dataset.r][t.dataset.k]=t.value.trim()});
+  $('dhRes').addEventListener('click',e=>{const b=e.target.closest('[data-rdel]');if(b){dhRes.splice(+b.dataset.rdel,1);dhDraw();dhLoad()}});
+  $('dhLeases').addEventListener('click',e=>{const b=e.target.closest('[data-fix]');if(!b)return;const [mac,ip,name]=b.dataset.fix.split('|');dhRes.push({mac,ip,name});dhDraw();dhLoad();toast('Vast adres toegevoegd – klik Toepassen om op te slaan')});
+  $('netApply').onclick=e=>confirmBox('Netwerk toepassen','De verbinding met dit beheer kan even wegvallen. Bevestig daarna binnen 2 minuten (Overzicht of hier bovenaan), anders komt de vorige instelling vanzelf terug.','Toepassen',()=>act(e.target,async()=>{
+    const hs={ssid:$('hSsid').value.trim(),after_s:parseInt($('hAfter').value,10)||60};if($('hPw').value)hs.password=$('hPw').value;
+    await api('/api/system/hotspot',{json:hs});const r=await api('/api/system/network',{json:readNet()});
+    toast('Toegepast: '+(r.applied||[]).join(' · '));sys=await api('/api/system/status');renderNet(true);renderOverview(null)}));
+  $('netReset').onclick=()=>confirmBox('Standaardinstellingen','Ethernet = WAN met DHCP, Wi-Fi = client, hotspot KHZS-Timing / zwemclub, internet aan.','Terugzetten',()=>act(null,()=>api('/api/system/network/reset',{json:{}}),'Netwerk teruggezet').then(()=>refreshStatus()),true);
+  $('wScan').onclick=e=>act(e.target,async()=>{$('wList').textContent='Zoeken…';const d=await api('/api/system/wifi/scan');scan=d.networks||[];renderScan();loadSaved()});
+  $('wHidden').onclick=()=>wifiDialog('',true);
+  $('wList').onclick=e=>{const b=e.target.closest('[data-ssid]');if(b)wifiDialog(b.dataset.ssid,false,b.dataset.sec==='')};
+  $('wSaved').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const n=b.dataset.n,net=saved.find(x=>x.name===n)||{};
+    if(b.dataset.a==='forget')confirmBox('Netwerk vergeten','"'+esc(net.ssid||n)+'" wordt vergeten (ook het wachtwoord).','Vergeten',()=>act(null,()=>api('/api/system/wifi/forget',{json:{name:n}}),'Vergeten').then(loadSaved),true);
+    else if(b.dataset.a==='up')act(b,()=>api('/api/system/wifi/up',{json:{name:n}}),'Bezig met verbinden… (de hotspot kan even wegvallen)').then(()=>setTimeout(()=>{refreshStatus();loadSaved()},12000));
+    else if(b.dataset.a==='pw')modal('Wachtwoord wijzigen','<p class="desc">'+esc(net.ssid)+' · '+esc(net.security)+'</p><div class="pwrap"><input type="password" id="wpN" autocomplete="new-password" placeholder="Nieuw wachtwoord"><button type="button" data-eye="wpN">👁</button></div>',
+      [{t:'Annuleren'},{t:'Opslaan',pri:1,fn:async()=>{const v=$('wpN').value;if(!v)return false;try{await api('/api/system/wifi/update',{json:{name:n,password:v}});toast('Wachtwoord gewijzigd')}catch(x){toast(x.message,'err');return false}}}]);
+    else if(b.dataset.a==='up1'||b.dataset.a==='down1'){const names=saved.map(x=>x.name),i=names.indexOf(n),j=b.dataset.a==='up1'?i-1:i+1;if(j<0||j>=names.length)return;
+      [names[i],names[j]]=[names[j],names[i]];act(null,()=>api('/api/system/wifi/order',{json:{names}})).then(loadSaved)}};
+  $('wSaved').onchange=e=>{const c=e.target.closest('input[data-auto]');if(c)act(null,()=>api('/api/system/wifi/update',{json:{name:c.dataset.auto,autoconnect:c.checked}}),c.checked?'Verbindt automatisch':'Niet meer automatisch').then(loadSaved)};
+  $('wAdd').onclick=()=>{modal('Netwerk toevoegen','<div style="display:grid;gap:10px">'+
+      '<label>Netwerknaam (SSID)<input type="text" id="waS" autocomplete="off" style="width:100%"></label>'+
+      '<label>Beveiliging<select id="waSec" style="width:100%"><option value="wpa-psk">WPA2-Persoonlijk (wachtwoord)</option><option value="sae">WPA3-Persoonlijk</option><option value="open">Open (geen wachtwoord)</option><option value="wpa-eap">WPA2-Enterprise (gebruikersnaam + wachtwoord, bv. eduroam)</option></select></label>'+
+      '<label id="waIdL" class="hide">Gebruikersnaam<input type="text" id="waId" autocomplete="off" style="width:100%"></label>'+
+      '<label id="waPL">Wachtwoord<div class="pwrap"><input type="password" id="waP" autocomplete="new-password"><button type="button" data-eye="waP">👁</button></div></label>'+
+      '<label class="chk"><input type="checkbox" id="waAuto" checked> Automatisch verbinden als het in de buurt is</label>'+
+      '<label class="chk"><input type="checkbox" id="waHid"> Verborgen netwerk (zendt zijn naam niet uit)</label>'+
+      '<label class="chk"><input type="checkbox" id="waNow"> Nu meteen verbinden</label></div>',
+      [{t:'Annuleren'},{t:'Bewaren',pri:1,fn:async()=>{const sec=$('waSec').value;
+        try{await api('/api/system/wifi/add',{json:{ssid:$('waS').value.trim(),security:sec,password:sec==='open'?'':$('waP').value,identity:$('waId').value.trim(),
+          autoconnect:$('waAuto').checked,hidden:$('waHid').checked,connect:$('waNow').checked,priority:saved.length?Math.max(...saved.map(x=>x.priority))+5:10}});
+          toast($('waNow').checked?'Bewaard – bezig met verbinden':'Netwerk bewaard');loadSaved()}catch(x){toast(x.message,'err');return false}}}]);
+    $('waSec').onchange=()=>{const v=$('waSec').value;$('waIdL').classList.toggle('hide',v!=='wpa-eap');$('waPL').classList.toggle('hide',v==='open')}};
+}
+function renderScan(){if(!scan.length){$('wList').textContent='Geen netwerken gevonden.';return}
+  $('wList').innerHTML='<table class="list"><tr><th>Netwerk</th><th>Signaal</th><th>Beveiliging</th><th></th></tr>'+scan.map(w=>'<tr><td><b>'+esc(w.ssid)+'</b>'+(w.active?' <span class="pill"><span class="dot ok"></span>verbonden</span>':'')+(w.saved?' <span class="muted">· bewaard</span>':'')+'</td><td>'+bars(w.signal)+' <span class="muted">k'+esc(w.channel)+'</span></td><td class="muted">'+esc(w.security||'open')+'</td><td style="text-align:right">'+(w.active?'':'<button class="btn sm" data-ssid="'+esc(w.ssid)+'" data-sec="'+esc(w.security)+'">Verbinden</button>')+'</td></tr>').join('')+'</table>'}
+let saved=[];
+function renderSaved(){if(!saved.length&&((sys.network||{}).savedWifi||[]).length)return loadSaved();drawSaved()}
+async function loadSaved(){try{saved=(await api('/api/system/wifi/saved')).networks||[]}catch(e){}drawSaved()}
+function drawSaved(){const el=$('wSaved');if(!el)return;if(!saved.length){el.textContent='Nog geen bewaarde netwerken.';return}
+  const when=t=>{if(!t)return 'nooit';const d=new Date(t*1000);return d.toLocaleDateString('nl-BE',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})};
+  el.innerHTML='<table class="list"><tr><th style="width:56px">Volgorde</th><th>Netwerk</th><th>Beveiliging</th><th>Bereik</th><th>Laatst gebruikt</th><th>Automatisch</th><th></th></tr>'+saved.map((w,i)=>'<tr>'+
+    '<td style="white-space:nowrap"><button class="icon-btn" data-a="up1" data-n="'+esc(w.name)+'"'+(i?'':' disabled')+' title="Meer voorrang">▲</button><button class="icon-btn" data-a="down1" data-n="'+esc(w.name)+'"'+(i<saved.length-1?'':' disabled')+' title="Minder voorrang">▼</button></td>'+
+    '<td><b>'+esc(w.ssid)+'</b>'+(w.active?' <span class="pill"><span class="dot ok"></span>verbonden</span>':'')+(w.hidden?' <span class="muted">· verborgen</span>':'')+'</td>'+
+    '<td class="muted">'+esc(w.security)+(w.identity?' · '+esc(w.identity):'')+'</td>'+
+    '<td>'+(w.signal!=null?bars(w.signal):'<span class="muted">'+(scan&&scan.length?'niet in de buurt':'?')+'</span>')+'</td>'+
+    '<td class="muted">'+when(w.lastUsed)+'</td>'+
+    '<td><label class="sw"><input type="checkbox" data-auto="'+esc(w.name)+'"'+(w.autoconnect?' checked':'')+'><span></span></label></td>'+
+    '<td style="text-align:right;white-space:nowrap">'+(w.active?'':'<button class="btn sm" data-a="up" data-n="'+esc(w.name)+'">Verbinden</button> ')+
+    (w.security!=='open'?'<button class="btn sm" data-a="pw" data-n="'+esc(w.name)+'" title="Wachtwoord wijzigen">✎</button> ':'')+
+    '<button class="btn sm danger" data-a="forget" data-n="'+esc(w.name)+'" title="Vergeten">✕</button></td></tr>').join('')+'</table>'}
+function wifiDialog(ssid,hidden,open){modal(hidden?'Verborgen netwerk':'Verbinden met '+ssid,(hidden?'<label class="muted">Netwerknaam</label><input type="text" id="wdS" style="margin-bottom:10px">':'')+(open?'<p class="muted">Open netwerk (geen wachtwoord).</p>':'<label class="muted">Wachtwoord</label><input type="password" id="wdP">')+
+  '<p class="muted" style="font-size:12.5px">Heeft het netwerk een aanmeldpagina? Gebruik daarna <b>Hotspot-login</b>.</p>',[{t:'Annuleren'},{t:'Verbinden',pri:1,fn:async(b)=>{
+  const s=hidden?$('wdS').value.trim():ssid;if(!s)return false;await act(b,()=>api('/api/system/wifi/connect',{json:{ssid:s,password:open?'':($('wdP')||{}).value||'',hidden:hidden}}),'Bezig met verbinden… (de hotspot kan even wegvallen)');setTimeout(refreshStatus,15000)}}])}
+
+/* ---------------------------------------------------------------- hotspot-login (browser op de Pi) */
+let pTimer=null,pBusy=false,pUrlObj=null;
+async function portalShot(){if(pBusy)return;pBusy=true;try{const r=await fetch('/api/system/portal/screenshot',{headers:hdr()});if(!r.ok)throw new Error('geen beeld');
+  const b=await r.blob();if(pUrlObj)URL.revokeObjectURL(pUrlObj);pUrlObj=URL.createObjectURL(b);
+  let img=$('pImg');if(!img){$('pBox').innerHTML='<img id="pImg" alt="aanmeldpagina">';img=$('pImg');img.onclick=portalClick}img.src=pUrlObj;
+  const u=decodeURIComponent(r.headers.get('X-Portal-Url')||''),t=decodeURIComponent(r.headers.get('X-Portal-Title')||'');$('pInfo').textContent=(t?t+' – ':'')+u;if(document.activeElement!==$('pUrl'))$('pUrl').value=u}
+  catch(e){$('pInfo').textContent=e.message}finally{pBusy=false}}
+function portalClick(e){const img=e.target,r=img.getBoundingClientRect(),x=(e.clientX-r.left)*img.naturalWidth/r.width,y=(e.clientY-r.top)*img.naturalHeight/r.height;
+  api('/api/system/portal/click',{json:{x,y}}).then(()=>setTimeout(portalShot,500)).catch(x=>toast(x.message,'err'))}
+function portalShow(){if(!sys||!$('pBox'))return;if(sys.portal&&sys.portal.running)portalLoop()}
+function portalLoop(){clearInterval(pTimer);portalShot();pTimer=setInterval(portalShot,1500)}
+function portalStop(server){clearInterval(pTimer);pTimer=null;if(server)api('/api/system/portal/stop',{json:{}}).catch(()=>{})}
+function wirePortal(){
+  $('pStart').onclick=e=>act(e.target,async()=>{await api('/api/system/portal/start',{json:{url:$('pUrl').value.trim()||'http://neverssl.com/'}});portalLoop()});
+  $('pStop').onclick=()=>{portalStop(true);$('pBox').innerHTML='<div class="ph">Gesloten.</div>'};
+  $('pGo').onclick=e=>act(e.target,async()=>{await api('/api/system/portal/navigate',{json:{url:$('pUrl').value.trim()}});setTimeout(portalShot,1200)});
+  $('pType').onclick=e=>act(e.target,async()=>{await api('/api/system/portal/type',{json:{text:$('pText').value}});$('pText').value='';setTimeout(portalShot,400)});
+  document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>act(b,async()=>{await api('/api/system/portal/key',{json:{key:b.dataset.key}});setTimeout(portalShot,600)}));
+}
+
+/* ---------------------------------------------------------------- gebruikers en SSH */
+async function loadUsers(){if(!sys)return;try{users=await api('/api/system/users');renderUsers()}catch(e){$('uList').textContent=e.message}}
+function renderUsers(){const s=users.ssh||{};$('sshOn').checked=!!s.enabled;$('sshPw').checked=!!s.passwordAuth;$('sshHelp').textContent=s.active?'Actief op poort 22 (ssh khzs@'+sys.hostname+'.local)':'Niet actief';
+  $('uList').innerHTML='<table class="list"><tr><th>Gebruiker</th><th>Sudo</th><th>SSH-sleutels</th><th></th></tr>'+(users.users||[]).map(u=>'<tr><td><b>'+esc(u.name)+'</b>'+(u.system?' <span class="muted">· server</span>':'')+(u.passwordLocked?' <span class="muted">· geen wachtwoord</span>':'')+'</td>'+
+   '<td><label class="sw"><input type="checkbox" data-sudo="'+esc(u.name)+'"'+(u.sudo?' checked':'')+'><span></span></label></td><td>'+u.sshKeys+'</td><td style="text-align:right;white-space:nowrap">'+
+   '<button class="btn sm" data-upw="'+esc(u.name)+'">Wachtwoord</button> <button class="btn sm" data-ukey="'+esc(u.name)+'">+ Sleutel</button> '+(u.system?'':'<button class="btn sm danger" data-udel="'+esc(u.name)+'">Verwijderen</button>')+'</td></tr>').join('')+'</table>'}
+function wireUsers(){
+  $('sshOn').onchange=e=>act(null,()=>api('/api/system/ssh',{json:{enabled:e.target.checked}}),'SSH bijgewerkt').then(loadUsers);
+  $('sshPw').onchange=e=>act(null,()=>api('/api/system/ssh',{json:{passwordAuth:e.target.checked}}),'SSH bijgewerkt').then(loadUsers);
+  $('uList').onclick=e=>{const t=e.target;
+    if(t.dataset.upw)modal('Wachtwoord voor '+t.dataset.upw,'<input type="password" id="upw1" placeholder="Nieuw wachtwoord (min. 8)" style="margin-bottom:8px"><input type="password" id="upw2" placeholder="Herhaal">',[{t:'Annuleren'},{t:'Opslaan',pri:1,fn:async b=>{if($('upw1').value!==$('upw2').value){toast('De wachtwoorden verschillen','err');return false}await act(b,()=>api('/api/system/users/password',{json:{username:t.dataset.upw,password:$('upw1').value}}),'Wachtwoord gewijzigd')}}]);
+    if(t.dataset.ukey)modal('SSH-sleutel voor '+t.dataset.ukey,'<textarea id="ukey" rows="4" placeholder="ssh-ed25519 AAAA… naam"></textarea>',[{t:'Annuleren'},{t:'Toevoegen',pri:1,fn:async b=>{await act(b,()=>api('/api/system/users/sshkey',{json:{username:t.dataset.ukey,key:$('ukey').value}}),'Sleutel toegevoegd');loadUsers()}}]);
+    if(t.dataset.udel)confirmBox('Gebruiker verwijderen','"'+esc(t.dataset.udel)+'" en zijn persoonlijke map worden verwijderd.','Verwijderen',()=>act(null,()=>api('/api/system/users/delete',{json:{username:t.dataset.udel}}),'Verwijderd').then(loadUsers),true)};
+  $('uList').onchange=e=>{const t=e.target;if(t.dataset.sudo)act(null,()=>api('/api/system/users/sudo',{json:{username:t.dataset.sudo,on:t.checked}}),'Rechten bijgewerkt').then(loadUsers)};
+  $('uAdd').onclick=()=>modal('Gebruiker toevoegen','<div class="sub-f" style="grid-template-columns:1fr;margin:0"><div><label>Gebruikersnaam</label><input type="text" id="un" placeholder="bv. jan"></div><div><label>Wachtwoord (min. 8)</label><input type="password" id="up"></div><div><label>SSH-sleutel (optioneel)</label><textarea id="uk" rows="3" placeholder="ssh-ed25519 AAAA…"></textarea></div><div><label><input type="checkbox" id="us"> sudo-rechten (beheerder)</label></div></div>',
+    [{t:'Annuleren'},{t:'Toevoegen',pri:1,fn:async b=>{await act(b,()=>api('/api/system/users/create',{json:{username:$('un').value.trim(),password:$('up').value,sshkey:$('uk').value.trim(),sudo:$('us').checked}}),'Gebruiker toegevoegd');loadUsers()}}]);
+}
+
+/* ---------------------------------------------------------------- updates en systeemwijzigingen */
+async function loadUpdates(){if(!sys)return;
+  const u=sys.update||{},st=u.state||{};$('gRepo').value=u.repo||'';$('gIdle').value=u.idle_min||15;$('gAuto').checked=!!u.auto;$('gTok').placeholder=u.token?'(ingesteld – ongewijzigd)':'(geen)';
+  const last=st.last;$('upStats').innerHTML=[['Versie',sys.version||'?',''],['Laatste update',last?(last.ok?'✓ ':'✗ ')+(last.version||''):'–',last?new Date(last.at*1000).toLocaleString('nl-BE')+' · '+(last.source||''):''],
+    ['Beschikbaar',st.available?(st.available.newer?st.available.version+' (nieuw)':'geen nieuwere'):'niet gecontroleerd','']].map(x=>'<div class="stat"><div class="k">'+x[0]+'</div><div class="v">'+esc(x[1])+'</div><div class="s">'+esc(x[2])+'</div></div>').join('');
+  $('gApply').classList.toggle('hide',!(st.available&&st.available.newer));
+  if(st.available)$('gInfo').innerHTML='Laatste release: <b>'+esc(st.available.name||st.available.version)+'</b>'+(st.available.notes?'<div class="log" style="margin-top:8px;max-height:140px">'+esc(st.available.notes)+'</div>':'');
+  $('upLog').textContent=(st.log||[]).join('\n')||'–';
+  try{const p=await api('/api/system/system/pending');const n=(p.pending||[]).length;
+    $('sysPending').innerHTML=n?'<div class="card" style="border-color:var(--amber)"><h2>🧩 Systeemwijzigingen</h2><p class="desc">De laatste update brengt ook wijzigingen aan het systeem mee. Ze worden pas toegepast als je bevestigt.</p><ul>'+p.pending.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><button class="btn pri" id="sysApply">Toepassen</button>'+(p.log&&p.log.length?'<div class="log" style="margin-top:10px">'+esc(p.log.join('\n'))+'</div>':'')+'</div>'
+      :(p.log&&p.log.length?'<div class="card"><h2>Systeemwijzigingen</h2><p class="desc">Alles is toegepast.</p><div class="log">'+esc(p.log.join('\n'))+'</div></div>':'');
+    if(n)$('sysApply').onclick=e=>confirmBox('Systeemwijzigingen toepassen',p.pending.map(esc).join('<br>'),'Toepassen',()=>act(e.target,async()=>{const r=await api('/api/system/system/apply',{json:{}});sys=await api('/api/system/status');loadUpdates();return r},'Systeem bijgewerkt'))}catch(e){}
+}
+function wireUpdates(){
+  dropZone($('upDrop'),$('upFile'),f=>confirmBox('Update installeren','<b>'+esc(f.name)+'</b> wordt gecontroleerd, getest en geïnstalleerd. De server herstart even.','Installeren',()=>act(null,async()=>{
+    $('upLog').textContent='Uploaden…';const r=await api('/api/system/update/upload',{body:f,headers:{'Content-Type':'application/zip','X-Filename':encodeURIComponent(f.name)}});
+    toast('Versie '+r.version+' geïnstalleerd');setTimeout(async()=>{sys=await api('/api/system/status');loadUpdates()},6000);return r})));
+  $('gSave').onclick=e=>act(e.target,async()=>{const b={repo:$('gRepo').value.trim(),idle_min:parseInt($('gIdle').value,10)||15,auto:$('gAuto').checked};if($('gTok').value)b.token=$('gTok').value.trim();
+    await api('/api/system/update/settings',{json:b});$('gTok').value='';sys=await api('/api/system/status');loadUpdates()},'Opgeslagen');
+  if($('cuCheck')){
+    $('cuCheck').onclick=e=>act(e.target,async()=>{const r=await api('/api/system/update/cloud/check',{json:{}});$('cuStat').innerHTML='Op de publieke server: versie <b>'+esc(r.version)+'</b> ('+esc(r.built||'')+')'+(r.newer?' – <span style="color:var(--ok)">nieuwer dan deze</span>':' – niet nieuwer');$('cuApply').disabled=false});
+    $('cuApply').onclick=e=>confirmBox('Bijwerken van de publieke server','Het pakket wordt gedownload, gecontroleerd, getest en geïnstalleerd. Lukt de nieuwe versie niet, dan komt de vorige terug.','Installeren',()=>act(e.target,async()=>{const r=await api('/api/system/update/cloud/apply',{json:{}});toast('Versie '+r.version+' geïnstalleerd');setTimeout(async()=>{sys=await api('/api/system/status');loadUpdates()},6000)}))}
+  $('gCheck').onclick=e=>act(e.target,async()=>{await api('/api/system/update/check',{json:{}});sys=await api('/api/system/status');loadUpdates()});
+  $('gApply').onclick=e=>confirmBox('Update van GitHub','De nieuwste release wordt gedownload, getest en geïnstalleerd.','Installeren',()=>act(e.target,async()=>{const r=await api('/api/system/update/apply',{json:{}});toast('Versie '+r.version+' geïnstalleerd');setTimeout(async()=>{sys=await api('/api/system/status');loadUpdates()},6000)}));
+}
+function wireSystem(){if(!$('pwReboot'))return;
+  $('pwReboot').onclick=()=>confirmBox('Herstarten','Het kastje start opnieuw (± 1 minuut).','Herstarten',()=>act(null,()=>api('/api/system/power',{json:{action:'reboot'}}),'Herstarten…'));
+  $('pwOff').onclick=()=>confirmBox('Uitschakelen','Het kastje schakelt uit. Opnieuw aanzetten = stroom eraf en terug.','Uitschakelen',()=>act(null,()=>api('/api/system/power',{json:{action:'poweroff'}}),'Uitschakelen…'),true);
+}
+
+/* ---------------------------------------------------------------- simulator */
+let simD=null;
+async function loadSim(){if(!$('simStat'))return;
+  try{simD=await (await fetch('/api/sim',{headers:hdr()})).json()}catch(e){simD=null}
+  const d=simD;let h;
+  if(!d)h='<span class="dot bad"></span> Server niet bereikbaar';
+  else if(!d.available)h='Niet beschikbaar: '+esc(d.reason||'');
+  else if(d.running){const m=Math.round((Date.now()/1000-d.startedAt)/60);h='<b style="color:var(--ok)">● Simulatie loopt</b> · gestart '+(m<1?'net':m+' min')+' geleden · '+d.options.events+' wedstrijden, '+d.options.lanes+' banen, ×'+d.options.speed}
+  else h='Staat uit'+(d.lastStop&&d.lastStop.why?' · laatst gestopt: '+esc(d.lastStop.why):'');
+  $('simStat').innerHTML=h;
+  $('simStart').textContent=d&&d.running?'↻ Opnieuw starten':'▶ Starten';
+  $('simStart').disabled=!(d&&d.available&&canEdit);$('simStop').disabled=!(d&&d.running&&canEdit);
+  $('simOpen').href='/simulator'+(token?'#k='+encodeURIComponent(token):'');
+  const b=$('bd_simulator');if(b){b.classList.toggle('hide',!(d&&d.running));b.textContent='aan'}
+}
+function simBody(){const o={};Object.keys(F).filter(k=>k.startsWith('sim_')&&k!=='sim_autostart'&&k!=='sim_stop_on_real').forEach(k=>{const v=readField(k);if(v!==null&&v!==undefined&&v!=='')o[k.slice(4)]=v});return o}
+function wireSim(){if(!$('simStart'))return;
+  $('simStart').onclick=()=>{const go=()=>act($('simStart'),async()=>{await api('/api/sim/start',{json:simBody()});await loadSim()},'Simulator gestart');
+    if(simD&&simD.running)confirmBox('Opnieuw starten','De lopende simulatie stopt en er begint een nieuw programma.','Opnieuw starten',go);else go()};
+  $('simStop').onclick=()=>act($('simStop'),async()=>{await api('/api/sim/stop',{json:{}});await loadSim()},'Simulator gestopt');
+  loadSim()}
+
+/* ---------------------------------------------------------------- cloudserver */
+let clLoaded=false,clCon=null;
+function fmtBytes(b){if(b==null)return '–';const u=['B','kB','MB','GB','TB'];let i=0;while(b>=1024&&i<4){b/=1024;i++}return b.toFixed(i?1:0)+' '+u[i]}
+async function loadCloud(){if(!$('clStat'))return;clLoaded=true;
+  $('clStat').innerHTML='Ophalen…';
+  let st=null,se=null,err='';
+  try{se=await api('/api/cloud/settings')}catch(e){err=e.message}
+  try{st=await api('/api/cloud/status')}catch(e){if(!err)err=e.message;st=null}
+  if(!se){$('clStat').innerHTML='<span style="color:var(--bad)">'+esc(err)+'</span>';return}
+  const localV=(await (await fetch('/api/version')).json()).version;
+  const kv=[['Versie',esc(se.version)+(se.version!==localV?' <span style="color:var(--warn)">(hier: '+esc(localV)+')</span>':' ✓')],
+    ['Laatste gegevens',se.lastIngestAgo==null?'nooit':fmtDur(se.lastIngestAgo)+' geleden'],
+    ['Kijkers nu',(se.viewers.total||0)+' <span class="muted">('+(se.viewers.publiek||0)+' publiek · '+(se.viewers.callroom||0)+' oproepkamer · '+(se.viewers.jury||0)+' jury)</span>'],['Bewaarde reeksen',se.history],
+    ['Jurywachtwoord',se.juryPasswordSet?'ingesteld':'<span style="color:var(--warn)">niet ingesteld</span>']];
+  if(st){kv.push(['Server',esc(st.hostname)+' · up '+fmtDur(st.uptime)],['Belasting',st.load.map(x=>x.toFixed(2)).join(' · ')],
+    ['Geheugen vrij',fmtBytes(st.mem.available)+' / '+fmtBytes(st.mem.total)],['Schijf vrij',fmtBytes(st.disk.free)+' / '+fmtBytes(st.disk.total)],
+    ['Diensten',Object.entries(st.units).map(([k,v])=>esc(k)+': '+(v==='active'?'<span style="color:var(--ok)">actief</span>':'<span style="color:var(--bad)">'+esc(v)+'</span>')).join('<br>')],
+    ['Console',st.console.configured?(st.console.locked?'<span style="color:var(--bad)">tijdelijk geblokkeerd</span>':'klaar'+(st.console.sessions?' · '+st.console.sessions+' open':'')):'<span style="color:var(--warn)">geen wachtwoord ingesteld</span>'])}
+  else kv.push(['Beheerdienst','<span style="color:var(--warn)">'+esc(err)+'</span>']);
+  $('clStat').innerHTML='<div class="kv">'+kv.map(x=>'<div><b>'+x[0]+'</b>'+x[1]+'</div>').join('')+'</div>';
+  $('clUpdate').textContent='⬆ Bijwerken naar versie '+localV+(se.version===localV?' (opnieuw)':'');
+  loadCloudStats();
+}
+async function loadCloudStats(){const el=$('clStats');if(!el)return;let d;try{d=await api(relayMode?'/api/stats':'/api/cloud/stats')}catch(e){el.textContent=e.message;return}
+  const n=d.now||{},y=d.yesterday||{};
+  const big=(k,v,s)=>'<div class="stat"><div class="k">'+k+'</div><div class="v" style="font-size:28px;font-weight:800">'+v+'</div><div class="s">'+(s||'')+'</div></div>';
+  let h='<div class="grid3">'+big('Nu',n.total||0,(n.publiek||0)+' publiek · '+(n.callroom||0)+' oproepkamer · '+(n.jury||0)+' jury')+
+    big('Piek vandaag',(d.peakToday||{}).value||0,(d.peakToday||{}).at?'om '+esc(d.peakToday.at):'')+
+    big('Unieke bezoekers vandaag',d.uniqueToday||0,'gisteren: '+(y.unique!=null?y.unique:'–')+(y.peak!=null?' · piek '+y.peak:''))+'</div>';
+  const tl=d.timeline||[];
+  if(tl.length>1){const W=900,H=180,max=Math.max(1,...tl.map(r=>r[1]+r[2]+r[3])),t0=tl[0][0],t1=tl[tl.length-1][0]||t0+1;
+    const X=t=>((t-t0)/Math.max(60,t1-t0))*W,Y=v=>H-(v/max)*(H-14);
+    const area=(f,cls)=>{let p='M'+X(tl[0][0])+','+H;tl.forEach(r=>{p+=' L'+X(r[0]).toFixed(1)+','+Y(f(r)).toFixed(1)});return '<path d="'+p+' L'+X(tl[tl.length-1][0])+','+H+' Z" style="'+cls+'"/>'};
+    const ticks=[];for(let k=0;k<=4;k++){const t=t0+(t1-t0)*k/4;ticks.push('<text x="'+X(t)+'" y="'+(H+14)+'" text-anchor="'+(k?k===4?'end':'middle':'start')+'" style="fill:var(--muted);font-size:11px">'+new Date(t*1000).toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})+'</text>')}
+    h+='<svg viewBox="0 0 '+W+' '+(H+18)+'" style="width:100%;height:auto;margin-top:14px;display:block" role="img" aria-label="Kijkers laatste 24 uur">'+
+      '<line x1="0" y1="'+H+'" x2="'+W+'" y2="'+H+'" style="stroke:var(--border)"/>'+
+      area(r=>r[1]+r[2]+r[3],'fill:color-mix(in srgb,var(--ok) 35%,transparent)')+area(r=>r[1]+r[2],'fill:color-mix(in srgb,var(--amber) 45%,transparent)')+area(r=>r[1],'fill:color-mix(in srgb,var(--accent) 70%,transparent)')+
+      '<text x="4" y="12" style="fill:var(--muted);font-size:11px">max '+max+'</text>'+ticks.join('')+'</svg>'+
+      '<div class="muted" style="font-size:12.5px;margin-top:6px"><span style="color:var(--accent)">■</span> publiek &nbsp; <span style="color:var(--amber)">■</span> oproepkamer &nbsp; <span style="color:var(--ok)">■</span> jury &nbsp;· laatste 24 uur, per minuut</div>'}
+  else h+='<p class="muted" style="margin-top:12px">Het verloop verschijnt na enkele minuten.</p>';
+  const days=Object.entries(d.days||{}).reverse();
+  if(days.length)h+='<table class="list" style="margin-top:12px"><tr><th>Dag</th><th>Unieke bezoekers</th><th>Piek</th><th>Pagina-openingen</th></tr>'+days.map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+(v.unique||0)+'</td><td>'+(v.peak||0)+'</td><td class="muted">'+Object.entries(v.views||{}).map(([p,c])=>esc(p)+' '+c).join(' · ')+'</td></tr>').join('')+'</table>';
+  el.innerHTML=h}
+function b64enc(str){const b=new TextEncoder().encode(str);let s='';for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s)}
+function b64bytes(b64){const s=atob(b64),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a}
+function loadScript(src){return new Promise((ok,ko)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>ko(new Error('kan '+src+' niet laden'));document.head.appendChild(e)})}
+/* generieke terminal: base = /api/cloud/console of /api/system/console */
+async function termSession(o){
+  await loadScript('/vendor/xterm.js');await loadScript('/vendor/addon-fit.js');
+  o.el.classList.remove('hide');o.el.innerHTML='';
+  const term=new Terminal({cursorBlink:true,fontFamily:'Consolas,"DejaVu Sans Mono",monospace',fontSize:14,theme:{background:'#04090f',foreground:'#e8f1f8',cursor:'#38bdf8'}});
+  const fit=new FitAddon.FitAddon();term.loadAddon(fit);term.open(o.el);fit.fit();
+  let d;try{d=await api(o.base+'/open',{json:Object.assign({cols:term.cols,rows:term.rows},o.body||{})})}catch(e){term.dispose();o.el.classList.add('hide');toast(e.message,'err');return null}
+  const c={id:d.id,term,fit,pos:0,alive:true,q:'',busy:false,base:o.base,el:o.el};
+  if(o.onOpen)o.onOpen(c);
+  const flush=async()=>{if(c.busy||!c.q||!c.alive)return;c.busy=true;const data=c.q;c.q='';
+    try{await api(c.base+'/'+c.id+'/write',{json:{data:b64enc(data)}})}catch(e){toast(e.message,'err')}c.busy=false;if(c.q)flush()};
+  term.onData(x=>{c.q+=x;flush()});
+  const ro=new ResizeObserver(()=>{try{fit.fit()}catch(e){}});ro.observe(o.el);c.ro=ro;
+  term.onResize(sz=>{if(c.alive)api(c.base+'/'+c.id+'/resize',{json:{cols:sz.cols,rows:sz.rows}}).catch(()=>{})});
+  term.focus();
+  (async()=>{while(c.alive){
+    try{const r=await api(c.base+'/'+c.id+'/read?pos='+c.pos+'&wait=20');
+      if(r.data)term.write(b64bytes(r.data));c.pos=r.pos;
+      if(r.closed){term.write('\r\n[console gesloten]\r\n');break}}
+    catch(e){if(!c.alive)break;term.write('\r\n['+e.message+']\r\n');await new Promise(z=>setTimeout(z,2000));if(/bestaat niet/.test(e.message))break}
+  }c.alive=false;if(c.ro)c.ro.disconnect();if(o.onEnd)o.onEnd(c)})();
+  return c;
+}
+async function termClose(c){if(!c)return;c.alive=false;try{await api(c.base+'/'+c.id+'/close',{json:{}})}catch(e){}c.term.dispose();c.el.classList.add('hide')}
+async function conOpen(){
+  const pw=$('clConPw').value;if(!pw){toast('Geef het consolewachtwoord','err');return}
+  const c=await termSession({base:'/api/cloud/console',el:$('clTerm'),body:{password:pw},
+    onOpen:()=>{$('clConPw').value='';$('clConOpen').classList.add('hide');$('clConClose').classList.remove('hide');$('clConStat').textContent='verbonden'},
+    onEnd:x=>conEnded(x)});
+  if(c)clCon=c;
+}
+function conEnded(c){if(clCon===c)clCon=null;$('clConOpen').classList.remove('hide');$('clConClose').classList.add('hide');$('clConStat').textContent='gesloten'}
+let lcCon=null;
+function wireLocalConsole(){if(!$('lcOpen'))return;
+  $('lcOpen').onclick=()=>{if(lcCon)return;confirmBox('Root-console openen','Je krijgt een root-shell op dit kastje. Alles is mogelijk – ook dingen die het kastje onbruikbaar maken. Na 15 minuten zonder gebruik sluit de console vanzelf.','Openen',async()=>{
+    lcCon=await termSession({base:'/api/system/console',el:$('lcTerm'),body:{who:'beheer'},
+      onOpen:()=>{$('lcOpen').classList.add('hide');$('lcClose').classList.remove('hide');$('lcStat').textContent='verbonden als root'},
+      onEnd:()=>{lcCon=null;$('lcOpen').classList.remove('hide');$('lcClose').classList.add('hide');$('lcStat').textContent='gesloten'}})})};
+  $('lcClose').onclick=async()=>{const c=lcCon;lcCon=null;await termClose(c);$('lcOpen').classList.remove('hide');$('lcClose').classList.add('hide');$('lcStat').textContent='gesloten'};
+  $('lcCmds').onclick=e=>{const b=e.target.closest('[data-cmd]');if(!b||!lcCon)return;lcCon.q+=b.dataset.cmd+'\r';api(lcCon.base+'/'+lcCon.id+'/write',{json:{data:b64enc(lcCon.q)}}).catch(()=>{});lcCon.q='';lcCon.term.focus()};
+}
+function wireCloud(){if(!$('clStat'))return;
+  $('clRefresh').onclick=()=>loadCloud();
+  $('clUpdate').onclick=()=>confirmBox('Cloudserver bijwerken','De cloudserver krijgt de code van dit toestel. Eerst een zelftest; antwoordt de nieuwe versie niet, dan gaat hij vanzelf terug naar de vorige. Bezoekers merken een onderbreking van enkele seconden.','Bijwerken',
+    ()=>act($('clUpdate'),async()=>{const r=await api('/api/cloud/update-self',{method:'POST',json:{}});modal('Cloudserver bijgewerkt','<pre class="logs">'+esc((r.log||[]).join('\n'))+'</pre>');setTimeout(loadCloud,2500)}));
+  $('clRelease').onclick=()=>act($('clRelease'),async()=>{const r=await api('/api/cloud/release-upload',{method:'POST',json:{}});return r},'Pakket staat klaar voor de kastjes');
+  $('clRestart').onclick=()=>confirmBox('Live timing herstarten','De dienst op de cloudserver herstart (enkele seconden onderbreking).','Herstarten',()=>act(null,async()=>{await api('/api/cloud/restart',{json:{unit:'livetiming'}});setTimeout(loadCloud,4000)},'Herstart gevraagd'));
+  $('clRestartCf').onclick=()=>confirmBox('Tunnel herstarten','cloudflared herstart: de site is enkele seconden onbereikbaar, ook dit beheer.','Herstarten',()=>act(null,async()=>{await api('/api/cloud/restart',{json:{unit:'cloudflared'}});setTimeout(loadCloud,8000)},'Herstart gevraagd'));
+  $('clClear').onclick=()=>confirmBox('Laatste stand wissen','De cloudserver vergeet de laatst ontvangen stand, historiek en oproepkamer. Bij de volgende gegevens wordt alles opnieuw opgebouwd.','Wissen',()=>act(null,async()=>{await api('/api/cloud/cache/clear',{json:{}});loadCloud()},'Gewist'),true);
+  $('clSave').onclick=()=>act($('clSave'),async()=>{const b={};if($('clJuryPw').value)b.jury_password=$('clJuryPw').value;if($('clAdminPw').value){if($('clAdminPw').value.length<10)throw new Error('beheerwachtwoord: minstens 10 tekens');b.cloud_admin_password=$('clAdminPw').value}
+    if(!Object.keys(b).length)throw new Error('niets gewijzigd');await api('/api/cloud/settings',{json:b});$('clJuryPw').value='';$('clAdminPw').value='';loadCloud()},'Opgeslagen op de cloudserver');
+  $('clLogs').onclick=()=>act($('clLogs'),async()=>{const r=await api('/api/cloud/logs?unit='+$('clLogUnit').value+'&n='+$('clLogN').value);const t=$('clLogText');t.textContent=r.text||'(leeg)';t.classList.remove('hide');t.scrollTop=t.scrollHeight});
+  $('clConForm').onsubmit=e=>{e.preventDefault();if(!clCon)conOpen()};
+  $('clConClose').onclick=async()=>{const c=clCon;if(!c)return;await termClose(c);conEnded(c)};
+  $('clConPwChange').onclick=()=>modal('Consolewachtwoord wijzigen','<p class="desc">Minstens 12 tekens. Bewaar het in je wachtwoordkluis.</p><div style="display:grid;gap:10px"><input type="password" id="cpOld" placeholder="Huidig wachtwoord" autocomplete="off"><input type="password" id="cpNew" placeholder="Nieuw wachtwoord" autocomplete="new-password"><input type="password" id="cpNew2" placeholder="Nieuw wachtwoord (nog eens)" autocomplete="new-password"></div>',
+    [{t:'Annuleren'},{t:'Wijzigen',pri:1,fn:async()=>{if($('cpNew').value!==$('cpNew2').value){toast('Nieuwe wachtwoorden zijn niet gelijk','err');return false}
+      try{await api('/api/cloud/console/password',{json:{old:$('cpOld').value,new:$('cpNew').value}});toast('Consolewachtwoord gewijzigd')}catch(e){toast(e.message,'err');return false}}}]);
+}
+window.addEventListener('beforeunload',()=>{[clCon,lcCon].forEach(c=>{if(c)fetch(c.base+'/'+c.id+'/close',{method:'POST',headers:hdr({'Content-Type':'application/json'}),body:'{}',keepalive:true})})});
+
+/* ---------------------------------------------------------------- netwerkschijven */
+let shares=[];
+async function loadShares(){if(!$('shList'))return;try{shares=(await api('/api/system/shares')).shares||[]}catch(e){$('shList').textContent=e.message;return}drawShares()}
+function drawShares(){const el=$('shList');if(!shares.length){el.textContent='Nog geen netwerkschijven.';return}
+  el.innerHTML='<table class="list"><tr><th>Naam</th><th>Share</th><th>Gebruiker</th><th>Status</th><th></th></tr>'+shares.map(sh=>'<tr>'+
+   '<td><b>'+esc(sh.name)+'</b><div class="muted" style="font-size:12px">'+esc(sh.mountpoint)+'</div></td>'+
+   '<td>'+esc(sh.path.replace(/\//g,'\\'))+(sh.vers?' <span class="muted">SMB '+esc(sh.vers)+'</span>':'')+'</td>'+
+   '<td class="muted">'+(sh.user?esc((sh.domain?sh.domain+'\\':'')+sh.user):'gast')+'</td>'+
+   '<td>'+(sh.mounted?'<span class="pill"><span class="dot ok"></span>gekoppeld · alleen-lezen</span>':'<span class="pill"><span class="dot '+(sh.error?'bad':'')+'"></span>niet gekoppeld</span>')+(sh.error?'<div style="color:var(--bad);font-size:12px;margin-top:4px">'+esc(sh.error)+'</div>':'')+'</td>'+
+   '<td style="text-align:right;white-space:nowrap">'+(sh.mounted?'<button class="btn sm" data-a="browse" data-n="'+esc(sh.name)+'">📂 Bladeren</button> <button class="btn sm" data-a="umount" data-n="'+esc(sh.name)+'">Loskoppelen</button>':'<button class="btn sm pri" data-a="mount" data-n="'+esc(sh.name)+'">Koppelen</button>')+
+   ' <button class="btn sm" data-a="edit" data-n="'+esc(sh.name)+'">✎</button> <button class="btn sm danger" data-a="del" data-n="'+esc(sh.name)+'">✕</button></td></tr>').join('')+'</table>'}
+function shareForm(sh){sh=sh||{auto:true};modal(sh.name?'Share wijzigen':'Share toevoegen','<div style="display:grid;gap:10px">'+
+  '<label>Naam (wordt /mnt/naam)<input type="text" id="sfN" value="'+esc(sh.name||'swimtime')+'"'+(sh.name?' disabled':'')+' style="width:100%"></label>'+
+  '<label>Pad<input type="text" id="sfP" placeholder="\\\\SWIMTIME-PC\\Data" value="'+esc((sh.path||'').replace(/\//g,'\\'))+'" style="width:100%"></label>'+
+  '<label>Gebruiker (leeg = gast)<input type="text" id="sfU" value="'+esc(sh.user||'')+'" autocomplete="off" style="width:100%"></label>'+
+  '<label>Wachtwoord<div class="pwrap"><input type="password" id="sfW" autocomplete="new-password" placeholder="'+(sh.passwordSet?'(ongewijzigd)':'')+'"><button type="button" data-eye="sfW">👁</button></div></label>'+
+  '<label>Domein of werkgroep (optioneel)<input type="text" id="sfD" value="'+esc(sh.domain||'')+'" style="width:100%"></label>'+
+  '<label>SMB-versie<select id="sfV" style="width:100%">'+[['','Automatisch'],['3.1.1','3.1.1'],['3.0','3.0'],['2.1','2.1'],['2.0','2.0'],['1.0','1.0 (oud, onveilig)']].map(o=>'<option value="'+o[0]+'"'+(o[0]===(sh.vers||'')?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></label>'+
+  '<label class="chk"><input type="checkbox" id="sfA"'+(sh.auto!==false?' checked':'')+'> Automatisch koppelen (bij opstart en opnieuw proberen)</label>'+
+  '<p class="desc" style="margin:0">Tip: een Windows-account met enkel leesrechten op de map volstaat. Alleen-lezen wordt hoe dan ook afgedwongen.</p></div>',
+  [{t:'Annuleren'},{t:'Opslaan en koppelen',pri:1,fn:async()=>{const it={name:$('sfN').value.trim().toLowerCase(),path:$('sfP').value.trim(),user:$('sfU').value.trim(),password:$('sfW').value,domain:$('sfD').value.trim(),vers:$('sfV').value,auto:$('sfA').checked};
+    const list=shares.filter(x=>x.name!==it.name).map(x=>({name:x.name,path:x.path,user:x.user,domain:x.domain,vers:x.vers,auto:x.auto}));list.push(it);
+    try{shares=(await api('/api/system/shares/save',{json:{shares:list}})).shares;drawShares();
+      try{shares=(await api('/api/system/shares/mount',{json:{name:it.name}})).shares;toast('Gekoppeld (alleen-lezen)')}catch(x){toast(x.message,'err');loadShares()}}
+    catch(x){toast(x.message,'err');return false}}}])}
+async function browseShare(name,sub){const b=$('shBrowse');b.classList.remove('hide');$('shBTitle').textContent='Bestanden – '+name;$('shFiles').textContent='Laden…';
+  let d;try{d=await api('/api/system/shares/files?name='+encodeURIComponent(name)+'&sub='+encodeURIComponent(sub||''))}catch(e){$('shFiles').textContent=e.message;return}
+  const up=d.path?d.path.split('/').slice(0,-1).join('/'):null,cur=SETTINGS_DB();
+  $('shFiles').innerHTML='<div class="muted" style="margin-bottom:8px">'+esc(d.mountpoint+(d.path?'/'+d.path:''))+'</div><table class="list">'+
+   (d.path?'<tr><td colspan="3"><a href="#" data-dir="'+esc(up)+'">⬆ terug</a></td></tr>':'')+
+   d.dirs.map(x=>'<tr><td colspan="3"><a href="#" data-dir="'+esc((d.path?d.path+'/':'')+x)+'">📁 '+esc(x)+'</a></td></tr>').join('')+
+   d.files.map(f=>{const full=d.mountpoint+'/'+(d.path?d.path+'/':'')+f.name;return '<tr><td>'+(f.db?'🗃 <b>':'')+esc(f.name)+(f.db?'</b>':'')+(full===cur?' <span class="pill"><span class="dot ok"></span>in gebruik</span>':'')+'</td><td class="muted">'+fmtBytes(f.size)+' · '+new Date(f.mtime*1000).toLocaleString('nl-BE')+'</td><td style="text-align:right">'+
+     (f.db?'<button class="btn sm pri" data-use="'+esc(full)+'">Gebruiken</button>':'')+'</td></tr>'}).join('')+'</table>';
+  $('shFiles').onclick=e=>{const a=e.target.closest('[data-dir]');if(a){e.preventDefault();browseShare(name,a.dataset.dir);return}
+    const u=e.target.closest('[data-use]');if(u)modal('SwimTime-database kiezen','<p>'+esc(u.dataset.use)+'</p><p class="desc">Hoe lezen?</p>',[{t:'Annuleren'},
+      {t:'Via een kopie',fn:()=>useDb(u.dataset.use,'kopie')},{t:'Rechtstreeks (alleen-lezen)',pri:1,fn:()=>useDb(u.dataset.use,'rechtstreeks')}])}}
+function SETTINGS_DB(){return cur&&cur.db_source_path}
+async function useDb(path,mode){try{await api('/api/settings',{json:{db_source_path:path,db_access_mode:mode}});await loadSettings();
+  const r=await api('/api/db/sync',{json:{path}});toast(r.ok?'Database ingelezen: '+(r.heats||0)+' reeksen':'Ingesteld, maar inlezen mislukt: '+(r.error||''),r.ok?'ok':'err')}catch(e){toast(e.message,'err')}}
+function wireShares(){if(!$('shList'))return;
+  $('shAdd').onclick=()=>shareForm();$('shReload').onclick=()=>loadShares();
+  $('shList').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const n=b.dataset.n,sh=shares.find(x=>x.name===n);
+    if(b.dataset.a==='mount')act(b,async()=>{shares=(await api('/api/system/shares/mount',{json:{name:n}})).shares;drawShares()},'Gekoppeld (alleen-lezen)').then(()=>loadShares());
+    else if(b.dataset.a==='umount')act(b,async()=>{shares=(await api('/api/system/shares/unmount',{json:{name:n}})).shares;drawShares();$('shBrowse').classList.add('hide')},'Losgekoppeld');
+    else if(b.dataset.a==='browse')browseShare(n,'');
+    else if(b.dataset.a==='edit')shareForm(sh);
+    else if(b.dataset.a==='del')confirmBox('Share verwijderen','"'+esc(n)+'" wordt losgekoppeld en vergeten.','Verwijderen',()=>act(null,async()=>{shares=(await api('/api/system/shares/save',{json:{shares:shares.filter(x=>x.name!==n).map(x=>({name:x.name,path:x.path,user:x.user,domain:x.domain,vers:x.vers,auto:x.auto}))}})).shares;drawShares()},'Verwijderd'),true)}}
+
+/* ---------------------------------------------------------------- kastjes (cloudserver) */
+async function loadBoxes(){const el=$('kjBoxes');if(!el)return;let d;try{d=await api('/api/kastjes')}catch(e){el.textContent=e.message;return}
+  const rel=d.release&&d.release.version;const b=d.boxes||[];if(!b.length){el.innerHTML='Nog geen kastjes verbonden. Zet op het kastje <b>Doorsturen › Beheer op afstand toestaan</b> aan.';return}
+  el.innerHTML='<table class="list"><tr><th>Kastje</th><th>Status</th><th>Versie</th><th>Rol</th><th></th></tr>'+b.map(x=>'<tr><td><b>'+esc(x.label||x.name)+'</b>'+(x.label?'<div class="muted" style="font-size:12px">'+esc(x.name)+'</div>':'')+'</td>'+
+    '<td>'+(x.online?'<span class="pill"><span class="dot ok"></span>verbonden</span>':'<span class="pill"><span class="dot"></span>'+fmtDur(x.lastSeen)+' geleden</span>')+(x.connected?' <span class="muted">· live gegevens'+(x.simulated?' (simulatie)':'')+'</span>':'')+'</td>'+
+    '<td>'+esc(x.version||'?')+(rel&&x.version&&x.version!==rel?' <span style="color:var(--warn)" title="Updates › Van de publieke server">→ '+esc(rel)+'</span>':'')+'</td><td class="muted">'+esc({server:'server',display:'scherm',off:'uit'}[x.role]||x.role||'')+'</td>'+
+    '<td style="text-align:right">'+(x.online?'<a class="btn sm pri" href="/kastje/'+encodeURIComponent(x.name)+'/settings" target="_blank">Beheer openen ↗</a>':'')+'</td></tr>').join('')+'</table>'}
+
+async function loadUdp(){const el=$('udpStat');if(!el)return;try{const d=await (await fetch('/api/udp',{headers:hdr()})).json();
+  const sn=(d.seen||[]);
+  el.innerHTML=(sn.length?'<div style="margin-bottom:8px"><b>Automatisch gevonden:</b></div><table class="list"><tr><th>Verbinding</th><th>SwimTime-pc</th><th>Pakketten</th><th>Laatst</th><th></th></tr>'+sn.map(x=>'<tr><td><b>'+esc(x.iface||'?')+'</b></td><td>'+esc(x.from)+'</td><td>'+x.count+'</td><td class="muted">'+fmtDur(x.ago)+' geleden</td><td style="text-align:right;white-space:nowrap">'+
+      (x.iface?'<button class="btn sm" data-udpif="'+esc(x.iface)+'">Enkel deze verbinding</button> ':'')+'<button class="btn sm" data-udpfrom="'+esc(x.from)+'">Enkel deze pc</button></td></tr>').join('')+'</table><div style="margin-top:8px"></div>':'')+
+    (d.lastFrom?'Laatste pakket van <b>'+esc(d.lastFrom)+'</b>, '+fmtDur(d.lastAgo)+' geleden':'Nog geen pakketten ontvangen')+(d.interface?' · enkel op '+esc(d.interface):'')+
+    (d.rejected?' · <span style="color:var(--warn)">'+d.rejected+' geweigerd'+(d.lastRejected?' (laatst van '+esc(d.lastRejected)+')':'')+'</span>':'')+(d.error?' · <span style="color:var(--bad)">'+esc(d.error)+'</span>':'')}catch(e){}}
+
+document.addEventListener('click',e=>{const b=e.target.closest('[data-udpif],[data-udpfrom]');if(!b)return;
+  const body=b.dataset.udpif?{udp_interface:b.dataset.udpif}:{udp_allow_from:b.dataset.udpfrom};
+  act(b,async()=>{await api('/api/settings',{json:body});await loadSettings();loadUdp()},b.dataset.udpif?'Enkel nog via '+b.dataset.udpif:'Enkel nog van '+b.dataset.udpfrom)});
+
+async function loadPeers(){const el=$('sPeers');if(!el)return;let d;try{d=await (await fetch('/api/peers')).json()}catch(e){return}
+  const P=(d.peers||[]);el.innerHTML=P.length?P.map(p=>'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0"><span class="pill"><span class="dot '+(p.live?'ok':'')+'"></span><b>'+esc(p.label||p.name)+'</b> · '+esc(p.ip)+' · '+esc({server:'server',display:'scherm',off:'uit'}[p.role]||p.role)+(p.live?' · live':'')+'</span>'+
+    (p.role==='server'?'<button class="btn sm" type="button" data-peer-src="'+esc(p.url)+'">Als bron</button><button class="btn sm" type="button" data-peer-bk="'+esc(p.url)+'">Als reserve</button>':'')+'</div>').join('')+'<div class="muted" style="font-size:12.5px">Kastjes en laptops met de live timing kondigen zich elke 5 s aan op het lokale netwerk.</div>':'Nog niets gevonden op dit netwerk.'}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-peer-src],[data-peer-bk]');if(!a)return;const page=($('sPage')&&$('sPage').value)||'/callroom';
+  if(a.dataset.peerSrc){$('sSrc').value='custom';$('sCustom').value=a.dataset.peerSrc+page;$('sSrc').dispatchEvent(new Event('change',{bubbles:true}))}else $('sBackup').value=a.dataset.peerBk+page;
+  toast('Ingevuld – klik Toepassen')});
+
+/* ---------------------------------------------------------------- infoscherm */
+let imCur={mode:'off'},imSel='geen',imT=null;
+let imSchedule=[];
+function imDrawSched(){const el=$('imSched');if(!el)return;
+  el.innerHTML=imSchedule.length?'<table class="list"><tr><th>Wedstrijd</th><th>Datum</th><th>Start</th><th>Plaats</th><th></th></tr>'+imSchedule.map((m,i)=>'<tr>'+
+    '<td><input type="text" data-i="'+i+'" data-k="name" value="'+esc(m.name||'')+'" placeholder="naam" style="width:100%"></td>'+
+    '<td><input type="date" data-i="'+i+'" data-k="date" value="'+esc(m.date||'')+'"></td>'+
+    '<td><input type="time" data-i="'+i+'" data-k="start" value="'+esc(m.start||'')+'"></td>'+
+    '<td><input type="text" data-i="'+i+'" data-k="place" value="'+esc(m.place||'')+'" placeholder="zwembad" style="width:100%"></td>'+
+    '<td><button class="btn sm danger" type="button" data-del="'+i+'">✕</button></td></tr>').join('')+'</table>':'<p class="muted">Nog geen wedstrijden in de agenda.</p>'}
+function imBody(mode){return {mode:mode,meet:$('imMeet').value,date:$('imDate').value,place:$('imPlace').value,until:$('imDur').value?'':$('imUntil').value,
+  duration:parseFloat($('imDur').value)||0,schedule:imSchedule.filter(m=>m.date),daysBefore:parseInt($('imDays').value,10)||0,title:$('imTitle').value,
+  kicker:$('imKicker').value,footer:$('imFoot').value,text:$('imText').value,ticker:$('imTicker').value,autoHide:$('imAuto').checked,allowClose:$('imClose').checked,
+  pages:{publiek:$('imPub').checked,callroom:$('imCr').checked}}}
+function imPreview(){clearTimeout(imT);imT=setTimeout(()=>{const f=$('imFrame');if(!f)return;const b=imBody(imSel==='off'?'geen':imSel);b.updatedAt=1;
+  if(b.duration){b.untilAt=Math.round(Date.now()/1000+b.duration*60);delete b.until}
+  f.src='/info?preview='+encodeURIComponent(JSON.stringify(b));imScale()},350)}
+function imScale(){const pv=$('imPv'),f=$('imFrame');if(pv&&f)f.style.transform='scale('+(pv.clientWidth/1600)+')'}
+function imMarks(){document.querySelectorAll('#imModes button').forEach(b=>b.classList.toggle('on',b.dataset.mode===imSel))}
+function imStatus(cloud){const M={off:'uit (gewone live uitslagen)',auto:'automatisch volgens de agenda',geen:'geen wedstrijd',volgende:'volgende wedstrijd',welkom:'welkom',inzwemmen:'inzwemmen',pauze:'pauze',prijsuitreiking:'prijsuitreiking',einde:'einde',bericht:'eigen bericht'};
+  $('imStat').innerHTML='Nu actief: <b>'+esc(M[imCur.mode]||imCur.mode)+'</b>'+(imCur.updatedAt?' <span class="muted">· ingesteld '+new Date(imCur.updatedAt*1000).toLocaleString('nl-BE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+(imCur.source?' via '+(imCur.source==='cloud'?'de cloudserver':'een lokale server'):'')+'</span>':'')+(cloud?(' · publieke server '+(cloud.ok?'<span style="color:var(--ok)">✓ bijgewerkt</span>':'<span style="color:var(--bad)">✗ '+esc(cloud.error||'')+'</span>')):'')}
+async function loadInfo(){try{imCur=await (await fetch('/api/info')).json()}catch(e){imCur={mode:'off'}}
+  const i=imCur;imSel=i.mode&&i.mode!=='off'?i.mode:imSel;
+  [['imMeet','meet'],['imDate','date'],['imPlace','place'],['imUntil','until'],['imTitle','title'],['imKicker','kicker'],['imFoot','footer'],['imText','text'],['imTicker','ticker']].forEach(([id,k])=>{if(i[k]!=null)$(id).value=i[k]});
+  imSchedule=(i.schedule||[]).map(m=>Object.assign({},m));imDrawSched();$('imDays').value=i.daysBefore!=null?i.daysBefore:7;$('imDur').value=i.duration||'';
+  $('imAuto').checked=i.autoHide!==false;$('imClose').checked=i.allowClose!==false;$('imPub').checked=!(i.pages&&i.pages.publiek===false);$('imCr').checked=!(i.pages&&i.pages.callroom===false);
+  imMarks();imStatus();imPreview()}
+function wireInfo(){if(!$('imModes'))return;
+  $('imModes').onclick=e=>{const b=e.target.closest('button[data-mode]');if(!b)return;if(b.dataset.mode==='off'){$('imOff').click();return}imSel=b.dataset.mode;imMarks();imPreview()};
+  $('pg_info').addEventListener('input',imPreview);$('pg_info').addEventListener('change',imPreview);
+  $('imAdd').onclick=()=>{const d=new Date(Date.now()+14*864e5);imSchedule.push({name:'',date:d.toISOString().slice(0,10),start:'13:00',place:''});imDrawSched();imPreview()};
+  $('imSched').addEventListener('input',e=>{const t=e.target;if(t.dataset.i!=null){imSchedule[+t.dataset.i][t.dataset.k]=t.value}});
+  $('imSched').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(b){imSchedule.splice(+b.dataset.del,1);imDrawSched();imPreview()}});
+  const send=async(mode,btn)=>act(btn,async()=>{if(relayMode&&!relayAdmin)throw new Error('meld je aan met het beheerwachtwoord van de cloudserver');
+    const r=await api('/api/info',{json:imBody(mode)});imCur=r.info;imStatus(r.cloud);imMarks()},mode==='off'?'Infoscherm uit':'Infoscherm getoond');
+  $('imShow').onclick=e=>send(imSel,e.target);$('imOff').onclick=e=>send('off',e.target);
+  window.addEventListener('resize',imScale)}
+
+/* ---------------------------------------------------------------- opstart */
+async function boot(){
+  try{await loadSettings()}catch(e){toast('Instellingen niet geladen: '+e.message,'err')}
+  sys=null;try{const r=await fetch('/api/system/status',{headers:hdr()});const d=await r.json();if(r.ok&&d.hostname)sys=d;else sysLocked=!!d.locked}catch(e){}
+  buildNav();pages();fillFields();wireData();
+  if(sys){wireRole();fillRole();wireNet();renderNet(true);wirePortal();wireUsers();wireUpdates();renderSys()}
+  wireSystem();wireSim();wireCloud();wireShares();wireLocalConsole();wireInfo();if($('kjRefresh'))$('kjRefresh').onclick=()=>loadCloudStats();if($('kjBoxRefresh'))$('kjBoxRefresh').onclick=()=>loadBoxes();loadData();showTab();refreshStatus();
+}
+setInterval(()=>{if(!document.hidden){refreshStatus();loadSim()}},5000);
+setInterval(()=>{if(!document.hidden&&$('dbStat'))loadData()},15000);
+window.addEventListener('beforeunload',e=>{if(Object.keys(dirty).length){e.preventDefault();e.returnValue=''}});
+boot();
 })();
 </script>
 </body>

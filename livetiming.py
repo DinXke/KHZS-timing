@@ -10,20 +10,33 @@ Server-Sent Events. Enkel Python-standaardbibliotheek.
     python livetiming.py --replay raw.log
 """
 import argparse
+import base64
+import hmac
+import io
+import ipaddress
+import hashlib
+import http.client
+import urllib.parse
+import secrets as _secrets
 import json
 import os
 import re
 import shutil
+import struct
 import queue
 import socket
 import subprocess
+import sys
 import threading
 import time
 import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-BASE = os.path.dirname(os.path.abspath(__file__))
+VERSION = "1.1.0"
+BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
+DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
+ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
 STATIC = os.path.join(BASE, "static")
 TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
 
@@ -34,6 +47,10 @@ DEFAULT_SETTINGS = {
     "clear_grace_s": 3.0,          # LaneTime -1 pas toepassen als er geen nieuwe waarde volgt
     "stale_after_s": 10.0,         # zonder pakketten = geen verbinding met tijdsysteem
     "history_max": 200,            # aantal bewaarde reeksen
+    "udp_interface": "",           # SwimTime-ontvangst enkel op deze verbinding (Linux, bv. eth0); leeg = alle
+    "udp_allow_from": "",          # enkel pakketten van deze afzender(s), bv. 192.168.0.188 of 192.168.0.0/24; leeg = iedereen
+    "feed_port": 2626,             # TCP-invoer voor de simulator (naast UDP/26); 0 = uit
+    "feed_bind": "127.0.0.1",      # 127.0.0.1 = enkel deze pc; 0.0.0.0 = ook een simulator op een andere pc
     "show_reaction": True,         # publiek: reactietijden tonen
     "show_manual": True,           # publiek: manuele tijden rood markeren
     "show_suspect": True,          # publiek: verdachte tijden oranje markeren
@@ -45,15 +62,23 @@ DEFAULT_SETTINGS = {
     "jury_split_left_pct": 67,     # jury: breedte linkerkant (huidige reeks) in %, rest = vorige reeksen
     "public_split_layout": True,   # publiek: ook huidige reeks links + vorige reeks(en) rechts (zonder fouten)
     "splash_enabled": True,        # kort geanimeerd tussenscherm bij een nieuwe reeks (publiek)
-    "splash_seconds": 2.0,         # duur van het tussenscherm
+    "splash_seconds": 5.0,         # duur van het tussenscherm
+    "callroom_splash_seconds": 8.0,  # duur van het oproepkamer-tussenscherm ("naar de oproepkamer")
     "splash_jury": True,           # ook op de jurypagina tonen
     "splash_callroom": True,       # ook in de oproepkamer tonen
+    "splash_swim_seconds": 2.0,    # duur van de zwemmer-animatie (links -> rechts) binnen het tussenscherm
+    "pool_lanes": 0,               # banen in het bad: 0 = automatisch (uit de startlijsten), anders 6/8/10 (10 = 0–9)
     "callroom_heats": 4,           # oproepkamer: aantal aankomende reeksen links
+    "callroom_splash_heat": 0,     # oproepkamer-tussenscherm: welke aankomende reeks (0 = de laatste in de lijst = net binnen, 1 = volgende, ...)
     "callroom_next_big": True,     # oproepkamer: eerstvolgende reeks groter bovenaan
     "callroom_next_scale": 1.6,    # oproepkamer: vergroting van de eerstvolgende reeks
     "callroom_show_previous": False,  # oproepkamer: vorige reeks rechts tonen (onder de huidige)
     "callroom_split_left_pct": 60, # oproepkamer: breedte linkerkant (aankomende reeksen) in %
     "db_source_path": r"W:\2026_PK.mdb",  # SwimTime-database; wordt ENKEL gekopieerd op commando (Synchroniseren)
+    "db_access_mode": "kopie",     # kopie | rechtstreeks (kastje: alleen-lezen op een gekoppelde netwerkschijf)
+    "db_smb_user": "",             # kastje (Linux): gebruiker voor een Windows-share (\\pc\share\x.mdb); leeg = gast
+    "db_smb_password": "",         # wachtwoord voor die share (geheim)
+    "db_smb_domain": "",           # domein/werkgroep (optioneel)
     "db_auto_after_heat": True,    # na elke reeks automatisch een kopie nemen
     "db_after_heat_delay_s": 10.0, # wachttijd na het laden van de volgende startlijst
     "db_interval_s": 0.0,          # >0: elke X s een kopie als het bestand gewijzigd is (0 = uit) = "Live database"
@@ -62,10 +87,34 @@ DEFAULT_SETTINGS = {
     "max_peer_panel_diff_s": 0.30, # jury: verschil peer/paneel groter dan dit = markeren
     "show_peer": True,             # jury: handtijd (peer) klein onder de paneeltijd
     "admin_token": "",             # beheerderscode om instellingen te wijzigen buiten localhost
+    "trust_localhost": True,       # laptop: dit toestel zelf is beheerder; kastje: False = ook het HDMI-scherm moet de code geven
+    "relay_url": "",               # zend-modus: publieke server om naar door te sturen (https://...)
+    "relay_token": "",             # gedeeld geheim tussen laptop en publieke server
+    "jury_password": "",           # relay-modus: wachtwoord voor /jury en /settings (oproepkamer is publiek)
+    "cloud_admin_password": "",
+    "device_label": "",            # vrije naam van dit toestel, bv. "Scherm cafetaria" (zichtbaar in beheer, Kastjes, scherm)
+    "remote_admin": False,         # beheer op afstand: dit toestel bereikbaar via https://<publieke server>/kastje/<naam>/    # relay-modus: beheerwachtwoord (infoscherm, agenda, statistieken) – zonder kastje
+    # ingebouwde simulator (beheer > Simulator): nep-wedstrijd zonder SwimTime, ook op het kastje
+    "sim_speed": 1.0,              # 1 = echte tijd
+    "sim_events": 12,              # aantal wedstrijden
+    "sim_per_event": 18,           # gemiddeld aantal deelnemers per wedstrijd
+    "sim_lanes": 8,
+    "sim_loop": True,              # na de laatste reeks opnieuw beginnen (automatisch verloop)
+    "sim_pause": 25.0,             # s tussen startlijst en start (automatisch verloop)
+    "sim_result_time": 15.0,       # s dat de uitslag blijft staan
+    "sim_manual": False,           # True = geen automatisch verloop (zelf bedienen)
+    "sim_manual_chance": 0.06,     # kans op een manuele (late) eindtijd
+    "sim_extra_touch_chance": 0.15,  # kans per zwemmer op een extra tik tijdens de race
+    "sim_dns_chance": 0.03,        # kans dat een zwemmer niet start
+    "sim_seed": 0,                 # 0 = telkens een ander programma
+    "sim_meet_name": "SIMULATIE – Testwedstrijd",
+    "sim_autostart": False,        # simulator meteen starten als de server start (demo-kastje)
+    "sim_stop_on_real": True,      # echte SwimTime-gegevens stoppen de simulator meteen
 }
 SETTINGS = dict(DEFAULT_SETTINGS)
-SETTINGS_FILE = os.path.join(BASE, "settings.json")
-PUBLIC_SETTINGS = ("splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s")
+SECRET_KEYS = ("admin_token", "relay_token", "jury_password", "db_smb_password", "cloud_admin_password")
+SETTINGS_FILE = os.path.join(DATA, "settings.json")
+PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s")
 
 
 def load_settings(path):
@@ -208,7 +257,7 @@ def enrich_heat(item):
     lanes = []
     m = re.search(r"(\d+)\s*$", heat.get("name") or "")
     heat_nr = m.group(1) if m else str(heat.get("number", ""))   # naam is betrouwbaarder (HeatNumber-pakket kan verloren gaan)
-    db = DB_DATA.get((str(ev.get("number", "")), heat_nr))
+    db = None if item.get("simulated") else DB_DATA.get((str(ev.get("number", "")), heat_nr))
     per = dist / laps if laps else 0
     maxdiff = float(SETTINGS["max_peer_panel_diff_s"]) * 10000
     for l in item.get("lanes", []):
@@ -334,6 +383,9 @@ class Lane:
         return bool(self.info.get("FirstName") or self.info.get("LastName") or self.splits or self.reaction)
 
 
+STATE_SOURCE = {"sim": False, "name": None}   # actieve bron (socket / simulator), gezet door Intake
+
+
 class Heat:
     def __init__(self, event, heat):
         self.event = dict(event)
@@ -341,6 +393,7 @@ class Heat:
         self.lanes = {}
         self.t0 = None            # monotonic tijdstip van de start (geschat uit RunningTime)
         self.started = False
+        self.simulated = bool(STATE_SOURCE.get("sim"))
 
     def lane(self, n):
         if n not in self.lanes:
@@ -411,12 +464,32 @@ class State:
         if self.cur and self.cur.started and self.cur.has_times() and self.cur.event.get("EventName"):
             self._archive(self.cur)
             self.prev_heat = self.cur
-            db_after_heat()
+            if not self.cur.simulated:
+                db_after_heat()
         self.cur = Heat(self.event, self.heat_info)
+
+    def drop_simulated(self):
+        """Echte data komt weer binnen: simulatiereeksen uit de historiek en de huidige reeks wissen."""
+        with self.lock:
+            before = len(self.history)
+            self.history = [x for x in self.history if not x.get("simulated")]
+            if self.cur and self.cur.simulated:
+                self.cur = None
+            if self.prev_heat is not None and self.prev_heat.simulated:
+                self.prev_heat = None
+            removed = before - len(self.history)
+            if removed:
+                self.history_version += 1
+                self._save_history()
+            self.changed()
+        SIM_SCHEDULE.clear()
+        print(f"simulatie gewist ({removed} reeksen uit de historiek)")
 
     def _archive(self, h):
         item = {"event": self._event_json(h.event), "heat": self._heat_json(h.heat, h.event.get("Discipline", "")),
                 "finishedAt": datetime.now().strftime("%H:%M"), "lanes": self._lanes_json(h)}
+        if h.simulated:
+            item["simulated"] = True
         key = (item["event"]["number"], item["heat"]["number"])
         self.history = [x for x in self.history if (x["event"]["number"], x["heat"]["number"]) != key]
         self.history.insert(0, item)
@@ -610,7 +683,8 @@ class State:
     def _current_enriched(self, h):
         if not h:
             return {"lanes": [], "issues": [], "officialDistances": []}
-        e = enrich_heat({"event": self._event_json(h.event), "heat": self._heat_json(h.heat, h.event.get("Discipline", "")), "lanes": self._lanes_json(h)})
+        e = enrich_heat({"event": self._event_json(h.event), "heat": self._heat_json(h.heat, h.event.get("Discipline", "")),
+                         "lanes": self._lanes_json(h), "simulated": h.simulated})
         return {"lanes": e["lanes"], "issues": e["issues"], "officialDistances": e["officialDistances"]}
 
     def state_json(self, now):
@@ -633,6 +707,7 @@ class State:
                                  "athlete": f"{r.get('AthleteFirstName', '')} {r.get('AthleteLastName', '')}".strip(),
                                  "club": r.get("ClubName", ""), "nation": r.get("AthleteNation", "")})
             ago = now - self.last_packet if self.last_packet else None
+            simulated = bool(STATE_SOURCE.get("sim"))
             meet = {"name": self.meet.get("MeetName", ""), "city": self.meet.get("City", ""),
                     "date": alge_date(self.meet.get("Date")),
                     "session": self.session.get("SessionNumber", ""),
@@ -642,7 +717,7 @@ class State:
                 # nog geen (volledige) reeks ontvangen, bv. na herstart: laatste gekende reeks tonen
                 last = enrich_heat(dict(self.history[0]))
                 return {
-                    "connected": ago is not None and ago < SETTINGS["stale_after_s"],
+                    "connected": ago is not None and ago < SETTINGS["stale_after_s"], "simulated": simulated,
                     "settings": {k: SETTINGS[k] for k in PUBLIC_SETTINGS},
                     "lastPacketAgo": round(ago, 1) if ago is not None else None,
                     "meet": meet, "event": last["event"], "heat": last["heat"],
@@ -654,7 +729,7 @@ class State:
                     "showing": "previous", "next": None,
                 }
             return {
-                "connected": ago is not None and ago < SETTINGS["stale_after_s"],
+                "connected": ago is not None and ago < SETTINGS["stale_after_s"], "simulated": simulated,
                 "settings": {k: SETTINGS[k] for k in PUBLIC_SETTINGS},
                 "lastPacketAgo": round(ago, 1) if ago is not None else None,
                 "meet": meet,
@@ -750,31 +825,97 @@ def sse_msg(event, data):
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, separators=(',', ':'))}\n\n".encode("utf-8")
 
 
-DB_DIR = os.path.join(BASE, "db")
+DB_DIR = os.path.join(DATA, "db")
 DB_EXPORT = os.path.join(BASE, "tools", "db_export.ps1")
 DB_STATUS = {"lastSync": None, "file": None, "size": None, "sourceMtime": None, "error": None, "busy": False,
              "loadedAt": None, "loadedFile": None, "heats": 0}
 DB_LOCK = threading.Lock()
 DB_DATA = {}          # (eventNr, heatNr) -> {"start": t, "lanes": {lane: {"reaction": t, "laps": {lap: {...}}}}}
 DB_SCHEDULE = []      # alle reeksen van de wedstrijd in programmavolgorde (voor de oproepkamer)
+SIM_SCHEDULE = []     # programma van de simulator (zelfde vorm als DB_SCHEDULE)
 STATE = None          # gezet in main(), om na een import de clients te verversen
+
+
+def is_smb(path):
+    """Windows-share op een niet-Windows-toestel (kastje): UNC-pad (dubbele backslash), //pc/share/... of smb://pc/share/..."""
+    return os.name != "nt" and bool(path) and (path.startswith(("\\\\", "//", "smb://")))
+
+
+def smb_split(path):
+    p = path[6:] if path.startswith("smb://") else path.lstrip("\\/")
+    parts = [x for x in re.split(r"[\\/]+", p) if x]
+    if len(parts) < 3:
+        raise OSError(f"ongeldig share-pad {path} (verwacht \\\\pc\\share\\bestand.mdb)")
+    return parts[0], parts[1], "\\".join(parts[2:])
+
+
+def smbclient(path, command, timeout=120):
+    """smbclient uitvoeren met een tijdelijk wachtwoordbestand (niet zichtbaar in de proceslijst). Enkel lezen."""
+    if not shutil.which("smbclient"):
+        raise OSError("smbclient is niet geïnstalleerd (pakket smbclient)")
+    srv, share, rel = smb_split(path)
+    fd, auth = tempfile.mkstemp(prefix="smb-", dir=DATA)
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(f"username = {SETTINGS.get('db_smb_user') or 'guest'}\n")
+            f.write(f"password = {SETTINGS.get('db_smb_password') or ''}\n")
+            if SETTINGS.get("db_smb_domain"):
+                f.write(f"domain = {SETTINGS['db_smb_domain']}\n")
+        os.chmod(auth, 0o600)
+        args = ["smbclient", f"//{srv}/{share}", "-A", auth, "-c", command(rel)]
+        if not SETTINGS.get("db_smb_user"):
+            args.insert(2, "-N")
+        r = subprocess.run(args, capture_output=True, timeout=timeout)
+        out = (r.stdout + r.stderr).decode("utf-8", "replace")
+        if r.returncode != 0 or "NT_STATUS_" in out:
+            m = re.search(r"NT_STATUS_[A-Z_]+", out)
+            hint = {"NT_STATUS_LOGON_FAILURE": "gebruiker of wachtwoord fout",
+                    "NT_STATUS_OBJECT_NAME_NOT_FOUND": "bestand niet gevonden",
+                    "NT_STATUS_OBJECT_PATH_NOT_FOUND": "map niet gevonden",
+                    "NT_STATUS_BAD_NETWORK_NAME": "share bestaat niet",
+                    "NT_STATUS_ACCESS_DENIED": "geen toegang",
+                    "NT_STATUS_HOST_UNREACHABLE": "pc onbereikbaar",
+                    "NT_STATUS_IO_TIMEOUT": "pc antwoordt niet"}.get(m.group(0) if m else "", "")
+            raise OSError(f"share {srv}/{share}: " + (f"{hint} ({m.group(0)})" if hint else (m.group(0) if m else out.strip()[-200:])))
+        return out
+    finally:
+        try:
+            os.remove(auth)
+        except OSError:
+            pass
+
+
+def db_src_mtime(path):
+    """Wijzigingstijd van de bron (lokaal pad of share), enkel om te vergelijken."""
+    if is_smb(path):
+        out = smbclient(path, lambda rel: f'allinfo "{rel}"', timeout=20)
+        m = re.search(r"write_time:\s*(.+)", out)
+        return m.group(1).strip() if m else out.strip()[-80:]
+    if path and not os.path.isabs(path):
+        path = os.path.normpath(os.path.join(BASE, path))
+    return os.path.getmtime(path)
 
 
 def db_copy(path):
     """Eén kopie van de SwimTime-database naar db/. De bron wordt enkel lezend geopend en anderen
     mogen blijven lezen/schrijven (geen Access-locks, geen .ldb). Geeft het pad van de kopie terug.
     Een relatief pad (bv. ..\2026_PK.mdb) geldt t.o.v. de map van de toepassing."""
-    if path and not os.path.isabs(path):
+    smb = is_smb(path)
+    if path and not smb and not os.path.isabs(path):
         path = os.path.normpath(os.path.join(BASE, path))
-    if not path or not os.path.isfile(path):
+    if not smb and (not path or not os.path.isfile(path)):
         raise OSError(f"bestand niet gevonden: {path} (is de netwerkschijf verbonden?)")
     os.makedirs(DB_DIR, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base, ext = os.path.splitext(os.path.basename(path))
+    base, ext = os.path.splitext(re.split(r"[\\/]", path)[-1])
     dst = os.path.join(DB_DIR, f"{base}_{stamp}{ext}")
-    src_mtime = os.path.getmtime(path)
-    with open(path, "rb") as fsrc, open(dst + ".part", "wb") as fdst:
-        shutil.copyfileobj(fsrc, fdst, 1024 * 1024)
+    if smb:            # kopie ophalen van de Windows-share: enkel lezen, geen koppeling, geen .ldb
+        src_mtime = None
+        smbclient(path, lambda rel: f'get "{rel}" "{dst}.part"')
+    else:
+        src_mtime = os.path.getmtime(path)
+        with open(path, "rb") as fsrc, open(dst + ".part", "wb") as fdst:
+            shutil.copyfileobj(fsrc, fdst, 1024 * 1024)
     os.replace(dst + ".part", dst)
     olds = sorted(f for f in os.listdir(DB_DIR) if f.startswith(base + "_") and f.endswith(ext))
     for f in olds[:-5]:               # enkel de laatste 5 kopieen bewaren
@@ -783,7 +924,8 @@ def db_copy(path):
         except OSError:
             pass
     DB_STATUS.update(lastSync=datetime.now().strftime("%H:%M:%S"), file=os.path.basename(dst),
-                     size=os.path.getsize(dst), sourceMtime=datetime.fromtimestamp(src_mtime).strftime("%H:%M:%S"))
+                     size=os.path.getsize(dst),
+                     sourceMtime=datetime.fromtimestamp(src_mtime).strftime("%H:%M:%S") if src_mtime else None)
     return dst
 
 
@@ -827,12 +969,19 @@ def db_load(local_file):
     sess = 0
     if STATE is not None:
         sess = to_int(STATE.session.get("SessionNumber"), 0) or 0
-    r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", DB_EXPORT,
-                        "-File", local_file, "-SessionNumber", str(sess)],
-                       capture_output=True, timeout=120)
-    if r.returncode != 0:
-        raise OSError("database lezen mislukt: " + r.stderr.decode("utf-8", "replace").strip()[:300])
-    data = json.loads(r.stdout.decode("utf-8-sig"))
+    if os.name != "nt":                       # kastje: mdbtools (zelfde uitvoer als db_export.ps1)
+        sys.path.insert(0, os.path.join(BASE, "tools"))
+        import db_mdbtools
+        if not shutil.which("mdb-export"):
+            raise OSError("mdbtools is niet geïnstalleerd (pakket mdbtools)")
+        data = db_mdbtools.export(local_file, sess)
+    else:
+        r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", DB_EXPORT,
+                            "-File", local_file, "-SessionNumber", str(sess)],
+                           capture_output=True, timeout=120)
+        if r.returncode != 0:
+            raise OSError("database lezen mislukt: " + r.stderr.decode("utf-8", "replace").strip()[:300])
+        data = json.loads(r.stdout.decode("utf-8-sig"))
     if data.get("error"):
         raise OSError(data["error"])
     parsed = db_parse(data.get("rows") or [])
@@ -866,14 +1015,47 @@ def db_load(local_file):
             STATE.changed()
 
 
+def db_direct():
+    """Rechtstreeks lezen (zonder kopie): enkel op het kastje – mdbtools opent alleen-lezen, de share is ro gekoppeld.
+    Op Windows altijd via een kopie: de Access-driver maakt anders een .ldb-bestand naast de database."""
+    return SETTINGS.get("db_access_mode") == "rechtstreeks" and os.name != "nt"
+
+
+def db_read_direct(path):
+    if is_smb(path):
+        raise OSError("rechtstreeks lezen kan enkel van een gekoppelde netwerkschijf: koppel de share in "
+                      "Netwerkschijven en kies daar het bestand")
+    if path and not os.path.isabs(path):
+        path = os.path.normpath(os.path.join(BASE, path))
+    if not path or not os.path.isfile(path):
+        raise OSError(f"bestand niet gevonden: {path} (is de netwerkschijf gekoppeld?)")
+    try:
+        db_load(path)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        time.sleep(2)                 # SwimTime schreef mogelijk net: één nieuwe poging
+        db_load(path)
+    DB_STATUS.update(lastSync=datetime.now().strftime("%H:%M:%S"), file=os.path.basename(path) + " (rechtstreeks)",
+                     size=os.path.getsize(path),
+                     sourceMtime=datetime.fromtimestamp(os.path.getmtime(path)).strftime("%H:%M:%S"))
+
+
 def db_refresh(path=None, reason="manueel"):
-    """Kopie nemen + inlezen. Een kopie die niet leesbaar is (SwimTime schreef net) wordt weggegooid."""
+    """Kopie nemen + inlezen. Een kopie die niet leesbaar is (SwimTime schreef net) wordt weggegooid.
+    Kastje met "rechtstreeks": het bestand op de alleen-lezen gekoppelde share zelf inlezen (nooit iets verwijderen)."""
     path = path or SETTINGS["db_source_path"]
     with DB_LOCK:
         if DB_STATUS["busy"]:
             return False, "er loopt al een synchronisatie"
         DB_STATUS["busy"] = True
     try:
+        if db_direct():
+            try:
+                db_read_direct(path)
+            except (ValueError, subprocess.TimeoutExpired) as e:
+                raise OSError(f"database niet leesbaar (SwimTime schreef mogelijk net): {e}")
+            DB_STATUS["error"] = None
+            print(f"database rechtstreeks gelezen ({reason}): {DB_STATUS['heats']} reeksen")
+            return True, None
         dst = db_copy(path)
         try:
             db_load(dst)
@@ -922,11 +1104,9 @@ def db_interval_loop():
             continue
         time.sleep(max(iv, 1))
         src = SETTINGS["db_source_path"]
-        if src and not os.path.isabs(src):
-            src = os.path.normpath(os.path.join(BASE, src))
         try:
-            m = os.path.getmtime(src)
-        except OSError:
+            m = db_src_mtime(src)
+        except (OSError, subprocess.TimeoutExpired):
             continue
         if m == last_mtime:
             continue
@@ -935,8 +1115,8 @@ def db_interval_loop():
         while time.time() < deadline:
             time.sleep(1)
             try:
-                m2 = os.path.getmtime(src)
-            except OSError:
+                m2 = db_src_mtime(src)
+            except (OSError, subprocess.TimeoutExpired):
                 break
             if m2 == m:
                 break
@@ -947,7 +1127,11 @@ def db_interval_loop():
 
 
 def db_load_latest_local():
-    """Bij opstart: de nieuwste lokale kopie inlezen (geen netwerkverkeer)."""
+    """Bij opstart: de nieuwste lokale kopie inlezen (geen netwerkverkeer); bij "rechtstreeks" de bron zelf."""
+    if db_direct():
+        time.sleep(15)       # netwerkschijf koppelt kort na de start
+        db_refresh(reason="opstart")
+        return
     try:
         files = sorted((os.path.join(DB_DIR, f) for f in os.listdir(DB_DIR) if f.lower().endswith((".mdb", ".accdb"))),
                        key=os.path.getmtime)
@@ -962,20 +1146,132 @@ def db_load_latest_local():
             print("lokale database-kopie niet leesbaar:", e)
 
 
+PROG_SCHEDULE = []    # volledig programma uit een Lenex-export van Meet Manager (ook toekomstige reeksen)
+PROG_STATUS = {"file": None, "loadedAt": None, "stats": None, "error": None}
+PROG_FILE = os.path.join(DATA, "db", "programma.json")
+
+
+def prog_load():
+    try:
+        d = json.load(open(PROG_FILE, encoding="utf-8"))
+        PROG_SCHEDULE[:] = d.get("schedule") or []
+        PROG_STATUS.update(d.get("status") or {})
+        print(f"programma geladen: {PROG_STATUS.get('file')} ({len(PROG_SCHEDULE)} reeksen)")
+    except (OSError, ValueError):
+        pass
+
+
+DAYS_NL = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+
+
+def day_part(t):
+    """Dagdeel uit een tijd 'HH:MM' (voormiddag / namiddag / avond)."""
+    try:
+        h, m = (int(x) for x in str(t).split(":")[:2])
+    except ValueError:
+        return ""
+    mins = h * 60 + m
+    return "voormiddag" if mins < 12 * 60 else ("namiddag" if mins < 17 * 60 + 30 else "avond")
+
+
+def label_schedule(sched):
+    """Per reeks een label 'za · voormiddag' (wedstrijden van een halve dag tot meerdere dagen met meerdere dagdelen)."""
+    days = sorted({h.get("date") or "" for h in sched})
+    multi_day = len([d for d in days if d]) > 1
+    for h in sched:
+        part = day_part((h.get("heat") or {}).get("startTime"))
+        d = h.get("date") or ""
+        try:
+            wd = DAYS_NL[datetime.strptime(d, "%Y-%m-%d").weekday()] if d else ""
+        except ValueError:
+            wd = ""
+        h["dayPart"] = part
+        h["dayLabel"] = " · ".join(x for x in ((wd + " " + d[8:10] + "/" + d[5:7]) if (wd and multi_day) else "", part) if x)
+    return sched
+
+
+def prog_import(data, filename):
+    """Programma inlezen: Lenex (.lxf/.lef/.xml) of een Splash Meet Manager-backup (.smb)."""
+    name = (filename or "").lower()
+    sys.path.insert(0, os.path.join(BASE, "tools"))
+    if name.endswith(".smb") or (data[:2] == b"PK" and b".gbin" in data[:65536]):
+        import mm_backup
+        sched, stats = mm_backup.parse(data)
+        stats = dict(stats, format="Meet Manager-backup")
+    else:
+        import lenex
+        sched, stats = lenex.parse(data, filename)
+        stats = dict(stats or {}, format="Lenex")
+    if not sched:
+        raise ValueError("geen reeksen gevonden in dit bestand")
+    sched = label_schedule(sched)
+    PROG_SCHEDULE[:] = sched
+    PROG_STATUS.update(file=os.path.basename(filename or "programma"), loadedAt=datetime.now().strftime("%d/%m %H:%M"),
+                       stats=stats, error=None)
+    os.makedirs(os.path.dirname(PROG_FILE), exist_ok=True)
+    tmp = PROG_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"schedule": sched, "status": PROG_STATUS}, f, ensure_ascii=False)
+    os.replace(tmp, PROG_FILE)
+    return stats
+
+
+def prog_clear():
+    PROG_SCHEDULE.clear()
+    PROG_STATUS.update(file=None, loadedAt=None, stats=None, error=None)
+    try:
+        os.remove(PROG_FILE)
+    except OSError:
+        pass
+
+
+def merged_schedule():
+    """Programma uit Lenex, aangevuld met de actuele baanindeling en 'afgewerkt' uit de SwimTime-database."""
+    if not PROG_SCHEDULE:
+        return DB_SCHEDULE
+    dbi = {(h["event"]["number"], h["heat"]["number"]): h for h in DB_SCHEDULE}
+    done = set()
+    if STATE is not None:
+        for it in STATE.history:
+            m = re.search(r"(\d+)\s*$", (it.get("heat") or {}).get("name") or "")
+            done.add((str((it.get("event") or {}).get("number") or ""), m.group(1) if m else str((it.get("heat") or {}).get("number"))))
+    out = []
+    for h in PROG_SCHEDULE:
+        k = (h["event"]["number"], h["heat"]["number"])
+        it = dict(h)
+        d = dbi.get(k)
+        if d:
+            if d.get("lanesKnown") and d.get("lanes"):
+                it["lanes"], it["lanesKnown"] = d["lanes"], True
+            it["finished"] = bool(d.get("finished"))
+        if k in done:
+            it["finished"] = True
+        out.append(it)
+    return out
+
+
 def callroom_json(state_now):
     """Volgende N reeksen na de huidige live reeks, uit het programma van de databasekopie."""
     n = max(1, int(SETTINGS["callroom_heats"]))
     ev = str((state_now.get("event") or {}).get("number") or "")
     m = re.search(r"(\d+)\s*$", (state_now.get("heat") or {}).get("name") or "")
     ht = m.group(1) if m else str((state_now.get("heat") or {}).get("number") or "")
-    pos = next((i for i, h in enumerate(DB_SCHEDULE) if h["event"]["number"] == ev and h["heat"]["number"] == ht), None)
+    sim = bool(STATE_SOURCE.get("sim"))
+    sched = SIM_SCHEDULE if sim else merged_schedule()
+    pos = next((i for i, h in enumerate(sched) if h["event"]["number"] == ev and h["heat"]["number"] == ht), None)
     if pos is None:
         today = datetime.now().strftime("%Y-%m-%d")
-        pos = next((i - 1 for i, h in enumerate(DB_SCHEDULE) if not h["finished"] and h["date"] >= today), len(DB_SCHEDULE))
+        pos = next((i - 1 for i, h in enumerate(sched) if not h["finished"] and h["date"] >= today), len(sched))
     # volgende, nog niet afgewerkte reeksen; ook zonder startlijst (lanes leeg / lanesKnown false)
-    upcoming = [h for h in DB_SCHEDULE[pos + 1:] if not h["finished"]][:n]
-    return {"upcoming": upcoming, "count": n, "matched": pos is not None and 0 <= pos < len(DB_SCHEDULE),
-            "db": {"loadedAt": DB_STATUS["loadedAt"], "loadedFile": DB_STATUS["loadedFile"], "heats": len(DB_SCHEDULE)}}
+    # +1: de eerste reeks na de live reeks staat al aan de startblok, de oproepkamer zijn de n reeksen daarna
+    upcoming = [h for h in sched[pos + 1:] if not h["finished"]][:n + 1]
+    live = sched[pos] if pos is not None and 0 <= pos < len(sched) else None
+    return {"upcoming": upcoming, "count": n, "matched": pos is not None and 0 <= pos < len(sched), "simulated": sim,
+            "liveLabel": (live or {}).get("dayLabel", ""),
+            "live": {"event": ev, "heat": ht},          # voor welke live reeks deze lijst berekend is
+            "db": {"loadedAt": "simulator" if sim else (PROG_STATUS["loadedAt"] if PROG_SCHEDULE else DB_STATUS["loadedAt"]),
+                   "loadedFile": "simulatie" if sim else (PROG_STATUS["file"] if PROG_SCHEDULE else DB_STATUS["loadedFile"]),
+                   "heats": len(sched)}}
 
 
 def db_status_json():
@@ -985,18 +1281,686 @@ def db_status_json():
         "live": float(SETTINGS["db_interval_s"] or 0) > 0}
 
 
-def make_handler(state, hub):
+class RelayPusher:
+    """Zend-modus: stuurt de verwerkte stand met HTTPS-POST naar de publieke server (enkel uitgaand)."""
+    def __init__(self, url, token):
+        u = urllib.parse.urlsplit(url)
+        self.https = u.scheme == "https"
+        self.host, self.port = u.hostname, u.port or (443 if self.https else 80)
+        self.path = (u.path.rstrip("/") or "") + "/ingest"
+        self.token = token
+        self.latest, self.lock, self.ev = {}, threading.Lock(), threading.Event()
+        self.ok, self.error, self.last_ok, self.sent = False, None, None, 0
+        self.stopped = False
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def send(self, kind, data):
+        with self.lock:
+            self.latest[kind] = data
+        self.ev.set()
+
+    def status(self):
+        return {"url": f"{'https' if self.https else 'http'}://{self.host}:{self.port}", "ok": self.ok,
+                "error": self.error, "lastOk": self.last_ok, "sent": self.sent}
+
+    def _run(self):
+        conn, backoff = None, 1.0
+        while not self.stopped:
+            self.ev.wait(5)
+            self.ev.clear()
+            if self.stopped:
+                break
+            with self.lock:
+                batch, self.latest = self.latest, {}
+            if not batch:
+                continue
+            body = json.dumps({"items": [{"t": k, "d": v} for k, v in batch.items()]},
+                              ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            fresh = conn is None
+            try:
+                if conn is None:
+                    conn = (http.client.HTTPSConnection if self.https else http.client.HTTPConnection)(
+                        self.host, self.port, timeout=8)
+                conn.request("POST", self.path, body=body,
+                             headers={"Content-Type": "application/json", "X-Ingest-Token": self.token,
+                                      "User-Agent": "KHZS-livetiming/1.0", "Content-Length": str(len(body))})
+                r = conn.getresponse()
+                r.read()
+                if r.status != 200:
+                    raise OSError(f"HTTP {r.status}")
+                self.ok, self.error, self.last_ok, self.sent, backoff = True, None, time.time(), self.sent + 1, 1.0
+            except (OSError, http.client.HTTPException) as e:
+                self.ok, self.error = False, str(e)
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                conn = None
+                with self.lock:           # niets verliezen: opnieuw proberen met de nieuwste stand
+                    for k, v in batch.items():
+                        self.latest.setdefault(k, v)
+                if not fresh:             # keep-alive door proxy gesloten: meteen opnieuw met een nieuwe verbinding
+                    self.ev.set()
+                    continue
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 10.0)
+                self.ev.set()
+
+
+class RelayStore:
+    """Relay-modus: houdt de laatst ontvangen stand bij (ook op schijf) en gedraagt zich als State voor de handler."""
+    STALE_S = 15.0
+
+    def __init__(self, cache_path=None):
+        self.lock = threading.RLock()
+        self.cache_path = cache_path
+        self.dirty = False
+        self.state, self.history, self.clock = None, [], {"status": "idle", "rt": None}
+        self.callroom, self.db, self.last_ingest = None, None, 0.0
+        self._load()
+        if cache_path:
+            threading.Thread(target=self._saver, daemon=True).start()
+
+    def _load(self):
+        if not self.cache_path or not os.path.exists(self.cache_path):
+            return
+        try:
+            d = json.load(open(self.cache_path, encoding="utf-8"))
+            self.state, self.history = d.get("state"), d.get("history") or []
+            self.callroom, self.db = d.get("callroom"), d.get("db")
+            self.last_ingest = float(d.get("last_ingest") or 0)
+            self.clock = {"status": "idle", "rt": None}
+            print(f"laatste stand geladen uit {self.cache_path} "
+                  f"({len(self.history)} reeksen, ontvangen {time.strftime('%d/%m %H:%M', time.localtime(self.last_ingest))})")
+        except (OSError, ValueError) as e:
+            print("cache niet leesbaar:", e)
+
+    def clear(self):
+        """Beheer: laatst ontvangen stand vergeten (ook op schijf)."""
+        with self.lock:
+            self.state, self.history, self.clock = None, [], {"status": "idle", "rt": None}
+            self.callroom, self.db, self.last_ingest = None, None, 0.0
+            self.dirty = False
+        if self.cache_path and os.path.exists(self.cache_path):
+            os.remove(self.cache_path)
+
+    def _saver(self):
+        while True:
+            time.sleep(5)
+            with self.lock:
+                if not self.dirty:
+                    continue
+                self.dirty = False
+                data = {"state": self.state, "history": self.history, "callroom": self.callroom,
+                        "db": self.db, "last_ingest": self.last_ingest}
+            tmp = self.cache_path + ".tmp"
+            try:
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+                os.replace(tmp, self.cache_path)
+            except OSError as e:
+                print("cache schrijven mislukt:", e)
+
+    def stale(self):
+        return not self.last_ingest or time.time() - self.last_ingest > self.STALE_S
+
+    def ingest(self, kind, data):
+        with self.lock:
+            self.last_ingest = time.time()
+            if kind != "clock":
+                self.dirty = True
+            if kind == "state":
+                self.state = data
+            elif kind == "history":
+                self.history = data if isinstance(data, list) else []
+            elif kind == "clock":
+                self.clock = data
+            elif kind == "callroom":
+                self.callroom = data
+            elif kind == "db":
+                self.db = data
+
+    def state_json(self, now=None):
+        with self.lock:
+            ago = time.time() - self.last_ingest if self.last_ingest else None
+            d = dict(self.state) if self.state else {"event": {}, "heat": {}, "lanes": [], "issues": [],
+                                                      "officialDistances": [], "meet": {}, "layout": "",
+                                                      "clock": self.clock, "records": [],
+                                                      "settings": {k: SETTINGS[k] for k in PUBLIC_SETTINGS},
+                                                      "showing": "current", "next": None}
+            d["relay"] = True
+            d["relayAgo"] = round(ago, 1) if ago is not None else None
+            if ago is None or ago > self.STALE_S:
+                d["connected"] = False
+                d["lastPacketAgo"] = d.get("relayAgo")
+                d["clock"] = {"status": "idle", "rt": None}     # geen data meer: klok niet laten doorlopen
+            return d
+
+    def history_json(self):
+        with self.lock:
+            return list(self.history)
+
+    def clock_json(self):
+        with self.lock:
+            return {"status": "idle", "rt": None} if self.stale() else dict(self.clock)
+
+
+def relay_watchdog(relay, hub):
+    """Open pagina's op de hoogte houden als de laptop stopt met zenden (en de SSE-verbinding levend houden)."""
+    was_stale = None
+    while True:
+        time.sleep(3)
+        st = relay.stale()
+        if st or st != was_stale:
+            hub.send("state", relay.state_json())
+            if st:
+                hub.send("clock", relay.clock_json())
+        was_stale = st
+
+
+# ---------------------------------------------------------------- appliance (Raspberry Pi)
+AGENT_URL = os.environ.get("KHZS_AGENT", "").rstrip("/")        # bv. http://127.0.0.1:8091 (enkel op de Pi)
+AGENT_KEY_FILE = os.environ.get("KHZS_AGENT_KEY_FILE", "/var/lib/khzs/agent.key")
+
+
+def agent_key():
+    try:
+        return open(AGENT_KEY_FILE).read().strip()
+    except OSError:
+        return ""
+AGENT_STATUS = {"ap": False, "apIp": "10.42.0.1", "at": 0.0}
+CAPTIVE_PATHS = ("/generate_204", "/gen_204", "/hotspot-detect.html", "/library/test/success.html", "/ncsi.txt",
+                 "/connecttest.txt", "/canonical.html", "/success.txt", "/redirect", "/mobile/status.php")
+
+
+def agent_call(method, path, body=None, headers=None, timeout=30):
+    """Stuurt een verzoek door naar de systeemdienst (localhost). Geeft (status, content-type, bytes)."""
+    if not AGENT_URL:
+        return 404, "application/json", b'{"error":"geen systeemdienst (enkel op de Pi)"}'
+    u = urllib.parse.urlsplit(AGENT_URL)
+    conn = http.client.HTTPConnection(u.hostname, u.port or 80, timeout=timeout)
+    headers = dict(headers or {}, **{"X-Agent-Key": agent_key()})
+    try:
+        conn.request(method, path, body=body, headers=headers)
+        r = conn.getresponse()
+        return r.status, r.getheader("Content-Type", "application/json"), r.read()
+    except OSError as e:
+        return 502, "application/json", json.dumps({"error": f"systeemdienst niet bereikbaar: {e}"}).encode()
+    finally:
+        conn.close()
+
+
+def agent_poll():
+    """Houdt bij of de Pi zijn eigen hotspot aanbiedt (voor de captive-portal-omleiding)."""
+    while True:
+        st, _, body = agent_call("GET", "/status", timeout=5)
+        if st == 200:
+            try:
+                d = json.loads(body)
+                AGENT_STATUS.update(ap=bool(d.get("hotspot", {}).get("active")),
+                                    apIp=d.get("hotspot", {}).get("ip") or "10.42.0.1", at=time.time())
+            except ValueError:
+                pass
+        time.sleep(5)
+
+
+LOGIN_FAIL_LOCK = threading.Lock()
+
+
+def session_token(password):
+    return hmac.new(password.encode("utf-8"), b"lt-session-v1", hashlib.sha256).hexdigest()[:40]
+
+
+LOGIN_HTML = """<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Aanmelden – Live timing</title>
+<style>:root{color-scheme:dark;--bg:#07131f;--card:#0e2233;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--danger:#ff5d5d}
+@media (prefers-color-scheme:light){:root{color-scheme:light;--bg:#eef3f7;--card:#fff;--border:#c5d4e0;--text:#0b1f30;--muted:#4b6479;--accent:#0369a1;--danger:#c81e1e}}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text);font:16px system-ui,Segoe UI,Roboto,sans-serif}
+form{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px 26px;width:min(92vw,360px);box-shadow:0 10px 40px rgba(0,0,0,.25)}
+h1{font-size:20px;margin:0 0 4px}p{margin:0 0 18px;color:var(--muted);font-size:14px}
+input{width:100%;box-sizing:border-box;font-size:18px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text)}
+button{margin-top:14px;width:100%;font-size:16px;font-weight:700;padding:11px;border:0;border-radius:8px;background:var(--accent);color:#06121c;cursor:pointer}
+.err{color:var(--danger);font-weight:600;margin:10px 0 0;font-size:14px}a{color:var(--muted);font-size:13px;display:block;text-align:center;margin-top:16px}</style></head>
+<body><form method="post" action="/login"><h1>__TITLE__</h1><p>Deze pagina is enkel voor jury en organisatie.</p>
+<input type="password" name="password" placeholder="Wachtwoord" autofocus autocomplete="current-password" required>
+<input type="hidden" name="next" value="__NEXT__"><button type="submit">Aanmelden</button>__ERR__
+<a href="/">← naar de publieke uitslagen</a></form></body></html>"""
+
+
+class Stats:
+    """Kijkersstatistieken (vooral voor de publieke server): live per pagina, piek en unieke bezoekers per dag,
+    verloop per minuut (24 u). Bezoekers worden geteld met een hash met dagelijks wisselend zout: geen IP-adressen."""
+    PAGES = ("publiek", "jury", "callroom")
+
+    def __init__(self, path=None):
+        self.lock = threading.Lock()
+        self.path = path
+        self.live = {}                       # verbinding -> (pagina, bezoeker)
+        self.day = time.strftime("%Y-%m-%d")
+        self.salt = _secrets.token_hex(16)
+        self.unique = {p: set() for p in self.PAGES}
+        self.views = {p: 0 for p in self.PAGES}
+        self.peak = {"value": 0, "at": None}
+        self.timeline = []                   # [epoch-minuut, publiek, jury, callroom]
+        self.days = {}                       # datum -> {unique, peak, views}
+        self._load()
+        threading.Thread(target=self._sampler, daemon=True).start()
+
+    def _load(self):
+        if not self.path or not os.path.exists(self.path):
+            return
+        try:
+            d = json.load(open(self.path, encoding="utf-8"))
+            self.timeline = [r for r in d.get("timeline", []) if r[0] > time.time() - 86400]
+            self.days = d.get("days", {})
+            t = self.days.get(self.day)
+            if t:
+                self.peak = t.get("peakInfo") or self.peak
+                self.views.update(t.get("views") or {})
+        except (OSError, ValueError):
+            pass
+
+    def _save(self):
+        if not self.path:
+            return
+        tmp = self.path + ".tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"timeline": self.timeline, "days": self.days}, f, separators=(",", ":"))
+            os.replace(tmp, self.path)
+        except OSError:
+            pass
+
+    def visitor(self, handler):
+        ip = handler.headers.get("Cf-Connecting-Ip") or handler.client_address[0]
+        ua = handler.headers.get("User-Agent", "")
+        return hashlib.sha256((self.salt + ip + "|" + ua).encode()).hexdigest()[:16]
+
+    def _roll(self):
+        today = time.strftime("%Y-%m-%d")
+        if today != self.day:
+            self.day, self.salt = today, _secrets.token_hex(16)
+            self.unique = {p: set() for p in self.PAGES}
+            self.views = {p: 0 for p in self.PAGES}
+            self.peak = {"value": 0, "at": None}
+
+    def open(self, key, page, vid):
+        with self.lock:
+            self._roll()
+            page = page if page in self.PAGES else "publiek"
+            self.live[key] = (page, vid)
+            self.unique[page].add(vid)
+            self.views[page] += 1
+
+    def close(self, key):
+        with self.lock:
+            self.live.pop(key, None)
+
+    def now(self):
+        with self.lock:
+            c = {p: 0 for p in self.PAGES}
+            for page, _ in self.live.values():
+                c[page] += 1
+            c["total"] = sum(c[p] for p in self.PAGES)
+            c["people"] = len({v for _, v in self.live.values()})
+            return c
+
+    def _sampler(self):
+        last_save = time.time()
+        while True:
+            time.sleep(60 - time.time() % 60)
+            n = self.now()
+            with self.lock:
+                self._roll()
+                self.timeline.append([int(time.time() // 60 * 60)] + [n[p] for p in self.PAGES])
+                cut = time.time() - 86400
+                while self.timeline and self.timeline[0][0] < cut:
+                    self.timeline.pop(0)
+                if n["total"] > self.peak["value"]:
+                    self.peak = {"value": n["total"], "at": time.strftime("%H:%M")}
+                self.days[self.day] = {"unique": len(set().union(*self.unique.values())),
+                                       "uniquePages": {p: len(v) for p, v in self.unique.items()},
+                                       "peak": self.peak["value"], "peakInfo": self.peak, "views": dict(self.views)}
+                for d in sorted(self.days)[:-31]:
+                    self.days.pop(d, None)
+            if time.time() - last_save > 300:
+                self._save()
+                last_save = time.time()
+
+    def report(self):
+        n = self.now()
+        with self.lock:
+            uniq = len(set().union(*self.unique.values()))
+            yday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400))
+            return {"now": n, "peakToday": self.peak, "uniqueToday": uniq,
+                    "uniquePagesToday": {p: len(v) for p, v in self.unique.items()},
+                    "viewsToday": dict(self.views), "yesterday": self.days.get(yday),
+                    "days": {d: {k: v for k, v in x.items() if k != "peakInfo"} for d, x in sorted(self.days.items())[-14:]},
+                    "timeline": self.timeline[-1440:], "pages": list(self.PAGES)}
+
+
+STATS = None
+
+# ---------- infoscherm (geen wedstrijd, volgende wedstrijd, pauze, …): lokaal en op de publieke server ----------
+INFO_MODES = ("off", "auto", "geen", "volgende", "welkom", "inzwemmen", "pauze", "prijsuitreiking", "einde", "bericht")
+INFO = {"mode": "off"}
+INFO_FILE = None
+
+
+def info_load(path):
+    global INFO_FILE
+    INFO_FILE = path
+    try:
+        with open(path, encoding="utf-8") as f:
+            INFO.clear()
+            INFO.update(json.load(f))
+    except (OSError, ValueError):
+        pass
+
+
+def info_set(d, source="lokaal"):
+    """Valideren en opslaan; geeft het nieuwe infoscherm terug.
+    mode "auto": volgens de agenda (volgende wedstrijd x dagen vooraf, welkom op de dag zelf, anders geen wedstrijd)."""
+    if not isinstance(d, dict) or d.get("mode", "off") not in INFO_MODES:
+        raise ValueError("ongeldige modus")
+    new = {"mode": d.get("mode", "off"), "updatedAt": int(time.time()), "source": source}
+    # aftellen: tot een uur (until) of een duur in minuten vanaf nu (untilAt), bv. 15 min pauze
+    try:
+        dur = float(d.get("duration") or 0)
+    except (TypeError, ValueError):
+        raise ValueError("ongeldige duur")
+    if 0 < dur <= 24 * 60:
+        new["duration"] = dur
+        new["untilAt"] = int(time.time() + dur * 60)
+    elif d.get("untilAt") and not d.get("until"):
+        new["untilAt"] = int(d["untilAt"])                  # ongewijzigd doorgegeven (bv. naar de cloud)
+    sched = []
+    for m in (d.get("schedule") or [])[:30]:
+        if not isinstance(m, dict):
+            continue
+        date = str(m.get("date") or "").strip()
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            continue
+        start = str(m.get("start") or "").strip()
+        sched.append({"name": str(m.get("name") or "").strip()[:140], "date": date,
+                      "start": start if re.fullmatch(r"\d{1,2}:\d{2}", start) else "",
+                      "place": str(m.get("place") or "").strip()[:120]})
+    sched.sort(key=lambda m: (m["date"], m["start"]))
+    new["schedule"] = sched
+    try:
+        new["daysBefore"] = max(0, min(90, int(d.get("daysBefore", 7))))
+    except (TypeError, ValueError):
+        new["daysBefore"] = 7
+    for k, n in (("kicker", 60), ("footer", 120), ("title", 140), ("text", 400), ("meet", 140), ("date", 20), ("place", 120),
+                 ("until", 20), ("ticker", 1500)):
+        v = str(d.get(k) or "").strip()
+        if v:
+            new[k] = v[:n]
+    new["autoHide"] = bool(d.get("autoHide", True))
+    new["allowClose"] = bool(d.get("allowClose", True))
+    pages = d.get("pages") or {}
+    new["pages"] = {"publiek": bool(pages.get("publiek", True)), "callroom": bool(pages.get("callroom", True))}
+    INFO.clear()
+    INFO.update(new)
+    if INFO_FILE:
+        tmp = INFO_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(INFO, f, ensure_ascii=False)
+        os.replace(tmp, INFO_FILE)
+    print(f"infoscherm: {INFO['mode']}")
+    return dict(INFO)
+
+
+# ---------- beheer op afstand: de publieke server stuurt verzoeken door naar een kastje (tunnel over HTTPS) ----------
+# Het kastje haalt verzoeken op met long-polling (uitgaand HTTPS, werkt achter elke firewall/portal waar het web open is),
+# voert ze lokaal uit en stuurt het antwoord terug. Toegang: beheerwachtwoord cloudserver + beheerderscode van het kastje.
+TUNNEL_NAME_RX = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
+TUNNEL_FWD_HEADERS = ("Content-Type", "X-Admin-Token", "X-Filename", "Accept", "Range")
+
+
+class TunnelHub:
+    """Relay-kant: wachtrij per kastje en openstaande verzoeken."""
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.boxes = {}          # naam -> {"q", "seen", "info"}
+        self.pending = {}        # id -> {"ev", "resp"}
+
+    def poll(self, name, info, wait=25.0):
+        with self.lock:
+            b = self.boxes.setdefault(name, {"q": queue.Queue(), "seen": 0, "info": {}})
+            b["seen"], b["info"] = time.time(), info or {}
+        end = time.time() + wait
+        while True:
+            try:
+                req = b["q"].get(timeout=max(0.1, end - time.time()))
+            except queue.Empty:
+                return None
+            if time.time() - req["at"] <= 30 and req["id"] in self.pending:    # oude verzoeken nooit nog uitvoeren
+                return req
+            if time.time() >= end:
+                return None
+
+    def request(self, name, req, timeout=75.0):
+        with self.lock:
+            b = self.boxes.get(name)
+        if not b or time.time() - b["seen"] > 60:
+            raise LookupError(f"kastje '{name}' is niet verbonden (staat 'beheer op afstand' aan en heeft het internet?)")
+        rid = _secrets.token_hex(12)
+        ev = threading.Event()
+        self.pending[rid] = {"ev": ev, "resp": None}
+        req.update(id=rid, at=time.time())
+        b["q"].put(req)
+        try:
+            if not ev.wait(timeout):
+                raise TimeoutError("het kastje antwoordt niet")
+            return self.pending[rid]["resp"]
+        finally:
+            self.pending.pop(rid, None)
+
+    def reply(self, rid, resp):
+        p = self.pending.get(rid)
+        if p:
+            p["resp"] = resp
+            p["ev"].set()
+
+    def list(self):
+        with self.lock:
+            return [{"name": n, "online": time.time() - b["seen"] < 60, "lastSeen": int(time.time() - b["seen"]),
+                     **{k: v for k, v in b["info"].items() if k in ("version", "role", "hostname", "label", "simulated", "connected")}}
+                    for n, b in sorted(self.boxes.items())]
+
+
+TUNNEL = TunnelHub()
+
+
+def release_dir():
+    return os.path.join(os.path.dirname(os.path.abspath(SETTINGS_FILE)), "releases")
+
+
+def release_info():
+    """Het laatst naar de cloudserver gestuurde pakket (voor de kastjes)."""
+    try:
+        with open(os.path.join(release_dir(), "latest.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def release_store(blob):
+    try:
+        import zipfile as _zf
+        meta = json.loads(_zf.ZipFile(io.BytesIO(blob)).read("release.json"))
+    except Exception:
+        return None
+    os.makedirs(release_dir(), exist_ok=True)
+    tmp = os.path.join(release_dir(), "latest.zip.tmp")
+    with open(tmp, "wb") as f:
+        f.write(blob)
+    os.replace(tmp, os.path.join(release_dir(), "latest.zip"))
+    info = {"version": meta.get("version"), "built": meta.get("built"), "size": len(blob),
+            "sha256": hashlib.sha256(blob).hexdigest(), "stored": int(time.time())}
+    with open(os.path.join(release_dir(), "latest.json"), "w", encoding="utf-8") as f:
+        json.dump(info, f)
+    print(f"pakket {info['version']} bewaard voor de kastjes")
+    return info
+
+TUNNEL_INJECT = """<script>/* via beheer op afstand: alle adressen van dit kastje beginnen met __BASE__ */
+(function(){var B='__BASE__';window.LT_BASE=B;
+function fx(u){return (typeof u==='string'&&u.charAt(0)==='/'&&u.charAt(1)!=='/'&&u.indexOf(B+'/')!==0)?B+u:u}
+var f=window.fetch;window.fetch=function(u,o){if(u&&u.url&&!(typeof u==='string'))return f.call(this,u,o);return f.call(this,fx(u),o)};
+window.EventSource=function(){this.readyState=2;this.addEventListener=function(){};this.close=function(){}};
+[[HTMLScriptElement,'src'],[HTMLIFrameElement,'src'],[HTMLImageElement,'src'],[HTMLLinkElement,'href'],[HTMLAnchorElement,'href']].forEach(function(p){
+  var d=Object.getOwnPropertyDescriptor(p[0].prototype,p[1]);if(!d||!d.set)return;
+  Object.defineProperty(p[0].prototype,p[1],{get:d.get,set:function(v){d.set.call(this,fx(v))},configurable:true})});
+var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(n==='src'||n==='href'||n==='action')v=fx(v);return sa.call(this,n,v)};
+function fix(el){['src','href','action'].forEach(function(a){var v=el.getAttribute&&el.getAttribute(a);if(v&&fx(v)!==v)sa.call(el,a,fx(v))})}
+new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(function(n){if(n.nodeType===1){fix(n);if(n.querySelectorAll)n.querySelectorAll('[src],[href],[action]').forEach(fix)}})})}).observe(document.documentElement,{subtree:true,childList:true});
+document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('[src],[href],[action]').forEach(fix);
+  var b=document.createElement('div');b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:600 12px system-ui;padding:4px 12px;border-radius:999px;opacity:.9;pointer-events:none';
+  b.textContent='Beheer op afstand: '+B.split('/').pop();document.body.appendChild(b)});
+})();</script>"""
+
+
+def tunnel_client(port):
+    """Lokale kant: verzoeken van de publieke server ophalen en lokaal uitvoeren (4 tegelijk, voor console + rest)."""
+    def worker(n):
+        conn, backoff = None, 2.0
+        while True:
+            url, tok = (SETTINGS.get("relay_url") or "").rstrip("/"), SETTINGS.get("relay_token") or ""
+            if not (SETTINGS.get("remote_admin") and url and tok):
+                conn = None
+                time.sleep(5)
+                continue
+            u = urllib.parse.urlsplit(url)
+            try:
+                if conn is None:
+                    cls = http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection
+                    conn = cls(u.hostname, u.port, timeout=45)
+                info = {"version": VERSION, "role": ROLE, "hostname": socket.gethostname(), "label": SETTINGS.get("device_label") or ""}
+                if STATE is not None:
+                    info["connected"] = bool(STATE.state_json(now_fn()).get("connected"))
+                    info["simulated"] = bool(STATE_SOURCE.get("sim"))
+                conn.request("POST", (u.path or "") + "/tunnel/poll",
+                             body=json.dumps({"name": socket.gethostname().lower(), "info": info}),
+                             headers={"X-Ingest-Token": tok, "Content-Type": "application/json",
+                                      "User-Agent": f"khzs-livetiming/{VERSION}"})
+                r = conn.getresponse()
+                data = r.read()
+                if r.status != 200:
+                    raise OSError(f"tunnel: HTTP {r.status}")
+                req = json.loads(data or b"{}").get("req")
+                backoff = 2.0
+                if not req:
+                    continue
+                resp = tunnel_local(port, req)
+                conn.request("POST", (u.path or "") + "/tunnel/reply", body=json.dumps(resp),
+                             headers={"X-Ingest-Token": tok, "Content-Type": "application/json"})
+                conn.getresponse().read()
+            except (OSError, ValueError, http.client.HTTPException) as e:
+                if n == 0:
+                    print("beheer op afstand:", e)
+                conn = None
+                time.sleep(backoff)
+                backoff = min(15.0, backoff * 2)          # na een storing binnen 15 s opnieuw verbonden
+
+    for i in range(4):
+        threading.Thread(target=worker, args=(i,), daemon=True).start()
+
+
+def tunnel_local(port, req):
+    """Eén doorgestuurd verzoek lokaal uitvoeren. Nooit als 'lokaal' vertrouwd: de beheerderscode blijft nodig."""
+    h = {k: v for k, v in (req.get("headers") or {}).items() if k in TUNNEL_FWD_HEADERS}
+    h["X-Forwarded-For"] = "beheer-op-afstand"
+    body = base64.b64decode(req.get("body") or "") if req.get("body") else None
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=70)
+    try:
+        conn.request(req.get("method", "GET"), req.get("path", "/"), body=body, headers=h)
+        r = conn.getresponse()
+        data = r.read(60 * 1024 * 1024)
+        hdr = {k: v for k, v in r.getheaders() if k in ("Content-Type", "Cache-Control", "Content-Disposition", "Location")}
+        return {"id": req["id"], "status": r.status, "headers": hdr, "body": base64.b64encode(data).decode()}
+    except OSError as e:
+        return {"id": req["id"], "status": 502, "headers": {"Content-Type": "application/json"},
+                "body": base64.b64encode(json.dumps({"error": f"lokale server: {e}"}).encode()).decode()}
+    finally:
+        conn.close()
+
+
+# ---------- cloudbeheer: lokale server -> https://<relay>/admin/* -> beheerdienst (root) op de cloudserver ----------
+CLOUD_AGENT = ("127.0.0.1", 8092)
+CLOUD_AGENT_KEY_FILE = os.environ.get("LT_AGENT_KEY_FILE", "/etc/livetiming-agent.key")
+ADMIN_FAIL_LOCK = threading.Lock()
+RELAY_ADMIN_KEYS = [k for k in DEFAULT_SETTINGS if k not in ("relay_token", "admin_token", "relay_url")]
+
+
+def cloud_agent_call(method, path, body=None, headers=None, timeout=70):
+    """Relay-modus: verzoek doorgeven aan de beheerdienst op dezelfde server."""
+    try:
+        key = open(CLOUD_AGENT_KEY_FILE).read().strip()
+    except OSError:
+        return 503, b'{"ok":false,"error":"beheerdienst niet geinstalleerd op de cloudserver (pve_deploy.py deploy)"}', "application/json"
+    h = {"X-Agent-Key": key, "Host": "127.0.0.1"}
+    h.update(headers or {})
+    conn = http.client.HTTPConnection(*CLOUD_AGENT, timeout=timeout)
+    try:
+        conn.request(method, path, body=body, headers=h)
+        r = conn.getresponse()
+        return r.status, r.read(), r.getheader("Content-Type") or "application/json"
+    except OSError as e:
+        return 502, json.dumps({"ok": False, "error": f"beheerdienst onbereikbaar: {e}"}).encode(), "application/json"
+    finally:
+        conn.close()
+
+
+def cloud_call(method, sub, body=None, ctype="application/json", timeout=70):
+    """Lokale server: beheerverzoek naar de publieke server (HTTPS, zelfde token als het doorsturen)."""
+    url = (SETTINGS.get("relay_url") or "").rstrip("/")
+    tok = SETTINGS.get("relay_token") or ""
+    if not url or not tok:
+        return 400, json.dumps({"ok": False, "error": "eerst het adres en token van de publieke server instellen (Doorsturen)"}).encode(), "application/json"
+    u = urllib.parse.urlsplit(url)
+    conn_cls = http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection
+    conn = conn_cls(u.hostname, u.port, timeout=timeout)
+    try:
+        conn.request(method, (u.path or "") + "/admin/" + sub, body=body,
+                     headers={"X-Ingest-Token": tok, "Content-Type": ctype, "X-Who": socket.gethostname()[:40],
+                              "User-Agent": f"khzs-livetiming/{VERSION}"})
+        r = conn.getresponse()
+        return r.status, r.read(), r.getheader("Content-Type") or "application/json"
+    except OSError as e:
+        return 502, json.dumps({"ok": False, "error": f"publieke server onbereikbaar: {e}"}).encode(), "application/json"
+    finally:
+        conn.close()
+
+
+def own_release_zip():
+    """Eigen code als releasepakket (zelfde formaat als tools/build_release.py) om de cloudserver bij te werken."""
+    sys.path.insert(0, os.path.join(BASE, "tools"))
+    import build_release
+    return build_release.build_bytes(BASE)
+
+
+def make_handler(state, hub, relay=None):
+    """relay=None: gewone server op de laptop. relay=RelayStore: publieke server (ontvangt van de laptop)."""
     class H(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
         def log_message(self, *a):
             pass
 
-        def _json(self, obj):
+        def _json(self, obj, status=200):
             body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
-            self.send_response(200)
+            self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _send(self, status, body, ctype):
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "no-cache")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -1005,8 +1969,235 @@ def make_handler(state, hub):
             q = self.path.partition("?")[2]
             return "jury" if "view=jury" in q else "publiek"
 
+        # ----- relay: aanmelding -----
+        def _cookie(self, name):
+            for part in self.headers.get("Cookie", "").split(";"):
+                k, _, v = part.strip().partition("=")
+                if k == name:
+                    return v
+            return ""
+
+        def _cloud_admin(self):
+            """Relay: aangemeld met het beheerwachtwoord van de cloudserver."""
+            apw = SETTINGS.get("cloud_admin_password") or ""
+            return bool(relay is not None and apw and hmac.compare_digest(self._cookie("lt_a"), session_token(apw + "|beheer")))
+
+        def _authed(self):
+            if relay is None:
+                return True
+            if self._cloud_admin():
+                return True
+            pw = SETTINGS.get("jury_password") or ""
+            if not pw:
+                return False
+            cookies = self.headers.get("Cookie", "")
+            for part in cookies.split(";"):
+                k, _, v = part.strip().partition("=")
+                if k == "lt_s" and hmac.compare_digest(v, session_token(pw)):
+                    return True
+            return False
+
+        def _require_login(self, as_json=False):
+            """True = toegang; anders is het antwoord al verstuurd."""
+            if self._authed():
+                return True
+            if not (SETTINGS.get("jury_password") or ""):
+                self.send_error(503, "Geen jury-wachtwoord ingesteld op de server (jury_password)")
+                return False
+            if as_json:
+                body = b'{"error":"login"}'
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_response(302)
+                self.send_header("Location", "/login?next=" + urllib.parse.quote(self.path, safe=""))
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            return False
+
+        def _login_page(self, nxt, err=""):
+            body = (LOGIN_HTML.replace("__TITLE__", "Live timing – aanmelden")
+                    .replace("__NEXT__", nxt.replace('"', "").replace("<", ""))
+                    .replace("__ERR__", f'<p class="err">{err}</p>' if err else "")).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _safe_next(self, nxt):
+            return nxt if (nxt.startswith("/") and not nxt.startswith("//")) else "/jury"
+
+        def _captive(self, path):
+            """Hotspotmodus: telefoons en laptops die hun 'internetcheck' doen, naar het beheer sturen."""
+            if relay is not None or not AGENT_STATUS["ap"]:
+                return False
+            host = (self.headers.get("Host") or "").split(":")[0]
+            ours = host in ("", AGENT_STATUS["apIp"], "khzs-timing", "khzs-timing.local", "localhost", "127.0.0.1")
+            if path in CAPTIVE_PATHS or not ours:
+                self.send_response(302)
+                self.send_header("Location", f"http://{AGENT_STATUS['apIp']}/system")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return True
+            return False
+
+        def _system_api(self, method):
+            path = self.path.split("?")[0]
+            sub = self.path[len("/api/system"):] or "/"
+            local_kiosk = (self.client_address[0] in ("127.0.0.1", "::1") and not self.headers.get("Origin")
+                           and not any(self.headers.get(h) for h in ("Cf-Connecting-Ip", "X-Forwarded-For")))
+            if method == "GET" and sub.split("?")[0] == "/display" and local_kiosk:
+                pass                                     # HDMI-scherm (statuspagina) mag zijn eigen weergave-info lezen
+            elif not self._is_admin():
+                return self._json({"error": "beheerderscode nodig"}, 403) if method != "GET" or sub.split("?")[0] != "/status" \
+                    else self._json({"agent": bool(AGENT_URL), "locked": True, "version": VERSION})
+            body = None
+            hdr = {}
+            if method == "POST":
+                n = int(self.headers.get("Content-Length", 0) or 0)
+                if n > 200 * 1024 * 1024:
+                    return self._json({"error": "bestand te groot"}, 413)
+                body = self.rfile.read(n) if n else b""
+                hdr = {"Content-Type": self.headers.get("Content-Type", "application/json"),
+                       "Content-Length": str(len(body))}
+                for h in ("X-Filename",):
+                    if self.headers.get(h):
+                        hdr[h] = self.headers.get(h)
+            st, ctype, data = agent_call(method, sub, body, hdr, timeout=120)
+            self.send_response(st)
+            self.send_header("Content-Type", ctype or "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
         def do_GET(self):
             path = self.path.split("?")[0]
+            if self._captive(path):
+                return
+            if relay is None and path in ("/system", "/system.html"):
+                self.send_response(302)
+                self.send_header("Location", "/settings#netwerk")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if relay is None and path in ("/display", "/display.html"):
+                return self._file(os.path.join(STATIC, "display.html"), "text/html; charset=utf-8")
+            if relay is None and ROLE != "server" and path in ("/", "/index.html", "/publiek", "/jury", "/callroom"):
+                self.send_response(302)
+                self.send_header("Location", "/display")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if relay is None and path.startswith("/api/system"):
+                return self._system_api("GET")
+            if relay is None and path.startswith("/api/cloud/"):
+                return self._cloud("GET")
+            if path.startswith("/vendor/") and re.fullmatch(r"/vendor/[a-z0-9.-]+\.(js|css)", path):
+                return self._file(os.path.join(STATIC, "vendor", path[8:]),
+                                  "text/css" if path.endswith(".css") else "application/javascript")
+            if path == "/api/stats" and STATS is not None and (relay is None and self._is_admin()):
+                return self._json(dict(STATS.report(), ok=True))
+            if path == "/api/info":
+                return self._json(INFO)
+            if path == "/api/peers" and relay is None:
+                return self._json({"peers": peers_json()})
+            if path == "/api/udp" and relay is None:
+                d = dict(UDP_STATUS, lastAgo=round(time.time() - UDP_STATUS["lastAt"], 1) if UDP_STATUS["lastAt"] else None)
+                d.pop("lastAt", None)
+                d["seen"] = sorted(({"iface": e["iface"], "from": e["from"], "count": e["count"],
+                                     "ago": round(time.time() - e["last"], 1)} for e in UDP_STATUS["seen"].values()),
+                                   key=lambda e: e["ago"])
+                if not self._is_admin():
+                    d.pop("lastRejected", None)
+                return self._json(d)
+            if path in ("/info", "/info.html"):
+                return self._file(os.path.join(STATIC, "info.html"), "text/html; charset=utf-8")
+            if path == "/infoscreen.js":
+                return self._file(os.path.join(STATIC, "infoscreen.js"), "application/javascript")
+            if path.startswith("/img/") and re.fullmatch(r"/img/[a-z0-9-]+\.(png|svg)", path):
+                return self._file(os.path.join(STATIC, "img", path[5:]), "image/svg+xml" if path.endswith(".svg") else "image/png")
+            if path == "/api/version":
+                others = [p for p in peers_json() if p["role"] == "server"] if relay is None else []
+                return self._json({"version": VERSION, "agent": bool(AGENT_URL), "role": ROLE if relay is None else "relay",
+                                   "label": SETTINGS.get("device_label") or "", "hostname": socket.gethostname(),
+                                   "otherServers": [{"name": p["label"] or p["name"], "ip": p["ip"]} for p in others]})
+            if relay is not None:
+                if path == "/login":
+                    q = urllib.parse.parse_qs(self.path.partition("?")[2])
+                    pw = SETTINGS.get("jury_password") or ""
+                    key = q.get("key", [""])[0]
+                    if key and pw and hmac.compare_digest(key, pw):          # schermkastje met schermsleutel
+                        secure = "; Secure" if (self.headers.get("X-Forwarded-Proto", "").lower() == "https") else ""
+                        self.send_response(303)
+                        self.send_header("Set-Cookie", f"lt_s={session_token(pw)}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax{secure}")
+                        self.send_header("Location", self._safe_next(q.get("next", ["/jury"])[0]))
+                        self.send_header("Content-Length", "0")
+                        self.end_headers()
+                        return
+                    if key:
+                        with LOGIN_FAIL_LOCK:
+                            time.sleep(1.5)
+                    return self._login_page(self._safe_next(q.get("next", ["/jury"])[0]))
+                if path == "/logout":
+                    self.send_response(302)
+                    self.send_header("Set-Cookie", "lt_s=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+                    self.send_header("Set-Cookie", "lt_a=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict")
+                    nxt = urllib.parse.parse_qs(self.path.partition("?")[2]).get("next", ["/"])[0]
+                    self.send_header("Location", "/login?next=/settings" if nxt == "/login" else self._safe_next(nxt))
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                if path == "/api/relay":
+                    return self._json({"relay": True, "lastIngestAgo": relay.state_json().get("relayAgo")})
+                if path.startswith("/kastje/"):
+                    return self._tunnel_proxy("GET")
+                if path in ("/tunnel/release", "/tunnel/release.zip"):
+                    tok = SETTINGS.get("relay_token") or ""
+                    if not tok or not hmac.compare_digest(self.headers.get("X-Ingest-Token", ""), tok):
+                        with ADMIN_FAIL_LOCK:
+                            time.sleep(1.5)
+                        return self._json({"ok": False, "error": "ongeldig token"}, 403)
+                    info = release_info()
+                    if path.endswith(".zip"):
+                        if not info:
+                            return self._json({"ok": False, "error": "geen pakket"}, 404)
+                        return self._file(os.path.join(release_dir(), "latest.zip"), "application/zip")
+                    return self._json({"ok": True, "release": info})
+                if path == "/api/kastjes":
+                    if not self._cloud_admin():
+                        return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
+                    return self._json({"ok": True, "boxes": TUNNEL.list(), "release": release_info()})
+                if path == "/api/whoami":
+                    return self._json({"relay": True, "admin": self._cloud_admin(), "jury": self._authed(),
+                                       "adminConfigured": bool(SETTINGS.get("cloud_admin_password"))})
+                if path == "/api/stats":
+                    if not self._cloud_admin():
+                        return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
+                    return self._json(dict(STATS.report() if STATS else {}, ok=True))
+                if path.startswith("/admin/"):
+                    return self._admin("GET")
+                protected_pages = ("/jury", "/settings", "/settings.html")      # oproepkamer is publiek
+                protected_api = ("/api/db", "/api/settings")
+                if path in protected_pages and not self._require_login():
+                    return
+                if (path in protected_api or (path in ("/state", "/history", "/events") and self._view() == "jury"))                         and not self._require_login(as_json=True):
+                    return
+                if path == "/api/callroom":
+                    return self._json(relay.callroom or {"upcoming": [], "count": 0, "matched": False,
+                                                          "db": {"loadedAt": None, "loadedFile": None, "heats": 0}})
+                if path == "/api/db":
+                    return self._json(dict(relay.db or {}, canEdit=False, relay=True))
+                if path == "/api/settings":
+                    st = (relay.state or {}).get("settings") or {}
+                    return self._json({"settings": st, "defaults": {k: v for k, v in DEFAULT_SETTINGS.items() if k not in SECRET_KEYS},
+                                       "canEdit": False, "tokenSet": False, "relay": True})
             if path == "/state":
                 d = state.state_json(now_fn())
                 return self._json(public_view("state", d) if self._view() == "publiek" else d)
@@ -1015,38 +2206,372 @@ def make_handler(state, hub):
                 return self._json(public_view("history", d) if self._view() == "publiek" else d)
             if path == "/events":
                 return self._sse()
-            if path in ("/", "/index.html"):
-                self.send_response(302)
-                self.send_header("Location", "/publiek")
-                self.send_header("Content-Length", "0")
-                self.end_headers()
-                return
-            if path in ("/publiek", "/jury"):
+            if path in ("/", "/index.html", "/publiek", "/jury"):     # root = publieke weergave (geen omleiding)
                 return self._file(os.path.join(STATIC, "index.html"), "text/html; charset=utf-8")
             if path in ("/settings", "/settings.html"):
                 return self._file(os.path.join(STATIC, "settings.html"), "text/html; charset=utf-8")
+            if relay is None and path in ("/simulator", "/simulator.html"):
+                try:
+                    html = open(os.path.join(STATIC, "simulator.html"), encoding="utf-8").read()
+                except OSError:
+                    return self.send_error(404)
+                html = html.replace("<script>", "<script>window.SIM_API='/api/sim';</script><script>", 1)
+                return self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
+            if relay is None and path == "/api/sim/state":
+                if not self._is_admin():
+                    return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
+                if not SIM.running():
+                    return self._json(dict(SIM.status(), ok=True))
+                return self._json(dict(SIM.eng.snapshot(), running=True))
+            if relay is None and path == "/api/sim":
+                return self._json(dict(SIM.status(), canEdit=self._is_admin()))
             if path == "/api/callroom":
                 st = public_view("state", state.state_json(now_fn()))
                 return self._json(callroom_json(st))
             if path in ("/callroom", "/callroom.html"):
                 return self._file(os.path.join(STATIC, "callroom.html"), "text/html; charset=utf-8")
+            if path == "/api/relay":
+                return self._json(dict(PUSHER.status(), enabled=True) if PUSHER else {"enabled": False})
+            if path == "/api/programma":
+                return self._json(dict(PROG_STATUS, heats=len(PROG_SCHEDULE), canEdit=self._is_admin()))
             if path == "/api/db":
                 return self._json(dict(db_status_json(), canEdit=self._is_admin()))
             if path == "/api/settings":
-                return self._json({"settings": {k: v for k, v in SETTINGS.items() if k != "admin_token"},
-                                   "defaults": {k: v for k, v in DEFAULT_SETTINGS.items() if k != "admin_token"},
-                                   "canEdit": self._is_admin(), "tokenSet": bool(SETTINGS["admin_token"])})
+                return self._json({"settings": {k: v for k, v in SETTINGS.items() if k not in SECRET_KEYS},
+                                   "defaults": {k: v for k, v in DEFAULT_SETTINGS.items() if k not in SECRET_KEYS},
+                                   "canEdit": self._is_admin(), "tokenSet": bool(SETTINGS["admin_token"]),
+                                   "defaultToken": SETTINGS["admin_token"] == "zwemclub" and not SETTINGS.get("trust_localhost", True)})
             self.send_error(404)
+
+        def _tunnel_proxy(self, method):
+            """Relay: /kastje/<naam>/<pad> -> verzoek naar dat kastje (enkel voor de beheerder van de cloudserver)."""
+            if not self._cloud_admin():
+                if method == "GET" and "/api/" not in self.path:
+                    return self._require_login() and None
+                return self._json({"ok": False, "error": "beheerwachtwoord van de cloudserver nodig"}, 403)
+            origin = self.headers.get("Origin") or ""
+            if origin and urllib.parse.urlsplit(origin).netloc != (self.headers.get("Host") or ""):
+                return self._json({"ok": False, "error": "andere website"}, 403)
+            rest = self.path[len("/kastje/"):]
+            name, _, sub = rest.partition("/")
+            name = name.lower()
+            if not TUNNEL_NAME_RX.match(name):
+                return self.send_error(404)
+            if not sub:
+                self.send_response(302)
+                self.send_header("Location", f"/kastje/{name}/settings")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            n = int(self.headers.get("Content-Length", 0) or 0)
+            if n > 60 * 1024 * 1024:
+                return self._json({"ok": False, "error": "te groot"}, 413)
+            body = self.rfile.read(n) if n else b""
+            req = {"method": method, "path": "/" + sub,
+                   "headers": {k: self.headers.get(k) for k in TUNNEL_FWD_HEADERS if self.headers.get(k)},
+                   "body": base64.b64encode(body).decode() if body else ""}
+            try:
+                resp = TUNNEL.request(name, req)
+            except (LookupError, TimeoutError) as e:
+                return self._json({"ok": False, "error": str(e)}, 504)
+            data = base64.b64decode(resp.get("body") or "")
+            hdr = resp.get("headers") or {}
+            ctype = hdr.get("Content-Type", "application/octet-stream")
+            if ctype.startswith("text/html"):
+                inj = TUNNEL_INJECT.replace("__BASE__", f"/kastje/{name}").encode("utf-8")
+                i = data.find(b"<head>")
+                data = data[:i + 6] + inj + data[i + 6:] if i >= 0 else inj + data
+            self.send_response(int(resp.get("status") or 502))
+            for k, v in hdr.items():
+                if k == "Location" and v.startswith("/") and not v.startswith("//"):
+                    v = f"/kastje/{name}" + v
+                if k != "Content-Type":
+                    self.send_header(k, v)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _cloud(self, method):
+            """Lokale server: beheer van de publieke server, enkel voor de beheerder van dit toestel."""
+            if not self._is_admin():
+                return self._json({"ok": False, "error": "geen toegang (beheerderscode nodig)"}, 403)
+            path, _, q = self.path.partition("?")
+            sub = path[len("/api/cloud/"):]
+            n = int(self.headers.get("Content-Length", 0) or 0)
+            body = self.rfile.read(n) if n else None
+            if sub == "release-upload" and method == "POST":
+                try:
+                    blob, ver = own_release_zip()
+                except Exception as e:
+                    return self._json({"ok": False, "error": f"pakket maken mislukt: {e}"}, 500)
+                url = (SETTINGS.get("relay_url") or "").rstrip("/")
+                u = urllib.parse.urlsplit(url)
+                conn = (http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection)(u.hostname, u.port, timeout=120)
+                try:
+                    conn.request("POST", (u.path or "") + "/tunnel/release-upload", body=blob,
+                                 headers={"X-Ingest-Token": SETTINGS.get("relay_token") or "", "Content-Type": "application/zip"})
+                    r = conn.getresponse()
+                    return self._send(409 if r.status == 403 else r.status, r.read(), "application/json")
+                except OSError as e:
+                    return self._json({"ok": False, "error": f"publieke server onbereikbaar: {e}"}, 502)
+                finally:
+                    conn.close()
+            if sub == "update-self" and method == "POST":
+                try:
+                    blob, ver = own_release_zip()
+                except Exception as e:
+                    return self._json({"ok": False, "error": f"pakket maken mislukt: {e}"}, 500)
+                code, data, ctype = cloud_call("POST", "update", blob, "application/zip", timeout=180)
+                return self._send(409 if code == 403 else code, data, ctype)
+            code, data, ctype = cloud_call(method, sub + ("?" + q if q else ""), body,
+                                           self.headers.get("Content-Type", "application/json"))
+            # 403 van de cloudserver (token/consolewachtwoord) is geen lokaal toegangsprobleem
+            return self._send(409 if code == 403 else code, data, ctype)
+
+        def _admin(self, method):
+            """Relay: beheer vanaf de lokale server. Token = relay_token; console vraagt daarnaast een eigen wachtwoord."""
+            tok = SETTINGS.get("relay_token") or ""
+            if not tok or not hmac.compare_digest(self.headers.get("X-Ingest-Token", ""), tok):
+                with ADMIN_FAIL_LOCK:
+                    time.sleep(1.5)
+                return self._json({"ok": False, "error": "ongeldig token"}, 403)
+            path, _, q = self.path.partition("?")
+            sub = path[len("/admin"):]
+            n = int(self.headers.get("Content-Length", 0) or 0)
+            if n > 60 * 1024 * 1024:
+                return self._json({"ok": False, "error": "te groot"}, 413)
+            body = self.rfile.read(n) if n else b""
+            if sub == "/settings":
+                if method == "POST":
+                    try:
+                        new = json.loads(body or b"{}")
+                        if not isinstance(new, dict):
+                            raise ValueError
+                    except ValueError:
+                        return self._json({"ok": False, "error": "ongeldige JSON"}, 400)
+                    bad = [k for k in new if k not in RELAY_ADMIN_KEYS]
+                    if bad:
+                        return self._json({"ok": False, "error": "niet wijzigbaar vanop afstand: " + ", ".join(bad)}, 400)
+                    if "jury_password" in new and not new["jury_password"]:
+                        new.pop("jury_password")
+                    errors = update_settings(new)
+                    if errors:
+                        return self._json({"ok": False, "error": ", ".join(errors)}, 400)
+                    print("instellingen gewijzigd via beheer:", ", ".join(sorted(new)))
+                viewers = STATS.now() if STATS else {}
+                st = relay.state_json()
+                return self._json({"ok": True, "version": VERSION,
+                                   "settings": {k: v for k, v in SETTINGS.items() if k in RELAY_ADMIN_KEYS and k not in SECRET_KEYS},
+                                   "juryPasswordSet": bool(SETTINGS.get("jury_password")),
+                                   "lastIngestAgo": st.get("relayAgo"), "history": len(relay.history or []),
+                                   "viewers": viewers})
+            if sub == "/info" and method == "POST":
+                try:
+                    new = info_set(json.loads(body or b"{}"), "lokaal")
+                except ValueError as e:
+                    return self._json({"ok": False, "error": str(e)}, 400)
+                hub.send("info", new)
+                return self._json({"ok": True, "info": new})
+            if sub == "/stats":
+                return self._json(dict(STATS.report() if STATS else {}, ok=True))
+            if sub == "/cache/clear" and method == "POST":
+                relay.clear()
+                print("cache gewist via beheer")
+                return self._json({"ok": True})
+            if not (sub in ("/status", "/logs", "/restart", "/update", "/console/open", "/console/password")
+                    or re.fullmatch(r"/console/[A-Za-z0-9_-]{20,64}/(read|write|resize|close)", sub)):
+                return self._json({"ok": False, "error": "onbekend"}, 404)
+            who = (self.headers.get("X-Who", "?")[:40] + " via " +
+                   (self.headers.get("Cf-Connecting-Ip") or self.client_address[0]))
+            code, data, ctype = cloud_agent_call(method, sub + ("?" + q if q else ""), body or None,
+                                                 {"X-Who": who, "Content-Type": self.headers.get("Content-Type", "application/json")})
+            if sub == "/update" and code == 200 and body:
+                release_store(body)               # zelfde pakket ook aanbieden aan de kastjes
+            return self._send(code, data, ctype)
 
         def _is_admin(self):
             # via cloudflared/proxy komt alles van localhost binnen: dan enkel met token
             proxied = any(self.headers.get(h) for h in ("Cf-Connecting-Ip", "X-Forwarded-For", "Cf-Ray"))
             local = self.client_address[0] in ("127.0.0.1", "::1") and not proxied
+            origin = self.headers.get("Origin") or ""
+            if local and origin:
+                # een pagina van een andere website (bv. in de kiosk- of hotspot-browser) is geen beheerder
+                o = urllib.parse.urlsplit(origin)
+                local = o.hostname in ("localhost", "127.0.0.1") and (o.port or 80) == (self.server.server_address[1] or 80)
             tok = SETTINGS["admin_token"]
-            return local or (bool(tok) and self.headers.get("X-Admin-Token") == tok)
+            given = self.headers.get("X-Admin-Token")
+            if given and tok and hmac.compare_digest(given, tok):
+                return True
+            if given:                                    # foute code: vertragen tegen raden
+                with ADMIN_FAIL_LOCK:
+                    time.sleep(1.0)
+                return False
+            # systeemdienst en khzs-commando op het kastje zelf: met de sleutel van de systeemdienst
+            ak = self.headers.get("X-Agent-Key")
+            if ak and AGENT_URL and not origin:
+                try:
+                    if hmac.compare_digest(ak, agent_key()):
+                        return True
+                except OSError:
+                    pass
+            return local and bool(SETTINGS.get("trust_localhost", True))
 
         def do_POST(self):
-            if self.path.split("?")[0] == "/api/db/sync":
+            path0 = self.path.split("?")[0]
+            if relay is None and path0.startswith("/api/system"):
+                return self._system_api("POST")
+            if relay is None and path0.startswith("/api/cloud/"):
+                return self._cloud("POST")
+            if relay is not None:
+                if path0.startswith("/kastje/"):
+                    return self._tunnel_proxy("POST")
+                if path0 == "/tunnel/release-upload":
+                    # pakket enkel bewaren voor de kastjes (zonder de cloudserver zelf bij te werken)
+                    tok = SETTINGS.get("relay_token") or ""
+                    if not tok or not hmac.compare_digest(self.headers.get("X-Ingest-Token", ""), tok):
+                        return self._json({"ok": False, "error": "ongeldig token"}, 403)
+                    n = int(self.headers.get("Content-Length", 0) or 0)
+                    info = release_store(self.rfile.read(n)) if 0 < n <= 60 * 1024 * 1024 else None
+                    return self._json({"ok": bool(info), "release": info, "error": None if info else "geen geldig pakket"})
+                if path0 in ("/tunnel/poll", "/tunnel/reply"):
+                    tok = SETTINGS.get("relay_token") or ""
+                    if not tok or not hmac.compare_digest(self.headers.get("X-Ingest-Token", ""), tok):
+                        with ADMIN_FAIL_LOCK:
+                            time.sleep(1.5)
+                        return self._json({"ok": False, "error": "ongeldig token"}, 403)
+                    n = int(self.headers.get("Content-Length", 0) or 0)
+                    if n > 90 * 1024 * 1024:
+                        return self._json({"ok": False, "error": "te groot"}, 413)
+                    try:
+                        d = json.loads(self.rfile.read(n) or b"{}")
+                    except ValueError:
+                        return self._json({"ok": False, "error": "ongeldige JSON"}, 400)
+                    if path0 == "/tunnel/reply":
+                        TUNNEL.reply(str(d.get("id", "")), d)
+                        return self._json({"ok": True})
+                    name = str(d.get("name") or "").lower()
+                    if not TUNNEL_NAME_RX.match(name):
+                        return self._json({"ok": False, "error": "ongeldige naam"}, 400)
+                    req = TUNNEL.poll(name, d.get("info"))
+                    return self._json({"ok": True, "req": req})
+                if path0.startswith("/admin/"):
+                    return self._admin("POST")
+                if path0 == "/api/info":
+                    # beheer op de cloudserver zelf (zonder kastje); Origin moet deze site zijn
+                    origin = self.headers.get("Origin") or ""
+                    host = self.headers.get("Host") or ""
+                    if not self._cloud_admin() or (origin and urllib.parse.urlsplit(origin).netloc != host):
+                        return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
+                    try:
+                        n = int(self.headers.get("Content-Length", 0) or 0)
+                        new = info_set(json.loads(self.rfile.read(n) or b"{}"), "cloud")
+                    except (ValueError, UnicodeDecodeError) as e:
+                        return self._json({"ok": False, "error": str(e)}, 400)
+                    hub.send("info", new)
+                    return self._json({"ok": True, "info": new})
+                if path0 == "/ingest":
+                    tok = SETTINGS.get("relay_token") or ""
+                    if not tok or not hmac.compare_digest(self.headers.get("X-Ingest-Token", ""), tok):
+                        return self.send_error(403, "ongeldig token")
+                    try:
+                        n = int(self.headers.get("Content-Length", 0))
+                        payload = json.loads(self.rfile.read(n))
+                        items = payload.get("items") or []
+                    except (ValueError, UnicodeDecodeError, AttributeError):
+                        return self.send_error(400, "ongeldige JSON")
+                    for it in items:
+                        kind, data = it.get("t"), it.get("d")
+                        if kind in ("state", "history", "clock", "callroom", "db"):
+                            relay.ingest(kind, data)
+                            if kind in ("state", "history", "clock"):
+                                hub.send(kind, relay.state_json() if kind == "state" else data)
+                    return self._json({"ok": True, "n": len(items)})
+                if path0 == "/login":
+                    n = int(self.headers.get("Content-Length", 0))
+                    form = urllib.parse.parse_qs(self.rfile.read(n).decode("utf-8", "replace"))
+                    pw_in = form.get("password", [""])[0]
+                    nxt = self._safe_next(form.get("next", ["/jury"])[0])
+                    pw = SETTINGS.get("jury_password") or ""
+                    apw = SETTINGS.get("cloud_admin_password") or ""
+                    if apw and hmac.compare_digest(pw_in, apw):      # beheerder: ook jurytoegang
+                        secure = "; Secure" if (self.headers.get("X-Forwarded-Proto", "").lower() == "https") else ""
+                        self.send_response(303)
+                        self.send_header("Set-Cookie", f"lt_a={session_token(apw + '|beheer')}; Path=/; Max-Age=43200; HttpOnly; SameSite=Strict{secure}")
+                        self.send_header("Location", nxt)
+                        self.send_header("Content-Length", "0")
+                        self.end_headers()
+                        print("beheerder aangemeld op de cloudserver")
+                        return
+                    if pw and hmac.compare_digest(pw_in, pw):
+                        secure = "; Secure" if (self.headers.get("X-Forwarded-Proto", "").lower() == "https") else ""
+                        self.send_response(303)
+                        self.send_header("Set-Cookie", f"lt_s={session_token(pw)}; Path=/; Max-Age=43200; HttpOnly; SameSite=Lax{secure}")
+                        self.send_header("Location", nxt)
+                        self.send_header("Content-Length", "0")
+                        self.end_headers()
+                        return
+                    with LOGIN_FAIL_LOCK:   # foute pogingen één voor één: max ±0,7 per seconde
+                        time.sleep(1.5)
+                    return self._login_page(nxt, "Verkeerd wachtwoord")
+                return self.send_error(403, "Wijzigen vanop afstand is nog niet mogelijk (gebeurt op de laptop)")
+            if path0 in ("/api/programma", "/api/programma/clear"):
+                if not self._is_admin():
+                    return self._json({"ok": False, "error": "geen toegang (beheerderscode nodig)"}, 403) \
+                        if "code" in self._json.__code__.co_varnames else self.send_error(403)
+                if path0.endswith("/clear"):
+                    prog_clear()
+                    return self._json({"ok": True})
+                n = int(self.headers.get("Content-Length", 0) or 0)
+                if not 0 < n <= 40 * 1024 * 1024:
+                    return self._json({"ok": False, "error": "bestand ontbreekt of is te groot (max 40 MB)"})
+                data = self.rfile.read(n)
+                fname = urllib.parse.unquote(self.headers.get("X-Filename", "") or "")
+                try:
+                    stats = prog_import(data, fname)
+                except Exception as e:          # foutmelding naar de beheerpagina, server blijft draaien
+                    PROG_STATUS["error"] = str(e)
+                    return self._json({"ok": False, "error": str(e)})
+                return self._json({"ok": True, "stats": stats, "file": PROG_STATUS["file"]})
+            if path0 == "/api/info":
+                if not self._is_admin():
+                    return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
+                try:
+                    n = int(self.headers.get("Content-Length", 0) or 0)
+                    new = info_set(json.loads(self.rfile.read(n) or b"{}"), "lokaal")
+                except (ValueError, UnicodeDecodeError) as e:
+                    return self._json({"ok": False, "error": str(e)}, 400)
+                hub.send("info", new)
+                cloud = None
+                if SETTINGS.get("relay_url") and SETTINGS.get("relay_token"):
+                    code, data, _ = cloud_call("POST", "info", json.dumps(new).encode(), timeout=15)
+                    cloud = {"ok": code == 200, "error": None if code == 200 else (json.loads(data or b"{}").get("error") if data[:1] == b"{" else str(code))}
+                return self._json({"ok": True, "info": new, "cloud": cloud})
+            if path0.startswith("/api/sim/"):
+                if not self._is_admin():
+                    return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
+                try:
+                    n = int(self.headers.get("Content-Length", 0) or 0)
+                    body = json.loads(self.rfile.read(n) or b"{}") if n else {}
+                    if not isinstance(body, dict):
+                        raise ValueError
+                except (ValueError, UnicodeDecodeError):
+                    return self._json({"ok": False, "error": "ongeldige JSON"}, 400)
+                if path0 == "/api/sim/start":
+                    try:
+                        ok, err = SIM.start(body)
+                    except Exception as e:
+                        ok, err = False, f"starten mislukt: {e}"
+                    return self._json(dict(SIM.status(), ok=ok, error=err))
+                if path0 == "/api/sim/stop":
+                    SIM.stop()
+                    return self._json(dict(SIM.status(), ok=True))
+                if path0 == "/api/sim/cmd":
+                    if not SIM.running():
+                        return self._json({"ok": False, "error": "de simulator staat uit"}, 409)
+                    return self._json({"ok": bool(SIM.eng.command(body))})
+                return self.send_error(404)
+            if path0 == "/api/db/sync":
                 if not self._is_admin():
                     return self.send_error(403, "Geen toegang: enkel lokaal of met beheerderscode")
                 try:
@@ -1071,6 +2596,8 @@ def make_handler(state, hub):
             except (ValueError, UnicodeDecodeError):
                 return self.send_error(400, "ongeldige JSON")
             errors = update_settings(new)
+            if not errors and ("relay_url" in new or "relay_token" in new):
+                apply_relay_settings()
             if errors:
                 body = json.dumps({"ok": False, "errors": errors}, ensure_ascii=False).encode("utf-8")
                 self.send_response(400)
@@ -1104,10 +2631,13 @@ def make_handler(state, hub):
             self.end_headers()
             view = self._view()
             q = hub.add(view)
+            if STATS is not None:
+                pg = urllib.parse.parse_qs(self.path.partition("?")[2]).get("page", [""])[0]
+                STATS.open(q, "jury" if view == "jury" else ("callroom" if pg == "callroom" else "publiek"), STATS.visitor(self))
             try:
                 now = now_fn()
                 first = [("state", state.state_json(now)), ("history", state.history_json()),
-                         ("clock", state.clock_json())]
+                         ("clock", state.clock_json()), ("info", dict(INFO))]
                 for ev, data in first:
                     self.wfile.write(sse_msg(ev, public_view(ev, data) if view == "publiek" else data))
                 self.wfile.flush()
@@ -1122,6 +2652,8 @@ def make_handler(state, hub):
                 pass
             finally:
                 hub.remove(q)
+                if STATS is not None:
+                    STATS.close(q)
 
     return H
 
@@ -1134,27 +2666,314 @@ class Intake:
         self.active = None
         self.lock = threading.Lock()
 
+    SWITCH_AFTER_S = 5.0     # andere bron neemt over als de actieve zo lang stil is
+
     def feed(self, source, src_ip, data):
         with self.lock:
-            if self.active is None:
+            now = time.time()
+            real_wins = source == "socket" and self.active == "simulator" and SETTINGS.get("sim_stop_on_real", True)
+            if self.active is None or real_wins or (source != self.active and now - getattr(self, "last_active", 0) > self.SWITCH_AFTER_S):
+                prev = self.active
                 self.active = source
-                print(f"data ontvangen via {source} van {src_ip}")
+                STATE_SOURCE.update(name=source, sim=(source == "simulator"))
+                print(f"data ontvangen via {source} van {src_ip}" + (f" (was {prev})" if prev else ""))
+                if prev == "simulator" and source != "simulator":
+                    if SIM.running():
+                        SIM.stop("echte gegevens van SwimTime ontvangen")
+                    self.state.drop_simulated()
             if source != self.active:
+                return
+            self.last_active = now
+            if data.startswith(b"#SIM"):
+                if source == "simulator":
+                    sim_control(data)
                 return
             if self.rawlog:
                 self.rawlog.write(f"{time.time():.3f}\t{src_ip}\t{data.hex()}\n")
             self.state.handle(data, now_fn())
 
 
-def udp_listener(intake, port):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    s.bind(("", port))
-    print(f"luistert op UDP/{port}")
+UDP_STATUS = {"interface": "", "allow": "", "error": None, "lastFrom": None, "lastAt": None,
+              "rejected": 0, "lastRejected": None, "seen": {}}
+SWIMTIME_PREFIX = (b"Time	", b"Layout	", b"Meet	", b"Session	", b"Event	", b"Heat	", b"Competitor	", b"Record")
+IP_PKTINFO = getattr(socket, "IP_PKTINFO", 8 if sys.platform.startswith("linux") else None)
+
+
+def udp_seen(iface, src, data):
+    """Automatische herkenning: waar (verbinding + afzender) komen de SwimTime-pakketten binnen?"""
+    if not data.startswith(SWIMTIME_PREFIX):
+        return
+    k = f"{iface or '?'}|{src}"
+    e = UDP_STATUS["seen"].get(k)
+    if e is None:
+        if len(UDP_STATUS["seen"]) > 20:
+            return
+        e = UDP_STATUS["seen"][k] = {"iface": iface or "", "from": src, "count": 0, "first": time.time()}
+        print(f"SwimTime-broadcast gevonden: van {src}" + (f" via {iface}" if iface else ""))
+    e["count"] += 1
+    e["last"] = time.time()
+
+
+def _allow_list(txt):
+    nets = []
+    for part in re.split(r"[,;\s]+", txt or ""):
+        if part:
+            try:
+                nets.append(ipaddress.ip_network(part, strict=False))
+            except ValueError:
+                UDP_STATUS["error"] = f"ongeldige afzender: {part}"
+    return nets
+
+
+# ---------- elkaar vinden op hetzelfde netwerk (servers, schermkastjes, laptop) ----------
+DISCO_PORT = 2627
+PEERS = {}          # ip -> {name, role, version, port, seen}
+DISCO_ID = _secrets.token_hex(6)
+
+
+def discovery(http_port):
+    """Elke 5 s een korte aankondiging (UDP-broadcast) en luisteren naar de anderen. Geen gevoelige gegevens."""
+    tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    tx.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        rx.bind(("", DISCO_PORT))
+    except OSError as e:
+        print(f"elkaar vinden: UDP/{DISCO_PORT} bezet ({e})")
+        rx = None
+
+    def listen():
+        while rx is not None:
+            try:
+                data, addr = rx.recvfrom(1024)
+                d = json.loads(data.decode("utf-8"))
+                if d.get("khzs") != 1 or d.get("id") == DISCO_ID:
+                    continue
+                PEERS[addr[0]] = {"name": str(d.get("name", ""))[:60], "label": str(d.get("label", ""))[:60], "role": str(d.get("role", ""))[:20],
+                                  "version": str(d.get("version", ""))[:20], "port": int(d.get("port") or 80),
+                                  "live": bool(d.get("live")), "seen": time.time()}
+            except (OSError, ValueError, UnicodeDecodeError, TypeError):
+                time.sleep(0.2)
+    threading.Thread(target=listen, daemon=True).start()
     while True:
-        data, addr = s.recvfrom(4096)
+        live = False
+        if STATE is not None:
+            try:
+                live = bool(STATE.state_json(now_fn()).get("connected"))
+            except Exception:
+                pass
+        msg = json.dumps({"khzs": 1, "id": DISCO_ID, "name": socket.gethostname(), "label": SETTINGS.get("device_label") or "",
+                          "role": ROLE, "version": VERSION,
+                          "port": http_port, "live": live}).encode()
+        try:
+            tx.sendto(msg, ("255.255.255.255", DISCO_PORT))
+        except OSError:
+            pass
+        for ip, p in list(PEERS.items()):
+            if time.time() - p["seen"] > 60:
+                PEERS.pop(ip, None)
+        time.sleep(5)
+
+
+def peers_json():
+    return [dict(p, ip=ip, url=f"http://{ip}" + ("" if p["port"] == 80 else f":{p['port']}"),
+                 ago=round(time.time() - p["seen"])) for ip, p in sorted(PEERS.items())]
+
+
+def udp_listener(intake, port):
+    """UDP/26 van SwimTime. Optioneel enkel op één interface (SO_BINDTODEVICE) en/of van toegelaten afzenders;
+    wijzigingen in de instellingen worden binnen een seconde toegepast (geen herstart nodig)."""
+    s, cur_if, cur_allow, nets = None, None, None, []
+    while True:
+        want_if = (SETTINGS.get("udp_interface") or "").strip()
+        want_allow = (SETTINGS.get("udp_allow_from") or "").strip()
+        if s is None or want_if != cur_if:
+            if s is not None:
+                s.close()
+            UDP_STATUS["error"] = None
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            if want_if:
+                if hasattr(socket, "SO_BINDTODEVICE"):
+                    try:
+                        s.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, want_if.encode())
+                    except OSError as e:
+                        UDP_STATUS["error"] = f"interface {want_if}: {e}"
+                else:
+                    UDP_STATUS["error"] = "een interface kiezen kan enkel op het kastje (Linux); hier wordt op alle verbindingen geluisterd"
+            try:
+                s.bind(("", port))
+            except OSError as e:
+                UDP_STATUS["error"] = f"UDP/{port}: {e}"
+                s.close()
+                s = None
+                time.sleep(5)
+                continue
+            s.settimeout(1.0)
+            pktinfo = False
+            if IP_PKTINFO is not None and hasattr(s, "recvmsg"):
+                try:
+                    s.setsockopt(socket.IPPROTO_IP, IP_PKTINFO, 1)
+                    pktinfo = True
+                except OSError:
+                    pass
+            cur_if = want_if
+            UDP_STATUS["interface"] = want_if
+            print(f"luistert op UDP/{port}" + (f" (enkel {want_if})" if want_if else " (alle verbindingen)"))
+        if want_allow != cur_allow:
+            cur_allow, nets = want_allow, _allow_list(want_allow)
+            UDP_STATUS["allow"] = want_allow
+        iface = want_if or None
+        try:
+            if pktinfo:
+                data, anc, _, addr = s.recvmsg(4096, socket.CMSG_SPACE(12))
+                for lvl, typ, cd in anc:
+                    if lvl == socket.IPPROTO_IP and typ == IP_PKTINFO and len(cd) >= 4:
+                        try:
+                            iface = socket.if_indextoname(struct.unpack("i", cd[:4])[0])
+                        except OSError:
+                            pass
+            else:
+                data, addr = s.recvfrom(4096)
+        except socket.timeout:
+            continue
+        except OSError:
+            s = None
+            time.sleep(1)
+            continue
+        if nets:
+            ip = ipaddress.ip_address(addr[0])
+            if not any(ip in n for n in nets):
+                UDP_STATUS["rejected"] += 1
+                UDP_STATUS["lastRejected"] = addr[0]
+                continue
+        UDP_STATUS["lastFrom"], UDP_STATUS["lastAt"] = addr[0], time.time()
+        udp_seen(iface, addr[0], data)
         intake.feed("socket", addr[0], data)
+
+
+def sim_control(data):
+    """Stuurregels van de simulator: '#SIMPROGRAM <json>' (programma) en '#SIMFINISHED <event> <heat>'."""
+    try:
+        cmd, _, rest = data.decode("utf-8").strip().partition(" ")
+        if cmd == "#SIMPROGRAM":
+            prog = json.loads(rest)
+            if isinstance(prog, list):
+                SIM_SCHEDULE[:] = prog
+                print(f"simulatieprogramma ontvangen: {len(prog)} reeksen")
+        elif cmd == "#SIMFINISHED":
+            ev, ht = rest.split()[:2]
+            for h in SIM_SCHEDULE:
+                if h["event"]["number"] == ev and h["heat"]["number"] == ht:
+                    h["finished"] = True
+    except (ValueError, KeyError, UnicodeDecodeError) as e:
+        print("simulator-stuurregel genegeerd:", e)
+
+
+class SimHost:
+    """Ingebouwde simulator: zelfde engine als simulator.py, maar in de server (start/stop via het beheer)."""
+    def __init__(self):
+        self.eng = None
+        self.lock = threading.Lock()
+        self.started = None
+        self.last_stop = None
+
+    def available(self):
+        if INTAKE is None:
+            return "de simulator werkt enkel als de live timing draait (rol: server)"
+        return None
+
+    def running(self):
+        return self.eng is not None and not self.eng.quit
+
+    def _deliver(self, msg):
+        if INTAKE is not None:
+            INTAKE.feed("simulator", "ingebouwd", msg.encode("utf-8") + b"\r")
+
+    def options(self, over=None):
+        o = {k[4:]: SETTINGS[k] for k in DEFAULT_SETTINGS if k.startswith("sim_") and k not in ("sim_autostart", "sim_stop_on_real")}
+        for k, v in (over or {}).items():
+            if k in o and v is not None:
+                o[k] = type(DEFAULT_SETTINGS["sim_" + k])(v)
+        o["seed"] = o["seed"] or None
+        o["events"] = max(1, min(60, int(o["events"])))
+        o["per_event"] = max(1, min(80, int(o["per_event"])))
+        o["lanes"] = max(4, min(10, int(o["lanes"])))
+        o["speed"] = max(0.25, min(64.0, float(o["speed"])))
+        return o
+
+    def start(self, over=None):
+        err = self.available()
+        if err:
+            return False, err
+        sys.path.insert(0, BASE)
+        import simulator
+        with self.lock:
+            self.stop(None)
+            o = self.options(over)
+            ns = argparse.Namespace(host="ingebouwd", port=0, udp=None, allow_broadcast=False, direct=self._deliver, **o)
+            eng = simulator.Engine(ns)
+            eng.tx.send(eng.program_msg())
+            for fn in (eng.heartbeat, eng.loop):
+                threading.Thread(target=fn, daemon=True).start()
+            self.eng, self.started, self.opts = eng, time.time(), o
+            print(f"ingebouwde simulator gestart: {len(eng.prog.events)} wedstrijden, {len(eng.order)} reeksen, x{eng.speed:g}")
+        return True, None
+
+    def stop(self, why="gestopt via het beheer"):
+        eng, self.eng = self.eng, None
+        if eng is not None:
+            eng.quit = True
+            self.last_stop = {"at": time.time(), "why": why}
+            if why:
+                print("ingebouwde simulator gestopt:", why)
+
+    def status(self):
+        d = {"running": self.running(), "available": self.available() is None, "reason": self.available(),
+             "startedAt": self.started if self.running() else None, "lastStop": self.last_stop,
+             "options": self.opts if self.running() and getattr(self, "opts", None) else self.options()}
+        return d
+
+
+SIM = SimHost()
+INTAKE = None
+
+
+def feed_listener(intake, bind, port):
+    """TCP-invoer naast UDP/26: één bericht per regel (zelfde inhoud als een SwimTime-pakket), afgesloten met LF."""
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        srv.bind((bind, port))
+    except OSError as e:
+        print(f"simulator-invoer TCP/{port} niet beschikbaar: {e}")
+        return
+    srv.listen(4)
+    print(f"simulator-invoer op tcp://{bind}:{port}")
+
+    def client(conn, addr):
+        buf = b""
+        with conn:
+            while True:
+                try:
+                    chunk = conn.recv(65536)
+                except OSError:
+                    break
+                if not chunk:
+                    break
+                buf += chunk
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    if line:
+                        intake.feed("simulator", addr[0], line)
+        print(f"simulator {addr[0]} losgekoppeld")
+
+    while True:
+        conn, addr = srv.accept()
+        print(f"simulator verbonden van {addr[0]}")
+        threading.Thread(target=client, args=(conn, addr), daemon=True).start()
 
 
 def tshark_interfaces():
@@ -1225,11 +3044,30 @@ def replay(state, path, speed):
     print("replay klaar")
 
 
+PUSHER = None
+
+
+def apply_relay_settings():
+    """(Her)start de zender volgens settings.json; leeg relay_url = uit."""
+    global PUSHER
+    if PUSHER:
+        PUSHER.stopped = True
+        PUSHER.ev.set()
+        PUSHER = None
+    url = (SETTINGS.get("relay_url") or "").strip()
+    if url:
+        PUSHER = RelayPusher(url, SETTINGS.get("relay_token") or "")
+        print(f"zend-modus: stuurt naar {url}")
+    else:
+        print("zend-modus uit (geen relay_url)")
+
+
 def pump(state, hub):
-    """Stuurt clock ~10x/s en state/history bij wijziging (max 5x/s)."""
+    """Stuurt clock ~10x/s en state/history bij wijziging (max 5x/s); zend-modus: ook naar de relay."""
     sent_v = sent_h = -1
     last_clock = None
-    last_state = 0.0
+    last_state = last_aux = last_hist = 0.0
+    last_hk = None
     while True:
         time.sleep(0.1)
         now = now_fn()
@@ -1237,51 +3075,129 @@ def pump(state, hub):
         c = state.clock_json()
         if c != last_clock or c["status"] == "running":
             hub.send("clock", c)
+            if PUSHER:
+                PUSHER.send("clock", c)
             last_clock = c
         if (state.version != sent_v and now - last_state >= 0.2) or now - last_state >= 2:
             sent_v = state.version
             last_state = now
-            hub.send("state", state.state_json(now))
+            st = state.state_json(now)
+            hub.send("state", st)
+            if PUSHER:
+                PUSHER.send("state", st)
         if state.history_version != sent_h:
             sent_h = state.history_version
-            hub.send("history", state.history_json())
+            h = state.history_json()
+            hub.send("history", h)
+            if PUSHER:
+                PUSHER.send("history", h)
+        if PUSHER and now - last_hist >= 30:
+            last_hist = now
+            PUSHER.send("history", state.history_json())
+        hk = (str((st_cur := state.cur) and st_cur.event.get("EventName")), str(st_cur and st_cur.heat.get("HeatName")))
+        if PUSHER and (now - last_aux >= 5 or hk != last_hk):     # nieuwe reeks: oproepkamer meteen doorsturen
+            last_aux, last_hk = now, hk
+            try:
+                PUSHER.send("callroom", callroom_json(public_view("state", state.state_json(now))))
+                PUSHER.send("db", db_status_json())
+            except Exception as e:      # mag de pomp nooit stoppen
+                print("relay aux:", e)
 
 
 def main():
-    global _SPEED
+    global _SPEED, INTAKE
     ap = argparse.ArgumentParser(description="ALGE SwimTime read-only live timing")
     ap.add_argument("--udp-port", type=int, default=26)
     ap.add_argument("--http-port", type=int, default=8080)
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--replay", help="pcap/pcapng of raw.log opnieuw afspelen i.p.v. live luisteren")
     ap.add_argument("--speed", type=float, default=1.0)
-    ap.add_argument("--settings", default=os.path.join(BASE, "settings.json"))
-    ap.add_argument("--history", default=os.path.join(BASE, "history.json"))
+    ap.add_argument("--settings", default=os.path.join(DATA, "settings.json"))
+    ap.add_argument("--history", default=os.path.join(DATA, "history.json"))
+    ap.add_argument("--selftest", action="store_true", help="enkel controleren of de code laadt en antwoordt (voor updates)")
+    ap.add_argument("--version", action="version", version=VERSION)
     ap.add_argument("--no-rawlog", action="store_true")
     ap.add_argument("--source", choices=("auto", "socket", "tshark"), default="socket",
                     help="socket (standaard) = enkel een UDP-socket; tshark/auto gebruiken Npcap en kunnen "
                          "EDR/XDR-meldingen veroorzaken (bv. Cisco XDR) - enkel na overleg met security")
     ap.add_argument("--iface", default="Wi-Fi", help="tshark-interface (naam zoals in Windows, bv. Wi-Fi of Ethernet; 'all' = alle)")
     ap.add_argument("--open", action="store_true", help="browser openen bij start")
+    ap.add_argument("--feed-port", type=int, help="TCP-poort voor de simulator (standaard uit settings: 2626; 0 = uit)")
+    ap.add_argument("--relay", help="zend-modus: URL van de publieke server (bv. https://live.club.be)")
+    ap.add_argument("--relay-token", help="gedeeld geheim met de publieke server (anders uit settings.json)")
+    ap.add_argument("--relay-server", action="store_true", help="relay-modus: publieke server die van de laptop ontvangt")
+    ap.add_argument("--jury-password", help="relay-modus: wachtwoord voor /jury en /callroom (anders uit settings.json)")
     args = ap.parse_args()
     load_settings(args.settings)
+    if args.selftest:                 # updater: laadt de code, instellingen en historiek zonder iets te openen
+        import tempfile
+        h = os.path.join(tempfile.mkdtemp(), "history.json")
+        if os.path.exists(args.history):
+            with open(args.history, "rb") as fi, open(h, "wb") as fo:
+                fo.write(fi.read())
+        st = State(h)
+        json.dumps(st.state_json(now_fn()))
+        json.dumps(st.history_json())
+        json.dumps(callroom_json(public_view("state", st.state_json(now_fn()))))
+        for f in ("index.html", "callroom.html", "settings.html"):
+            assert os.path.getsize(os.path.join(STATIC, f)) > 1000, f
+        print(f"selftest OK {VERSION}")
+        return
 
-    global STATE
+    global STATE, PUSHER, STATS
+    if args.relay_token:
+        SETTINGS["relay_token"] = args.relay_token
+    if args.jury_password:
+        SETTINGS["jury_password"] = args.jury_password
+    if args.relay:
+        SETTINGS["relay_url"] = args.relay
+    if args.relay_server:
+        relay = RelayStore(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "relay_cache.json"))
+        STATS = Stats(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "stats.json"))
+        info_load(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "info.json"))
+        hub = Hub()
+        threading.Thread(target=relay_watchdog, args=(relay, hub), daemon=True).start()
+        if not SETTINGS.get("relay_token"):
+            print("WAARSCHUWING: geen relay_token ingesteld; /ingest weigert alles")
+        if not SETTINGS.get("jury_password"):
+            print("WAARSCHUWING: geen jury_password ingesteld; /jury en /callroom zijn niet bereikbaar")
+        srv = ThreadingHTTPServer((args.bind, args.http_port), make_handler(relay, hub, relay))
+        srv.daemon_threads = True
+        print(f"relay-modus: luistert op http://{args.bind}:{args.http_port}/  (ingest: POST /ingest)")
+        try:
+            srv.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        return
     state = State(args.history)
     STATE = state
-    if not args.replay:
+    STATS = Stats(os.path.join(DATA, "stats.json"))
+    info_load(os.path.join(DATA, "info.json"))
+    if ROLE != "server":
+        print(f"rol '{ROLE}': live timing staat uit (enkel beheer en scherm)")
+    elif SETTINGS.get("relay_url"):
+        apply_relay_settings()
+    prog_load()
+    if not args.replay and ROLE == "server":
         threading.Thread(target=db_load_latest_local, daemon=True).start()
         threading.Thread(target=db_interval_loop, daemon=True).start()
     hub = Hub()
     if args.replay:
         _SPEED = args.speed
         threading.Thread(target=replay, args=(state, args.replay, args.speed), daemon=True).start()
-    else:
+    elif ROLE == "server":
         rawlog = None
         if not args.no_rawlog:
-            os.makedirs(os.path.join(BASE, "logs"), exist_ok=True)
-            rawlog = open(os.path.join(BASE, "logs", datetime.now().strftime("raw_%Y%m%d_%H%M%S.log")), "a", buffering=1)
+            os.makedirs(os.path.join(DATA, "logs"), exist_ok=True)
+            rawlog = open(os.path.join(DATA, "logs", datetime.now().strftime("raw_%Y%m%d_%H%M%S.log")), "a", buffering=1)
         intake = Intake(state, rawlog)
+        INTAKE = intake
+        if SETTINGS.get("sim_autostart"):
+            threading.Timer(3.0, SIM.start).start()
+        fport = args.feed_port if args.feed_port is not None else int(SETTINGS.get("feed_port") or 0)
+        if fport:
+            threading.Thread(target=feed_listener, args=(intake, SETTINGS.get("feed_bind") or "127.0.0.1", fport),
+                             daemon=True).start()
         if args.source in ("auto", "socket"):
             threading.Thread(target=udp_listener, args=(intake, args.udp_port), daemon=True).start()
         if args.source == "auto":
@@ -1289,6 +3205,10 @@ def main():
         elif args.source == "tshark":
             threading.Thread(target=tshark_listener, args=(intake, args.udp_port, args.iface), daemon=True).start()
     threading.Thread(target=pump, args=(state, hub), daemon=True).start()
+    if AGENT_URL:
+        threading.Thread(target=agent_poll, daemon=True).start()
+    tunnel_client(args.http_port)
+    threading.Thread(target=discovery, args=(args.http_port,), daemon=True).start()
 
     srv = ThreadingHTTPServer((args.bind, args.http_port), make_handler(state, hub))
     srv.daemon_threads = True

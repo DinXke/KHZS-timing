@@ -1,0 +1,5 @@
+
+  KHZS Timing – wedstrijdserver
+  Beheer: http://khzs-timing.local/system  (of het IP-adres van deze Pi)
+  Diensten: khzs-timing (server), khzs-agent (netwerk/updates), khzs-kiosk (HDMI)
+

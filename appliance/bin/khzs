@@ -1,0 +1,276 @@
+#!/bin/bash
+# khzs – beheer en debugging van een KHZS Timing-kastje via SSH.   khzs help
+set -u
+AGENT=http://127.0.0.1:8091
+DATA=/var/lib/khzs
+KEYF=$DATA/agent.key
+REL=/opt/khzs/releases
+CUR=/opt/khzs/current
+C_B=$'\e[1m'; C_G=$'\e[32m'; C_Y=$'\e[33m'; C_R=$'\e[31m'; C_0=$'\e[0m'
+
+need_root() { [ "$(id -u)" = 0 ] || exec sudo -E "$0" "$@"; }
+key() { cat "$KEYF" 2>/dev/null || sudo cat "$KEYF"; }
+api() {   # api GET|POST pad [json]
+	local m="$1" p="$2" d="${3:-}"
+	if [ "$m" = GET ]; then curl -s -H "X-Agent-Key: $(key)" "$AGENT$p"
+	else curl -s -X POST -H "X-Agent-Key: $(key)" -H 'Content-Type: application/json' --data "${d:-{\}}" "$AGENT$p"; fi
+}
+pretty() { if command -v jq >/dev/null; then jq "${1:-.}"; else cat; echo; fi; }
+svc() { case "$1" in server) echo khzs-timing;; agent) echo khzs-agent;; kiosk|scherm) echo khzs-kiosk;; *) echo "$1";; esac; }
+
+cmd_help() { cat <<EOF
+${C_B}khzs${C_0} – KHZS Timing-kastje beheren via SSH
+
+  ${C_B}Toestand${C_0}
+  khzs status                      overzicht (rol, diensten, netwerk, versie, temperatuur)
+  khzs logs [server|agent|kiosk|all] [-f] [-n N]   logboek (journal)
+  khzs diag [bestand]              diagnosebundel (.tar.gz, geheimen gemaskeerd)
+  khzs version
+
+  ${C_B}Diensten${C_0}
+  khzs restart [server|agent|kiosk|network|all]
+  khzs run                         server in de voorgrond (alle uitvoer zichtbaar; Ctrl+C = dienst terug aan)
+  khzs debug on|off                uitgebreide logging + logboek bewaren na herstart
+
+  ${C_B}Rol en scherm${C_0}
+  khzs role [uit|server|scherm] [bron-url]
+  khzs name NIEUWE-NAAM
+  khzs kiosk url URL | restart | devtools
+  khzs screenshot [bestand.png]    schermafdruk van het HDMI-scherm
+  khzs splash [SEC]                opstartscherm testen zonder herstart (HDMI-scherm pauzeert even)
+  khzs splash install              opstartscherm opnieuw installeren (thema, opstartregel, initramfs)
+
+  ${C_B}Netwerk${C_0}
+  khzs net                         interfaces, verbindingen, routes, internet
+  khzs net show | confirm | revert | reset
+  khzs net set '{"wan":"usb"}'     routermodel wijzigen (JSON, zoals in het beheer; bevestigen binnen 2 min)
+  khzs wifi scan | connect SSID [WACHTWOORD] | forget NAAM
+  khzs hotspot on|off
+  khzs internet on|off
+  khzs sniff [seconden]            SwimTime-broadcast (UDP/26) bekijken met tcpdump
+
+  ${C_B}Updates en code${C_0}
+  khzs update PAKKET.zip           installeren (zelftest + terugval)
+  khzs update github               nieuwste GitHub-release
+  khzs system [pending|apply]      systeemwijzigingen na een update
+  khzs releases                    geïnstalleerde versies
+  khzs rollback                    terug naar de vorige versie
+  khzs dev on [MAP] | off          draaien vanaf bewerkbare code (standaard /home/khzs/dev)
+
+  ${C_B}Overige${C_0}
+  khzs sd [show|apply]             khzs-instellingen.txt op de SD-kaart
+  khzs code NIEUWE-CODE            beheerderscode instellen
+  khzs api GET|POST PAD [JSON]     rechtstreeks naar de systeemdienst
+EOF
+}
+
+cmd_status() {
+	local s; s="$(api GET /status)"
+	echo "${C_B}KHZS Timing – $(hostname)${C_0}   versie $(readlink -f $CUR | xargs basename)"
+	for u in khzs-timing khzs-agent khzs-kiosk NetworkManager ssh; do
+		local st; st="$(systemctl is-active $u 2>/dev/null)"
+		printf "  %-16s %s\n" "$u" "$([ "$st" = active ] && echo "${C_G}$st${C_0}" || echo "${C_Y}$st${C_0}")"
+	done
+	[ -n "$s" ] || { echo "${C_R}systeemdienst antwoordt niet${C_0}"; return 1; }
+	echo "$s" | jq -r '"  rol: \(.device.role)   scherm: \(.kiosk.url)",
+	  "  WAN: \(.network.gatewayDev // "-")   internet: \(.network.internet)   connectiviteit: \(.connectivity // "-")",
+	  "  hotspot: \(.hotspot.active) \(.hotspot.ssid) \(.hotspot.iface // "") (\(.hotspot.clients) toestellen)",
+	  "  temperatuur: \(.temp) °C   uptime: \(.uptime) s   vrij: \(.disk.free) MB",
+	  (if .confirm then "  \u001b[33mnetwerkwijziging wacht op bevestiging (\(.confirm.remaining) s): khzs net confirm\u001b[0m" else empty end),
+	  (if (.system.pending // []) | length > 0 then "  \u001b[33msysteemwijzigingen klaar: khzs system apply\u001b[0m" else empty end)' 2>/dev/null
+	ip -br -4 addr | grep -v '^lo' | sed 's/^/  /'
+}
+
+cmd_logs() {
+	local which="${1:-all}"; shift || true
+	local args=(-o short-iso --no-hostname)
+	[ "$which" = all ] && args+=(-u khzs-timing -u khzs-agent -u khzs-kiosk -u NetworkManager) || args+=(-u "$(svc "$which")")
+	journalctl "${args[@]}" -n 100 "$@"
+}
+
+cmd_restart() {
+	need_root restart "$@"
+	case "${1:-all}" in
+		all) systemctl restart khzs-agent khzs-timing khzs-kiosk;;
+		network) systemctl restart NetworkManager;;
+		*) systemctl restart "$(svc "$1")";;
+	esac
+	echo "herstart: ${1:-all}"
+}
+
+cmd_run() {
+	need_root run "$@"
+	systemctl stop khzs-timing
+	trap 'echo; echo "dienst opnieuw starten"; systemctl start khzs-timing' EXIT
+	set -a; [ -f $DATA/role.env ] && . $DATA/role.env; set +a
+	cd $DATA && sudo -u khzs -E env KHZS_DATA=$DATA KHZS_AGENT=$AGENT KHZS_AGENT_KEY_FILE=$KEYF KHZS_ROLE="${KHZS_ROLE:-off}" \
+		python3 -u $CUR/livetiming.py --http-port 80 --bind 0.0.0.0 "$@"
+}
+
+cmd_debug() {
+	need_root debug "$@"
+	if [ "${1:-}" = on ]; then
+		echo "KHZS_DEBUG=1" > $DATA/debug.env
+		mkdir -p /etc/systemd/journald.conf.d && printf '[Journal]\nStorage=persistent\n' > /etc/systemd/journald.conf.d/zz-khzs-debug.conf
+		systemctl restart systemd-journald khzs-agent khzs-timing; echo "debug aan (logboek blijft bewaard na herstart)"
+	else
+		rm -f $DATA/debug.env /etc/systemd/journald.conf.d/zz-khzs-debug.conf
+		systemctl restart systemd-journald khzs-agent khzs-timing; echo "debug uit"
+	fi
+}
+
+cmd_role() {
+	[ $# -ge 1 ] || { api GET /status | jq -r '.device'; return; }
+	local body; body="$(jq -nc --arg r "$1" --arg u "${2:-}" '{role:$r} + (if $u != "" then {display_url:$u} else {} end)')"
+	api POST /device "$body" | pretty
+}
+cmd_name() { api POST /device "$(jq -nc --arg n "$1" '{name:$n}')" | pretty; }
+
+cmd_kiosk() {
+	case "${1:-}" in
+		url) api POST /kiosk "$(jq -nc --arg u "$2" '{url:$u}')" | pretty;;
+		restart) api POST /kiosk/restart | pretty;;
+		devtools) echo "Op je laptop:  ssh -L 9222:localhost:9222 $(whoami)@$(hostname).local   en open dan chrome://inspect";;
+		*) echo "khzs kiosk url URL | restart | devtools";;
+	esac
+}
+
+cmd_splash() {
+	need_root splash "$@"
+	if [ "${1:-}" = install ]; then bash $CUR/appliance/system/bootscreen.sh; return; fi
+	local sec="${1:-15}"
+	systemctl stop khzs-kiosk
+	plymouth --ping 2>/dev/null || { plymouthd --mode=boot --kernel-command-line="splash" --ignore-serial-consoles --graphical-boot </dev/null; sleep 0.5; }
+	plymouth show-splash
+	for u in systemd-journald.service NetworkManager.service khzs-agent.service khzs-timing.service; do
+		plymouth update --status=$u; sleep $(( sec / 6 + 1 ))
+	done
+	plymouth display-message --text="test van het opstartscherm  ·  $(hostname).local"
+	plymouth update --status=khzs-klaar; sleep 2
+	plymouth quit
+	systemctl start khzs-kiosk
+	echo "klaar – het HDMI-scherm start opnieuw"
+}
+cmd_screenshot() {
+	local out="${1:-/tmp/scherm.png}"
+	python3 - "$out" <<'PY'
+import base64, json, sys, urllib.request, socket, os
+sys.path.insert(0, "/opt/khzs/agent")
+from khzs_agent import MiniWS
+pages = json.loads(urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=3).read())
+ws = MiniWS(next(p for p in pages if p.get("type") == "page")["webSocketDebuggerUrl"])
+ws.send(json.dumps({"id": 1, "method": "Page.captureScreenshot", "params": {"format": "png"}}))
+while True:
+    m = json.loads(ws.recv())
+    if m.get("id") == 1:
+        open(sys.argv[1], "wb").write(base64.b64decode(m["result"]["data"])); break
+print("opgeslagen:", sys.argv[1])
+PY
+}
+
+cmd_net() {
+	case "${1:-}" in
+		show) api GET /status | jq '.routing';;
+		confirm) api POST /network/confirm | pretty;;
+		revert) api POST /network/revert | pretty;;
+		reset) api POST /network/reset | pretty;;
+		set) api POST /network "$2" | pretty; echo "${C_Y}bevestig binnen 2 minuten: khzs net confirm${C_0}";;
+		*)
+			echo "${C_B}apparaten${C_0}"; nmcli -f DEVICE,TYPE,STATE,CONNECTION device | sed 's/^/  /'
+			echo "${C_B}verbindingen${C_0}"; nmcli -f NAME,TYPE,DEVICE,AUTOCONNECT connection show | sed 's/^/  /'
+			echo "${C_B}routes${C_0}"; ip -4 route | sed 's/^/  /'
+			echo "${C_B}internet${C_0}  $(nmcli networking connectivity check 2>/dev/null)"
+			echo "${C_B}DNS${C_0}"; grep ^nameserver /etc/resolv.conf | sed 's/^/  /';;
+	esac
+}
+cmd_wifi() {
+	case "${1:-scan}" in
+		scan) api GET /wifi/scan | jq -r '.networks[] | "\(.signal)%\t\(.security // "open")\t\(.ssid)"';;
+		connect) api POST /wifi/connect "$(jq -nc --arg s "$2" --arg p "${3:-}" '{ssid:$s,password:$p}')" | pretty;;
+		forget) api POST /wifi/forget "$(jq -nc --arg n "$2" '{name:$n}')" | pretty;;
+	esac
+}
+cmd_hotspot() { [ "${1:-}" = on ] && api POST /hotspot/start | pretty || api POST /hotspot/stop | pretty; }
+cmd_internet() { api POST /internet "$(jq -nc --argjson on "$([ "${1:-on}" = on ] && echo true || echo false)" '{on:$on}')" | pretty; echo "${C_Y}bevestig binnen 2 minuten: khzs net confirm${C_0}"; }
+cmd_sniff() { need_root sniff "$@"; timeout "${1:-15}" tcpdump -l -n -A -i any udp port 26 2>/dev/null | grep --line-buffered -v '^$' | cut -c1-160; }
+
+cmd_update() {
+	case "${1:-}" in
+		github) api POST /update/apply | pretty;;
+		*.zip) [ -f "$1" ] || { echo "bestand niet gevonden: $1"; return 1; }
+			curl -s -X POST -H "X-Agent-Key: $(key)" -H 'Content-Type: application/zip' --data-binary @"$1" $AGENT/update/upload | pretty
+			api GET /update/log | jq -r '.log[]';;
+		*) echo "khzs update PAKKET.zip | github";;
+	esac
+}
+cmd_system() { [ "${1:-pending}" = apply ] && api POST /system/apply | jq -r '.log[]? // .error' || api GET /system/pending | jq -r '.pending[]? | "  - " + .'; }
+cmd_releases() { local c; c="$(readlink -f $CUR)"; ls -1dt $REL/*/ 2>/dev/null | while read -r d; do d="${d%/}"; printf "  %s %s\n" "$([ "$d" = "$c" ] && echo '*' || echo ' ')" "$(basename "$d")"; done; [ -L $CUR ] && [ "$c" != "${c#$REL}" ] || echo "  * $c (dev)"; }
+cmd_rollback() {
+	need_root rollback "$@"
+	local c prev; c="$(readlink -f $CUR)"
+	prev="$(ls -1dt $REL/*/ | sed 's:/$::' | grep -vx "$c" | head -1)"
+	[ -n "$prev" ] || { echo "geen vorige versie"; return 1; }
+	ln -sfn "$prev" $CUR.new && mv -T $CUR.new $CUR
+	echo 0 > $DATA/agent-fails
+	systemctl restart khzs-timing khzs-agent; echo "terug naar $(basename "$prev")"
+}
+cmd_dev() {
+	need_root dev "$@"
+	if [ "${1:-}" = off ]; then
+		local last; last="$(cat $DATA/dev.previous 2>/dev/null)"; [ -n "$last" ] || last="$(ls -1dt $REL/*/ | head -1 | sed 's:/$::')"
+		ln -sfn "$last" $CUR.new && mv -T $CUR.new $CUR; rm -f $DATA/dev.previous
+	else
+		local d="${2:-/home/khzs/dev}"
+		if [ ! -d "$d" ]; then mkdir -p "$d"; cp -a "$(readlink -f $CUR)/." "$d/"; chown -R khzs:khzs "$d"; echo "kopie van de huidige versie gemaakt in $d"; fi
+		[ -f $DATA/dev.previous ] || readlink -f $CUR > $DATA/dev.previous
+		ln -sfn "$d" $CUR.new && mv -T $CUR.new $CUR
+	fi
+	echo 0 > $DATA/agent-fails
+	systemctl restart khzs-timing khzs-agent; echo "actief: $(readlink -f $CUR)"
+}
+cmd_diag() {
+	need_root diag "$@"
+	local out="${1:-/tmp/khzs-diag-$(hostname)-$(date +%Y%m%d-%H%M).tar.gz}" t; t="$(mktemp -d)"
+	journalctl -b --no-pager -o short-iso > $t/journal.txt
+	nmcli -f all device show > $t/nm-devices.txt 2>&1; nmcli -f all connection show > $t/nm-connections.txt 2>&1
+	ip addr > $t/ip-addr.txt; ip route > $t/ip-route.txt; nft list ruleset > $t/nft.txt 2>&1
+	api GET /status > $t/status.json; dmesg > $t/dmesg.txt 2>&1; vcgencmd get_throttled > $t/throttled.txt 2>&1
+	jq '.hotspot.password="***" | .update.token="***" | .device.display_key="***"' $DATA/system.json > $t/system.json 2>/dev/null
+	jq '.admin_token="***" | .relay_token="***" | .jury_password="***"' $DATA/settings.json > $t/settings.json 2>/dev/null
+	readlink -f $CUR > $t/current.txt; cp /boot/firmware/config.txt /boot/firmware/cmdline.txt $t/ 2>/dev/null
+	tar -czf "$out" -C "$t" . && rm -rf "$t" && chmod 644 "$out"
+	echo "diagnosebundel: $out   (scp $(whoami)@$(hostname).local:$out .)"
+}
+cmd_sd() { case "${1:-show}" in apply) need_root sd apply; rm -f $DATA/sdfile.sha256; systemctl restart khzs-agent; echo "wordt opnieuw ingelezen";; *) cat /boot/firmware/khzs-instellingen.txt;; esac; }
+cmd_code() { curl -s -X POST -H 'Content-Type: application/json' -H "X-Agent-Key: $(key)" --data "$(jq -nc --arg c "$1" '{admin_token:$c}')" http://127.0.0.1/api/settings | pretty; }
+
+c="${1:-help}"; shift || true
+case "$c" in
+	help|-h|--help) cmd_help;;
+	status|st) cmd_status;;
+	logs|log) cmd_logs "$@";;
+	restart) cmd_restart "$@";;
+	run) cmd_run "$@";;
+	debug) cmd_debug "$@";;
+	role) cmd_role "$@";;
+	name) cmd_name "$@";;
+	kiosk) cmd_kiosk "$@";;
+	screenshot) cmd_screenshot "$@";;
+	splash) cmd_splash "$@";;
+	net) cmd_net "$@";;
+	wifi) cmd_wifi "$@";;
+	hotspot) cmd_hotspot "$@";;
+	internet) cmd_internet "$@";;
+	sniff) cmd_sniff "$@";;
+	update) cmd_update "$@";;
+	system) cmd_system "$@";;
+	releases) cmd_releases;;
+	rollback) cmd_rollback;;
+	dev) cmd_dev "$@";;
+	diag) cmd_diag "$@";;
+	sd) cmd_sd "$@";;
+	code) cmd_code "$@";;
+	api) m="$1"; p="$2"; shift 2; api "$m" "$p" "${1:-}" | pretty;;
+	version) basename "$(readlink -f $CUR)";;
+	*) echo "onbekend commando: $c"; cmd_help; exit 1;;
+esac

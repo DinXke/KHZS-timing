@@ -1,0 +1,253 @@
+# HZS Timing – opstartscherm (Plymouth script-thema)
+# Afbeeldingen: python tools/make_bootscreen.py (referentie 1920x1080; maten hieronder moeten daarmee overeenkomen).
+# Testen zonder herstart (via SSH):  sudo khzs splash 20
+#
+# Berichten:
+#   systemd stuurt bij elke gestarte dienst de naam van de dienst  -> regel "status" (vriendelijke tekst + naam)
+#   plymouth display-message --text=...  (systeemdienst khzs-agent)  -> infoversie (netwerk, rol, adres)
+#   plymouth update --status=khzs-klaar                               -> "Klaar", balk vol
+
+Window.SetBackgroundTopColor(0.027, 0.075, 0.122);
+Window.SetBackgroundBottomColor(0.039, 0.098, 0.157);
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+s = H / 1080;
+if (W / 1920 < s) {
+  s = W / 1920;
+}
+# referentiehoogte → schermcoördinaten (de golf en tekst zitten onderaan, het logo bovenaan)
+fun ry(v) {
+  return Math.Int(global.H - (1080 - v) * global.s);
+}
+
+fun scaled(name) {
+  im = Image(name);
+  return im.Scale(Math.Int(im.GetWidth() * global.s + 0.5), Math.Int(im.GetHeight() * global.s + 0.5));
+}
+
+fun font(size, bold) {
+  f = "DejaVu Sans ";
+  if (bold) {
+    f = "DejaVu Sans Bold ";
+  }
+  n = Math.Int(size * global.s + 0.5);
+  if (n < 9) {
+    n = 9;
+  }
+  return f + n;
+}
+
+# ------------------------------------------------------------------ logo
+logo_img = scaled("logo.png");
+logo = Sprite(logo_img);
+logo.SetPosition(Math.Int(W / 2 - logo_img.GetWidth() / 2), Math.Int(ry(1080 * 0.30) - logo_img.GetHeight() / 2), 10);
+
+# ------------------------------------------------------------------ golven (lichtblauw boven, donkerblauw onder)
+PERIOD = 300 * s;
+CREST_H = 110;
+BACK_Y = 600;
+MID_Y = 622;
+FRONT_Y = 660;
+
+cb_img = scaled("crest_back.png");
+cm_img = scaled("crest_mid.png");
+cf_img = scaled("crest_front.png");
+crest_back = Sprite(cb_img);
+crest_back.SetPosition(0, ry(BACK_Y), 20);
+crest_mid = Sprite(cm_img);
+crest_mid.SetPosition(0, ry(MID_Y), 21);
+crest_front = Sprite(cf_img);
+crest_front.SetPosition(0, ry(FRONT_Y), 22);
+
+fb_y = ry(BACK_Y + CREST_H) - 1;
+fill_back = Sprite(Image("fill_back.png").Scale(W, H - fb_y + 1));
+fill_back.SetPosition(0, fb_y, 19);
+ff_y = ry(FRONT_Y + CREST_H) - 1;
+fill_front = Sprite(Image("fill_front.png").Scale(W, H - ff_y + 1));
+fill_front.SetPosition(0, ff_y, 23);
+
+# ------------------------------------------------------------------ bubbels in het water
+# eigen toevalsgenerator (Math.Random is niet in elke plymouth-versie bruikbaar)
+seed = 12345;
+fun rnd() {
+  global.seed = global.seed * 9301 + 49297;
+  global.seed = global.seed - Math.Int(global.seed / 233280) * 233280;
+  return global.seed / 233280;
+}
+bub_img = scaled("bubble.png");
+NB = 7;
+i = 0;
+while (i < NB) {
+  bub[i] = Sprite(bub_img);
+  bub[i].SetZ(24);
+  bub_x[i] = W * (0.06 + 0.88 * rnd());
+  bub_y[i] = H - rnd() * (H - ff_y);
+  bub_v[i] = (0.4 + rnd() * 0.6) * s;
+  i = i + 1;
+}
+
+# ------------------------------------------------------------------ tekst en voortgang
+status_sp = Sprite();
+detail_sp = Sprite();
+info_sp = Sprite();
+foot_sp = Sprite();
+
+fun put_text(sp, txt, r, g, b, a, size, bold, y) {
+  img = Image.Text(txt, r, g, b, a, font(size, bold));
+  if (img) {
+    sp.SetImage(img);
+    sp.SetPosition(Math.Int(global.W / 2 - img.GetWidth() / 2), y, 40);
+  }
+}
+
+bar_bg_img = scaled("bar_bg.png");
+bar_fg_img = scaled("bar_fg.png");
+BAR_X = Math.Int(W / 2 - bar_bg_img.GetWidth() / 2);
+BAR_Y = ry(878);
+bar_bg = Sprite(bar_bg_img);
+bar_bg.SetPosition(BAR_X, BAR_Y, 40);
+bar_fg = Sprite();
+bar_fg.SetPosition(BAR_X, BAR_Y, 41);
+
+target = 0.03;       # doel van de balk (systemd-voortgang + gekende stappen)
+shown = 0;           # getoonde waarde (loopt vloeiend naar het doel)
+drawn = -1;
+
+fun set_target(p) {
+  if (p > global.target) {
+    global.target = p;
+  }
+}
+
+fun draw_bar(p) {
+  w = Math.Int(global.bar_fg_img.GetWidth() * p);
+  if (w < 2) {
+    w = 2;
+  }
+  global.bar_fg.SetImage(global.bar_fg_img.Scale(w, global.bar_fg_img.GetHeight()));
+}
+
+mode = Plymouth.GetMode();
+booting = 1;
+if (mode == "shutdown" || mode == "reboot") {
+  booting = 0;
+}
+
+if (booting) {
+  put_text(status_sp, "Opstarten…", 1, 1, 1, 1, 36, 1, ry(778));
+  put_text(foot_sp, "Niet uittrekken tijdens het opstarten", 0.74, 0.84, 0.94, 0.75, 20, 0, ry(1030));
+} else {
+  if (mode == "reboot") {
+    put_text(status_sp, "Herstarten…", 1, 1, 1, 1, 36, 1, ry(778));
+  } else {
+    put_text(status_sp, "Afsluiten…", 1, 1, 1, 1, 36, 1, ry(778));
+  }
+  put_text(detail_sp, "Stroom pas uittrekken als het groene lampje niet meer knippert", 0.74, 0.84, 0.94, 1, 22, 0, ry(830));
+  bar_bg.SetOpacity(0);
+}
+
+# ------------------------------------------------------------------ stappen (naam van de gestarte dienst → tekst)
+fun step(st) {
+  if (st == "systemd-fsck-root.service" || st == "systemd-remount-fs.service") { set_target(0.10); return "Geheugenkaart gecontroleerd"; }
+  if (st == "systemd-journald.service") { set_target(0.12); return "Logboek gestart"; }
+  if (st == "systemd-udevd.service" || st == "systemd-udev-trigger.service") { set_target(0.18); return "Hardware herkend"; }
+  if (st == "systemd-random-seed.service") { set_target(0.20); return "Systeem voorbereid"; }
+  if (st == "systemd-timesyncd.service") { set_target(0.28); return "Klok gestart"; }
+  if (st == "dbus.service") { set_target(0.30); return "Systeembus gestart"; }
+  if (st == "wpa_supplicant.service") { set_target(0.36); return "Wi-Fi gestart"; }
+  if (st == "NetworkManager.service") { set_target(0.42); return "Netwerk gestart"; }
+  if (st == "avahi-daemon.service") { set_target(0.48); return "Naam op het netwerk aangekondigd"; }
+  if (st == "regenerate_ssh_host_keys.service" || st == "sshswitch.service") { set_target(0.50); return "SSH-sleutels aangemaakt"; }
+  if (st == "ssh.service") { set_target(0.55); return "SSH-toegang gestart"; }
+  if (st == "khzs-agent.service") { set_target(0.65); return "Systeemdienst HZS gestart"; }
+  if (st == "khzs-timing.service") { set_target(0.80); return "Live timing gestart"; }
+  if (st == "NetworkManager-wait-online.service") { set_target(0.85); return "Netwerk klaar"; }
+  if (st == "khzs-klaar") { set_target(1); return "Klaar"; }
+  return "";
+}
+
+fun on_status(st) {
+  if (!global.booting) {
+    return;
+  }
+  txt = step(st);
+  if (txt != "") {
+    put_text(global.status_sp, txt, 1, 1, 1, 1, 36, 1, ry(778));
+  }
+  if (st == "khzs-klaar") {
+    put_text(global.detail_sp, "Het scherm start zo meteen", 0.74, 0.84, 0.94, 1, 22, 0, ry(830));
+  } else {
+    put_text(global.detail_sp, st, 0.74, 0.84, 0.94, 1, 22, 0, ry(830));
+  }
+}
+Plymouth.SetUpdateStatusFunction(on_status);
+
+fun on_message(txt) {
+  put_text(global.info_sp, txt, 1, 1, 1, 1, 24, 0, ry(910));
+}
+Plymouth.SetDisplayMessageFunction(on_message);
+
+fun on_hide_message(txt) {
+  global.info_sp.SetOpacity(0);
+}
+Plymouth.SetHideMessageFunction(on_hide_message);
+
+fun on_progress(duration, progress) {
+  # schatting van plymouth op basis van de vorige opstart; nooit helemaal vol vóór "klaar"
+  set_target(progress * 0.9);
+}
+Plymouth.SetBootProgressFunction(on_progress);
+
+fun on_quit() {
+  if (global.booting) {
+    set_target(1);
+    draw_bar(1);
+  }
+}
+Plymouth.SetQuitFunction(on_quit);
+
+# ------------------------------------------------------------------ animatie (± 50 beelden per seconde)
+frame = 0;
+fun wrap(v, p) {
+  return v - Math.Int(v / p) * p;
+}
+
+fun refresh() {
+  global.frame = global.frame + 1;
+  t = global.frame;
+  P = global.PERIOD;
+  global.crest_back.SetX(Math.Int(wrap(t * 1.1 * global.s, P) - P));
+  global.crest_mid.SetX(Math.Int(-wrap(t * 1.7 * global.s, P)));
+  global.crest_front.SetX(Math.Int(-wrap(t * 2.4 * global.s, P)));
+
+  i = 0;
+  while (i < global.NB) {
+    global.bub_y[i] = global.bub_y[i] - global.bub_v[i];
+    if (global.bub_y[i] < global.ff_y + 20 * global.s) {
+      global.bub_y[i] = global.H + 10;
+      global.bub_x[i] = global.W * (0.06 + 0.88 * rnd());
+    }
+    o = (global.bub_y[i] - global.ff_y) / (60 * global.s);
+    if (o > 1) {
+      o = 1;
+    }
+    global.bub[i].SetOpacity(o * 0.8);
+    global.bub[i].SetX(Math.Int(global.bub_x[i] + 6 * global.s * Math.Sin(t / 18 + i)));
+    global.bub[i].SetY(Math.Int(global.bub_y[i]));
+    i = i + 1;
+  }
+
+  if (global.booting) {
+    # zonder nieuws kruipt de balk langzaam verder (nooit voorbij 95 %)
+    if (global.target < 0.95) {
+      global.target = global.target + 0.00012;
+    }
+    global.shown = global.shown + (global.target - global.shown) * 0.06;
+    if (global.shown - global.drawn > 0.004 || global.drawn < 0) {
+      global.drawn = global.shown;
+      draw_bar(global.shown);
+    }
+  }
+}
+Plymouth.SetRefreshFunction(refresh);

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Infoscherm – HZS Timing</title>
+<style>
+:root{color-scheme:dark;--bg:#07131f;--card:#0e2233;--card2:#12293d;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8}
+html,body{margin:0;height:100%;background:var(--bg);overflow:hidden}
+</style>
+</head>
+<body>
+<script src="/infoscreen.js"></script>
+<script>
+(function(){
+  InfoScreen.init({standalone:true,page:'info'});
+  if(/[?&]preview=/.test(location.search))return;
+  var es;function conn(){es=new EventSource('/events?page=info');
+    es.addEventListener('info',function(e){try{InfoScreen.apply(JSON.parse(e.data))}catch(x){}});
+    es.onerror=function(){es.close();setTimeout(conn,5000)}}
+  conn();
+})();
+</script>
+</body>
+</html>

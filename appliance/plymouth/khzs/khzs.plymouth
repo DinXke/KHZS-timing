@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=HZS Timing
+Description=Opstartscherm van het HZS Timing-kastje (donkere stijl, golf zoals de splash screens)
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/khzs
+ScriptFile=/usr/share/plymouth/themes/khzs/khzs.script

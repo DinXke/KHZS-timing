@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>KHZS Timing – scherm</title>
+<style>
+:root{color-scheme:dark;--bg:#07131f;--card:#0e2233;--border:#23445e;--text:#e8f1f8;--muted:#9bb2c4;--accent:#38bdf8;--ok:#34d399;--warn:#fbbf24;--bad:#ff5d5d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:radial-gradient(1200px 700px at 50% 120%,#0d3a5c 0%,var(--bg) 60%);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;cursor:none}
+.wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3.2vh;text-align:center;padding:4vh 6vw}
+.logo{font-size:clamp(28px,6vw,96px);font-weight:800;letter-spacing:.02em}
+.logo span{color:var(--accent)}
+.name{font-size:clamp(18px,2.6vw,40px);color:var(--muted);font-weight:600}
+.state{display:inline-flex;align-items:center;gap:.6em;font-size:clamp(16px,2.2vw,34px);font-weight:700;padding:.4em .9em;border-radius:999px;
+  background:var(--card);border:1px solid var(--border)}
+.dot{width:.7em;height:.7em;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn);animation:p 1.2s ease-in-out infinite}.dot.bad{background:var(--bad)}
+@keyframes p{50%{opacity:.35}}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:2vh 2vw;width:min(1200px,92vw);margin-top:1vh}
+.box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2vh 1.6vw;text-align:left}
+.box h3{margin:0 0 .6em;font-size:clamp(13px,1.2vw,18px);color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.box .v{font-size:clamp(16px,1.8vw,28px);font-weight:700;word-break:break-all;line-height:1.35}
+.small{font-size:clamp(12px,1.1vw,16px);color:var(--muted);margin-top:.5em}
+.clock{position:fixed;right:2vw;bottom:2vh;font-size:clamp(14px,1.6vw,24px);color:var(--muted);font-variant-numeric:tabular-nums}
+.wave{position:fixed;left:0;right:0;bottom:0;height:22vh;opacity:.25;pointer-events:none}
+</style>
+</head>
+<body>
+<svg class="wave" viewBox="0 0 1200 200" preserveAspectRatio="none" aria-hidden="true"><path fill="#38bdf8" d="M0 80 Q150 30 300 80 T600 80 T900 80 T1200 80 V200 H0Z"/></svg>
+<div class="wrap">
+  <div class="logo">KHZS <span>Timing</span></div>
+  <div class="name" id="name">…</div>
+  <div class="state"><span class="dot warn" id="dot"></span><span id="state">Opstarten…</span></div>
+  <div class="grid" id="grid"></div>
+</div>
+<div class="clock" id="clock"></div>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)},info=null,tries=0;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function ips(){var a=[];if(info&&info.addresses)Object.keys(info.addresses).forEach(function(k){if(k==='lo')return;(info.addresses[k]||[]).forEach(function(x){a.push(x.split('/')[0])})});return a}
+function boxes(extra){
+  var a=ips(),h='';
+  h+='<div class="box"><h3>Beheer</h3><div class="v">'+(a.length?esc('http://'+a[0]+'/settings'):'geen netwerk')+'</div><div class="small">of http://'+esc((info&&info.name)||'khzs-timing')+'.local/settings</div></div>';
+  h+='<div class="box"><h3>Netwerkadressen</h3><div class="v">'+(a.length?a.map(esc).join('<br>'):'–')+'</div><div class="small">Geen netwerk? Verbind met de Wi-Fi <b>KHZS-Timing</b> (start na 1 minuut).</div></div>';
+  if(extra)h+=extra;
+  $('grid').innerHTML=h;
+}
+var useBackup=/[?&]bron=reserve/.test(location.search),fails=0;
+function src(){return (useBackup&&info.backup)?info.backup:info.url}
+function target(){
+  var u=src()||'';
+  if(info.key&&/\/jury(\?|$)/.test(u)){try{var x=new URL(u);u=x.origin+'/login?next='+encodeURIComponent(x.pathname+x.search)+'&key='+encodeURIComponent(info.key)}catch(e){}}
+  return u;
+}
+function probe(){
+  // bereikbaar? (no-cors: elk antwoord telt, enkel een netwerkfout niet)
+  tries++;
+  var u=src(),ctl=new AbortController(),t=setTimeout(function(){ctl.abort()},6000);
+  $('dot').className='dot warn';$('state').textContent='Verbinden met '+u.replace(/^https?:\/\//,'')+(tries>1?' (poging '+tries+')':'')+'…';
+  fetch(u,{mode:'no-cors',cache:'no-store',signal:ctl.signal}).then(function(){clearTimeout(t);
+    $('dot').className='dot ok';$('state').textContent='Verbonden – pagina laden…';
+    setTimeout(function(){location.replace(target())},400);
+  }).catch(function(){clearTimeout(t);$('dot').className='dot bad';
+    fails++;if(info.backup&&fails%3===0){useBackup=!useBackup;u=src()}   // na 3 mislukte pogingen: de andere bron proberen
+    $('state').textContent='Bron niet bereikbaar: '+u.replace(/^https?:\/\//,'')+' – opnieuw over 5 s';setTimeout(probe,5000)});
+}
+function load(){
+  fetch('/api/system/display',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    info=d;$('name').textContent=d.label?(d.label+' · '+(d.name||'')):(d.name||'');
+    if(d.role==='scherm'&&!d.url&&d.auto){$('dot').className='dot warn';$('state').textContent='Server zoeken op dit netwerk…';boxes('<div class="box"><h3>Bron</h3><div class="v">automatisch</div><div class="small">De eerste server op hetzelfde netwerk</div></div>');setTimeout(load,5000);return}
+    if(d.role==='scherm'&&d.url){boxes('<div class="box"><h3>Bron</h3><div class="v">'+esc(d.url)+'</div><div class="small">Aanpassen in het beheer → Scherm</div></div>');probe()}
+    else{$('dot').className='dot ok';$('state').textContent=d.role==='server'?'Server actief':'Klaar – live timing staat uit';
+      boxes('<div class="box"><h3>Rol</h3><div class="v">'+(d.role==='server'?'Server':'Uit (enkel beheer)')+'</div><div class="small">Kies de rol in het beheer → Overzicht</div></div>');
+      setTimeout(load,15000)}
+  }).catch(function(){$('dot').className='dot bad';$('state').textContent='Systeemdienst niet bereikbaar – opnieuw…';boxes('');setTimeout(load,5000)});
+}
+function tick(){var d=new Date();$('clock').textContent=d.toLocaleDateString('nl-BE')+' '+d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})}
+setInterval(tick,10000);tick();load();
+})();
+</script>
+</body>
+</html>

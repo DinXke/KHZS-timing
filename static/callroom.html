@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="nl-BE">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"><meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oproepkamer – Live timing</title>
 <script id="themeinit">
@@ -89,40 +89,136 @@ footer{font-size:max(11px,.7rem)}
 .card.nextbig h3{font-size:1.2em}
 @media (min-width:1000px){main{grid-template-rows:minmax(0,1fr)}}
 @media (max-width:999px){.ucols,.ucol{display:block}.card{margin-bottom:10px;overflow-x:auto}}
-#splash{position:fixed;inset:0;z-index:200;pointer-events:none;visibility:hidden;opacity:0;background:linear-gradient(180deg,var(--bg) 0%,var(--card2) 100%);transition:opacity .45s ease,visibility 0s linear .45s;overflow:hidden}
+#splash{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:200;pointer-events:none;visibility:hidden;opacity:0;background:linear-gradient(180deg,var(--bg) 0%,var(--card2) 100%);transition:opacity .45s ease,visibility 0s linear .45s;overflow:hidden;--swh:clamp(90px,17vh,240px);--sww:calc(var(--swh)*2.2)}
 #splash.on{visibility:visible;opacity:1;transition:opacity .3s ease}
-#splash svg{position:absolute;inset:0;width:100%;height:100%}
+#splash>svg{position:absolute;inset:0;width:100%;height:100%}
 #splash .wave{fill:var(--accent);animation:spwv linear infinite}
-#splash .w1{opacity:.22;animation-duration:3.2s}
-#splash .w2{opacity:.16;animation-duration:4.6s;animation-direction:reverse}
-#splash .w3{opacity:.30;animation-duration:2.4s}
+#splash .w1{opacity:.36;animation-duration:3.2s}
+#splash .w2{opacity:.18;animation-duration:4.6s;animation-direction:reverse}
+#splash .w3{opacity:.5;animation-duration:2.4s}
 @keyframes spwv{to{transform:translateX(-1200px)}}
-#splash .swimmer{animation:spsw var(--sd,2s) cubic-bezier(.35,.1,.65,.9) both}
-@keyframes spsw{from{transform:translate(-200px,410px)}to{transform:translate(1400px,410px)}}
-#splash .bob{animation:spbob .5s ease-in-out infinite alternate}
-@keyframes spbob{to{transform:translateY(-9px)}}
-#splash .arm{transform-box:fill-box;transform-origin:0% 100%;animation:sparm .6s ease-in-out infinite alternate}
-@keyframes sparm{from{transform:rotate(-25deg)}to{transform:rotate(30deg)}}
-#splash .sw{fill:var(--text);stroke:var(--text)}
+#splash .swim{display:none!important;position:absolute;left:0;top:calc(60% - var(--swh)*.62);width:var(--sww);height:var(--swh);transform:translateX(calc(-1 * var(--sww)))}
+#splash.run .swim{animation:spsw var(--swd,2s) linear both}
+@keyframes spsw{from{transform:translateX(calc(-1 * var(--sww)))}to{transform:translateX(100vw)}}
+#splash .swim svg{width:100%;height:100%;overflow:visible;animation:spbob .45s ease-in-out infinite alternate}
+@keyframes spbob{to{transform:translateY(-6%)}}
+#splash .swm{filter:drop-shadow(0 0 5px var(--accent))}
+#splash .sb{fill:var(--text)}
+#splash .lg,#splash .arm{fill:none;stroke:var(--text);stroke-width:8;stroke-linecap:round}
+#splash .cap{fill:var(--accent)}
+#splash .arm{transform-box:fill-box;transform-origin:0% 100%;animation:sparm .55s ease-in-out infinite alternate}
+#splash .a2{animation-delay:-.55s}
+@keyframes sparm{from{transform:rotate(-55deg)}to{transform:rotate(60deg)}}
+#splash .lg{transform-box:fill-box;transform-origin:100% 50%;animation:splg .22s ease-in-out infinite alternate}
+#splash .l2{animation-delay:-.22s}
+@keyframes splg{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
+#splash .tr{fill:var(--accent);transform-box:fill-box;transform-origin:center;animation:sptr .6s ease-out infinite}
+#splash .tr:nth-child(2){animation-delay:-.2s}#splash .tr:nth-child(3){animation-delay:-.4s}#splash .tr:nth-child(4){animation-delay:-.1s}
+@keyframes sptr{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:translate(-14px,-6px) scale(1.7)}}
 #splash .bub{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;animation:spbub var(--bd,2s) ease-in infinite}
 @keyframes spbub{0%{transform:translateY(0);opacity:0}25%{opacity:.7}100%{transform:translateY(-420px);opacity:0}}
-#splash .spt{position:absolute;left:0;right:0;top:34%;text-align:center;padding:0 5vw;color:var(--text);opacity:0}
-#splash.on .spt{animation:spfade .6s .1s ease both}
+#splash .spn{position:absolute;left:4vw;right:4vw;bottom:5%;height:30%;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#fff;opacity:0;font-weight:700;font-size:clamp(14px,2.2vw,2.3rem);line-height:1.35;letter-spacing:.02em;mix-blend-mode:soft-light;pointer-events:none}
+#splash.on .spn{animation:spfade .8s .3s ease both;opacity:.45}
+#splash .spn[hidden]{display:none}
+#splash .spn .spnt{display:inline-block}
+#splash .spn .spnt span{display:inline-block;margin:0 .9em}
+#splash .spn.scroll{justify-content:flex-start;white-space:nowrap;height:14%;bottom:12%;left:0;right:0}
+#splash .spn.scroll .spnt{animation:spnm var(--snd,10s) linear infinite;padding-left:4vw}
+@keyframes spnm{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+#splash .spn i{display:inline-block;font-style:normal;animation:spwave 1.8s ease-in-out infinite;animation-delay:calc(var(--i) * -.09s)}
+@keyframes spwave{0%,100%{transform:translateY(0)}50%{transform:translateY(-.16em)}}
+@media (prefers-reduced-motion:reduce){#splash .spn.scroll .spnt{animation:none}#splash .spn i{animation:none}}
+#splash .spt{position:absolute;left:0;right:0;top:20%;text-align:center;padding:0 5vw;color:var(--text);opacity:0}
+#splash.run .spt{animation:spfade .6s .1s ease both}
 @keyframes spfade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 #splash .sp1{font-size:clamp(26px,5.5vw,5.5rem);font-weight:800;line-height:1.15}
 #splash .sp2{font-size:clamp(18px,3vw,3rem);color:var(--accent);font-weight:700;margin-top:.5em}
-@media (prefers-reduced-motion:reduce){#splash svg{display:none}#splash.on .spt{animation:spfade2 .4s ease both}@keyframes spfade2{from{opacity:0}to{opacity:1}}}
+@media (prefers-reduced-motion:reduce){#splash .spb,#splash .wv{display:none}#splash .swim{animation:none!important;transform:none;left:calc(50% - var(--sww)/2)}#splash .swim svg,#splash .arm,#splash .lg,#splash .tr{animation:none}#splash.run .spt{animation:spfade2 .4s ease both}@keyframes spfade2{from{opacity:0}to{opacity:1}}}
+.disclaimer{flex-basis:100%;order:9;text-align:center;font-size:.92em;opacity:.85}#simban{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:60;background:#f59e0b;color:#1a1200;font-weight:800;letter-spacing:.06em;padding:3px 16px;border-radius:0 0 10px 10px;font-size:clamp(12px,1.3vw,18px);box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none}#simban[hidden]{display:none}
+/* ---- tussenscherm op een staand scherm (gsm) ---- */
+#splash.portrait .spt{top:11%;padding:0 6vw}
+#splash.portrait .sp1{font-size:clamp(24px,8.4vw,3.2rem);line-height:1.12}
+#splash.portrait .sp1 .spe{display:block;font-size:.62em;color:var(--muted);font-weight:700;letter-spacing:.04em;margin-bottom:.25em}
+#splash.portrait .sp2{font-size:clamp(18px,6vw,2.4rem);margin-top:.45em}
+#splash.portrait .spn{left:5vw;right:5vw;bottom:4%;height:38%;font-size:clamp(15px,4.6vw,1.6rem);line-height:1.3;align-items:center}
+#splash.portrait .spn .spnt span{display:block;margin:.1em 0}
+#splash.portrait .spn.scroll{height:38%;bottom:4%;left:5vw;right:5vw;white-space:normal;justify-content:center;align-items:flex-start}
+#splash.portrait .spn.scroll .spnt{animation:spnv var(--snd,10s) linear infinite;padding:0}
+@keyframes spnv{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+
+/* ---- twee duidelijk verschillende zones: oproepkamer (amber) en live (blauw) ---- */
+#up,#right{--zc:#f59e0b;--zt:rgba(245,158,11,.13);--zc2:rgba(245,158,11,.55);border:2px solid var(--zc2);background:var(--zt);border-radius:14px;padding:.45em .5em .5em}
+#right{--zc:#38bdf8;--zt:rgba(56,189,248,.11);--zc2:rgba(56,189,248,.55)}
+:root[data-theme="light"] #up{--zc:#b45309;--zt:rgba(217,119,6,.10);--zc2:rgba(180,83,9,.55)}
+:root[data-theme="light"] #right{--zc:#0369a1;--zt:rgba(3,105,161,.08);--zc2:rgba(3,105,161,.5)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) #up{--zc:#b45309;--zt:rgba(217,119,6,.10);--zc2:rgba(180,83,9,.55)}:root:not([data-theme="dark"]) #right{--zc:#0369a1;--zt:rgba(3,105,161,.08);--zc2:rgba(3,105,161,.5)}}
+#up::before,#right::before{display:block;flex:0 0 auto;font-weight:800;letter-spacing:.12em;font-size:clamp(13px,1.25vw,20px);color:var(--zc);padding:.05em .3em .1em;text-transform:uppercase}
+#up::before{content:"Oproepkamer · volgende reeksen"}
+#right::before{content:"\25CF  Live · nu in het water"}
+body.running #right::before{animation:zlive 1.4s ease-in-out infinite}
+@keyframes zlive{50%{opacity:.55}}
+#up .card,#right .card{border-color:var(--zc2);background:linear-gradient(var(--zt),var(--zt)),var(--card)}
+#up .card.first,#right #now{border:2px solid var(--zc)}
+#up .card h3 .when{background:var(--zc);color:#111}
+#up .badge{background:var(--zc);color:#111}
+@media (prefers-reduced-motion:reduce){body.running #right::before{animation:none}}
+#splash .spcall{display:block;font-size:.42em;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin-bottom:.45em}
+
+#blk{--zc:#22c55e;--zt:rgba(34,197,94,.14);--zc2:rgba(34,197,94,.6);margin:6px 12px 0;padding:.25em .7em .3em;border:2px solid var(--zc2);background:linear-gradient(var(--zt),var(--zt)),var(--card);border-radius:12px;font-size:var(--bf,18px);overflow:hidden;flex:0 0 auto}
+#blk[hidden]{display:none}
+#blk .bl1,#blk .bl2{white-space:nowrap;overflow:hidden;line-height:1.3}
+#blk .bl1{font-weight:700}
+#blk .bl1 .lbl{color:var(--zc);font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-right:.7em}
+#blk .bl1 .when{background:var(--zc);color:#111;border-radius:6px;padding:0 .4em;margin-left:.5em;font-variant-numeric:tabular-nums}
+#blk .bl2{font-size:.9em;color:var(--text)}
+#blk .bl2 span{margin-right:1.1em}
+#blk .bl2 .blc{font-size:.85em;color:var(--muted);font-weight:400}
+#blk .bl2 i{font-style:normal;color:var(--zc);font-weight:800;margin-right:.3em}
+:root[data-theme="light"] #blk{--zc:#15803d;--zt:rgba(22,163,74,.10);--zc2:rgba(21,128,61,.55)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) #blk{--zc:#15803d;--zt:rgba(22,163,74,.10);--zc2:rgba(21,128,61,.55)}}
+
+a.tblink{text-decoration:none;display:inline-flex;align-items:center}
+@media (max-width:420px){.tblink .tbl{display:none}}
+
+/* ---- tablet/gsm (staand of lage resolutie): gestapeld, natuurlijke hoogte ---- */
+@media (max-width:999px){
+ #up .card,#up section.card,#right .card{flex:none!important;height:auto!important;max-height:none!important}
+ #up .card.nextbig{font-size:clamp(15px,2.6vw,20px)}
+ #blk{margin:6px 8px 0;font-size:clamp(14px,2.4vw,18px)!important}
+ #blk .bl1,#blk .bl2{white-space:normal;overflow:visible}
+ #blk .bl2 span{display:inline-block;margin-right:.9em}
+ main{padding:6px 8px;gap:10px}
+ .ucols,.ucol{display:block!important;flex:none!important;min-height:auto!important;height:auto!important}
+ #up>*{flex:none!important}
+ #now,#prev{overflow-x:auto}
+}
+@media (max-width:699px){
+ .topbar{padding:4px 8px;gap:6px}
+ .tbt{font-size:13px}
+ .mini{font-size:22px}
+ #simban{top:auto;bottom:0;border-radius:8px 8px 0 0;font-size:10px;padding:1px 10px}
+ .card{padding:.45em .5em}
+ .card h3{font-size:1em}
+ th,td{padding:.2em .3em}
+ td.nm{max-width:none;white-space:normal}
+ #up th:nth-child(3),#up td:nth-child(3){font-size:.85em}
+}
+#bnData{background:var(--warning);color:var(--onwarn,#1a1200)}
+.daytag{display:inline-block;margin-left:.45em;font-size:.62em;font-weight:700;padding:.1em .5em;border-radius:6px;background:var(--card2);border:1px solid var(--border);color:var(--muted);vertical-align:middle;text-transform:none}
 </style>
 </head>
 <body>
 <div id="bnConn" class="banner" role="alert" hidden>Verbinding met de server verbroken – opnieuw verbinden…</div>
-<div class="topbar"><span class="tbt" id="tbt"><span>Oproepkamer</span></span><span class="tbr"><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
+<div id="bnData" class="banner" role="alert" hidden></div>
+<div class="topbar"><span class="tbt" id="tbt"><span>Oproepkamer</span></span><span class="tbr"><a class="tbtn tblink" href="/" title="Live uitslagen"><span aria-hidden="true">&#9201;</span><span class="tbl"> Live uitslagen</span></a><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
+<section id="blk" aria-label="Aan de startblok" hidden><div class="bl1" id="bl1"></div><div class="bl2" id="bl2"></div></section>
 <main>
  <section id="up" aria-label="Aankomende reeksen"></section>
  <section id="right"><div class="card" id="now"></div><div class="card" id="prev" hidden></div></section>
 </main>
-<footer><span id="f1"></span><span>sneltoetsen: F volledig scherm · T thema · <span id="cstat">Verbinden…</span></span></footer>
-<div id="splash" aria-hidden="true"><svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g id="spg"></g></svg><div class="spt"><div class="sp1" id="sp1"></div><div class="sp2" id="sp2"></div></div></div>
+<div id="simban" hidden>SIMULATIE – geen echte wedstrijd</div>
+<footer><span id="f1"></span><span>sneltoetsen: F volledig scherm · T thema · V tussenscherm testen · <span id="cstat">Verbinden…</span></span><span class="disclaimer">Geen officiële tijden – enkel ter informatie. De officiële uitslag wordt door de organisatie gepubliceerd.</span></footer>
+<div id="splash" aria-hidden="true"><svg class="spb" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g id="spg"></g></svg><svg class="wv" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true"><g id="spwb"></g></svg><div class="swim"><svg viewBox="-110 -62 220 100" aria-hidden="true"><g class="swm"><g><circle class="tr" cx="-94" cy="6" r="4"/><circle class="tr" cx="-106" cy="-2" r="3"/><circle class="tr" cx="-100" cy="14" r="3.5"/><circle class="tr" cx="-86" cy="12" r="2.5"/></g><path class="lg l1" d="M-40 2 Q-66 8 -86 -2"/><path class="lg l2" d="M-40 4 Q-66 16 -86 12"/><ellipse class="sb" cx="0" cy="2" rx="44" ry="12"/><circle class="sb" cx="56" cy="-2" r="11"/><path class="cap" d="M45 -7 Q56 -19 67 -7Z"/><g transform="translate(30 -4)"><path class="arm a1" d="M0 0 Q28 -54 62 -22"/></g><g transform="translate(30 -4)"><path class="arm a2" d="M0 0 Q28 -54 62 -22"/></g></g></svg></div><svg class="wv" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true"><g id="spwf"></g></svg><div class="spt"><div class="sp1" id="sp1"></div><div class="sp2" id="sp2"></div></div><div class="spn" id="spn" hidden><div class="spnt" id="spnt"></div></div></div>
 <script>
 (function(){
 'use strict';
@@ -181,21 +277,22 @@ function upcomingList(){
   });
 }
 function maxLane(h){var m=8;(h.lanes||[]).forEach(function(l){if(l.lane>m)m=l.lane});return m}
-function needPx(h){return (h.lanesKnown===false||!(h.lanes&&h.lanes.length))?60:60+maxLane(h)*20}
+function needPx(h){var pl=+so('pool_lanes',0)||0;return (h.lanesKnown===false||!(h.lanes&&h.lanes.length))?60:60+Math.max(maxLane(h)+((h.lanes||[]).some(function(l){return l.lane===0})?1:0),pl)*20}
 function sc(){return parseFloat(getComputedStyle(document.documentElement).fontSize)||16}
+function dayTag(h){var l=h&&h.dayLabel,c=CR&&CR.liveLabel;return l&&l!==c?'<span class="daytag">'+esc(l)+'</span>':''}
 function cardHtml(h,i){
     var hh=h.heat||{};
     if(h.lanesKnown===false||!(h.lanes&&h.lanes.length))
-      return '<section class="card'+(i===0?' first':'')+'" style="flex:0 0 auto"><h3>'+(i===0?'<span class="badge">Volgende</span>':'')+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+'</h3><div class="msg" style="padding:.3em">Startlijst nog niet beschikbaar — synchroniseer de database</div></section>';
-    var ls=h.lanes||[],by={},mx=8;
-    ls.forEach(function(l){by[l.lane]=l;if(l.lane>mx)mx=l.lane});
+      return '<section class="card'+(i===0?' first':'')+'" style="flex:0 0 auto"><h3>'+(i===0?'<span class="badge">Hierna naar de startblok</span>':'')+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+dayTag(h)+'</h3><div class="msg" style="padding:.3em">Startlijst nog niet beschikbaar — synchroniseer de database</div></section>';
+    var ls=h.lanes||[],by={},pl=+so('pool_lanes',0)||0,mn=pl>=10?0:1,mx=pl?mn+pl-1:8;
+    ls.forEach(function(l){by[l.lane]=l;if(l.lane>mx)mx=l.lane;if(l.lane<mn)mn=l.lane});
     var rows='';
-    for(var n=1;n<=mx;n++){
+    for(var n=mn;n<=mx;n++){
       var l=by[n];
       if(!l||(!name(l)&&!l.club)){rows+='<tr class="free"><td class="lane">'+n+'</td><td colspan="3">—</td></tr>';continue}
       rows+='<tr'+(l.status?' class="dim"':'')+'><td class="lane">'+n+'</td><td class="nm">'+esc(name(l))+(l.status?'<span class="st">'+esc(l.status)+'</span>':'')+'</td><td>'+esc(l.club||'')+'</td><td class="entry'+(l.entryTime==null?' nt':'')+'">'+(l.entryTime!=null?fmt(l.entryTime):'NT')+'</td></tr>';
     }
-    return '<section class="card'+(i===0?' first':'')+'" style="flex:'+(mx+2)+' 1 0"><h3>'+(i===0?'<span class="badge">Volgende</span>':'')+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+'</h3><table><thead><tr><th>Baan</th><th>Naam</th><th>Club</th><th class="r">Inschrijftijd</th></tr></thead><tbody>'+rows+'</tbody></table></section>';
+    return '<section class="card'+(i===0?' first':'')+'" style="flex:'+(mx+2)+' 1 0"><h3>'+(i===0?'<span class="badge">Hierna naar de startblok</span>':'')+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+dayTag(h)+'</h3><table><thead><tr><th>Baan</th><th>Naam</th><th>Club</th><th class="r">Inschrijftijd</th></tr></thead><tbody>'+rows+'</tbody></table></section>';
 }
 function packCols(up,nc,av){
   var cols=[],used=[],cur=0,n=0,GAP=10,i;
@@ -222,13 +319,33 @@ function applySettings(){
   var m=document.querySelector('main');m.style.setProperty('--cl',pct+'fr');m.style.setProperty('--cr',(100-pct)+'fr');
   upSig='';prevSig='';$('now')._f=0;$('prev')._f=0;
 }
+function blockHeat(){return upcomingList()[0]||null}
+function callroomList(){return upcomingList().slice(1)}
+var blkSig='';
+function renderBlk(){
+  var h=blockHeat(),sec=$('blk');
+  var sig=JSON.stringify(h)+'|'+window.innerWidth;if(sig===blkSig)return;blkSig=sig;
+  if(!h){if(!sec.hidden){sec.hidden=true;setTimeout(function(){upSig='';renderUp()},0)}return}
+  var wasHidden=sec.hidden;sec.hidden=false;
+  var hh=h.heat||{};
+  $('bl1').innerHTML='<span class="lbl">Aan de startblok</span>'+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+dayTag(h);
+  var ls=(h.lanes||[]).slice().sort(function(a,b){return a.lane-b.lane});
+  $('bl2').innerHTML=ls.length?ls.map(function(l){var pn=((l.firstName||'')+' '+(l.lastName||'')).trim(),n=pn||l.team||'',c=pn&&l.club?' <small class="blc">('+esc(l.club)+')</small>':'';return n?'<span><i>'+l.lane+'</i>'+esc(n)+c+'</span>':''}).join(''):'<span style="color:var(--muted)">startlijst nog niet bekend</span>';
+  var mx=Math.max(14,Math.min(30,window.innerWidth/60));
+  sec.style.setProperty('--bf',mx+'px');
+  var f=mx;if(window.innerWidth>=1000)while(($('bl1').scrollWidth>$('bl1').clientWidth+1||$('bl2').scrollWidth>$('bl2').clientWidth+1)&&f>10){f-=0.5;sec.style.setProperty('--bf',f+'px')}
+  if(wasHidden){upSig='';prevSig='';setTimeout(function(){renderUp();renderNow()},0)}   // hoogte veranderd: kolommen opnieuw passen
+}
 function renderUp(){
-  var all=upcomingList(),box=$('up'),k=kiosk();
+  renderBlk();
+  var all=callroomList(),box=$('up'),k=kiosk();
   var cap=(S&&S.settings&&S.settings.callroom_heats>0)?S.settings.callroom_heats:all.length;
   var up=all.slice(0,cap),avail=k?box.clientHeight:0,W=box.clientWidth;
   var sig=JSON.stringify(up)+'|'+k+'|'+avail+'|'+W+'|'+all.length+'|'+nextBig()+'|'+nextScale();
   if(sig===upSig)return;upSig=sig;
-  if(!up.length){box.innerHTML='<div class="card"><div class="msg big">Geen programma beschikbaar — synchroniseer de database via /jury → Database</div></div>';return}
+  if(!up.length){
+    var noProg=!CR||!CR.db||!CR.db.heats;
+    box.innerHTML='<div class="card"><div class="msg big">'+(noProg?'Nog geen programma beschikbaar.':(blockHeat()?'Geen volgende reeksen meer in het programma.':'Einde van het programma.'))+'</div></div>';return}
   var first=up[0],bigOK=nextBig()&&!!(first&&first.lanesKnown!==false&&first.lanes&&first.lanes.length);
   var rest=bigOK?up.slice(1):up,bigH=0,full=false;
   if(k&&avail>0&&bigOK){full=!rest.length;bigH=full?avail:Math.max(needPx(first),Math.round(avail*0.45))}
@@ -315,6 +432,7 @@ function allFinished(){
 }
 function frame(){
   var el=$('mini'),st=clk.status,txt,cls,fin=allFinished();
+  document.body.classList.toggle('running',st==='running');
   if(fin!=null&&st!=='ready'){txt=fmt(fin);cls='stopped'}
   else if(st==='running'&&clk.rt!=null){txt=fmtClock(clk.rt+Math.min(300,performance.now()-clk.at)*10);cls='running'}
   else if(st==='ready'){txt='Klaar voor start';cls='ready'}
@@ -325,17 +443,44 @@ function frame(){
 }
 
 /* data */
-function pollCR(){
-  if(demo)return;
-  fetch('/api/callroom').then(function(r){return r.json()}).then(function(d){CR=d;renderHead();renderUp()}).catch(function(){});
+function pollCR(cb){
+  if(demo){if(cb)cb();return}
+  fetch('/api/callroom').then(function(r){return r.json()}).then(function(d){CR=d;renderHead();renderUp();if(cb)cb()}).catch(function(){if(cb)cb()});
+}
+/* tussenscherm: de reeks die nu naar de oproepkamer mag */
+function callHeat(){
+  var list=callroomList(),st=(S&&S.settings)||{};
+  var cap=st.callroom_heats>0?st.callroom_heats:list.length,pos=parseInt(st.callroom_splash_heat,10)||0;
+  var n=Math.min(cap,list.length);if(!n)return null;
+  return list[(pos>0?Math.min(pos,n):n)-1];
+}
+function crMatches(){
+  if(!CR||!CR.live||!S||!S.event||!S.heat)return true;      // oudere server: geen controle mogelijk
+  var m=String(S.heat.name||'').match(/(\d+)\s*$/),ht=m?m[1]:String(S.heat.number||'');
+  return String(CR.live.event)===String(S.event.number)&&(String(CR.live.heat)===ht||String(CR.live.heat)===String(S.heat.number));
+}
+function callSplash(tries){
+  tries=tries||0;
+  if(!crMatches()&&tries<10){setTimeout(function(){pollCR(function(){callSplash(tries+1)})},700);return}   // lijst nog van de vorige reeks
+  var u=callHeat();
+  if(!u){if(S)showSplash(S);return}
+  showSplash({event:u.event,heat:u.heat,settings:(S&&S.settings)||{},lanes:(u.lanes||[]).map(function(l){return {lane:l.lane,firstName:l.firstName,lastName:l.lastName,team:l.team}})},'Naar de oproepkamer');
 }
 var lastKey='';
 function applyState(s){
   if(!s)return;
-  if(S&&heatKey(S)&&heatKey(s)&&heatKey(S)!==heatKey(s)&&splashAllowed(s))showSplash(s);
+  (function(){var b=$('bnData');if(!b)return;var nd=s.connected===false;b.hidden=!nd;if(nd){
+    var ago=(s&&(s.relayAgo!=null||s.lastPacketAgo!=null))?Math.max(s.relayAgo||0,s.lastPacketAgo||0):null;
+    if(ago==null)b.textContent='Nog geen gegevens ontvangen van het tijdsysteem.';
+    else{var t=new Date(Date.now()-ago*1000),hm=('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2);
+      var d=(Date.now()-ago*1000<new Date().setHours(0,0,0,0))?t.toLocaleDateString('nl-BE')+' ':'';
+      b.textContent='Geen nieuwe gegevens sinds '+d+hm+' – je ziet de laatst ontvangen stand.'}}})();
+  (function(){var b=document.getElementById('simban');if(b)b.hidden=!s.simulated})();
+  var newHeat=S&&heatKey(S)&&heatKey(s)&&heatKey(S)!==heatKey(s)&&splashAllowed(s);
   var k=(s.showing||'')+'|'+heatKey(s);
   S=s;if(s.clock){clk.status=s.clock.status;clk.rt=s.clock.rt;clk.at=performance.now()}
-  if(k!==lastKey){lastKey=k;pollCR()}
+  if(newHeat){lastKey=k;pollCR(callSplash)}       // eerst de verse lijst, dan aankondigen
+  else if(k!==lastKey){lastKey=k;pollCR()}
   applySettings();
   renderHead();renderUp();renderNow();renderPrev();
 }
@@ -346,23 +491,54 @@ function splashBuild(){
   function wp(y,a){var d='M0 '+y;for(var x=0;x<2400;x+=150)d+=' q 37.5 '+(-a)+' 75 0 t 75 0';return d+' V600 H0Z'}
   var h='';
   for(var i=0;i<12;i++){var cx=60+Math.random()*1080,r0=3+Math.random()*7;h+='<circle class="bub" cx="'+cx.toFixed(0)+'" cy="'+(560-Math.random()*80).toFixed(0)+'" r="'+r0.toFixed(1)+'" style="--bd:'+(1.4+Math.random()*1.6).toFixed(1)+'s;animation-delay:-'+(Math.random()*2).toFixed(1)+'s"/>'}
-  h+='<path class="wave w2" d="'+wp(440,26)+'"/>';
-  h+='<g class="swimmer"><g class="bob"><ellipse class="sw" cx="0" cy="0" rx="46" ry="11"/><circle class="sw" cx="54" cy="-4" r="11"/><path class="sw arm" d="M8 -6 Q 30 -50 64 -32" fill="none" stroke-width="8" stroke-linecap="round"/><path class="sw" d="M-44 0 Q-70 8 -88 -2" fill="none" stroke-width="7" stroke-linecap="round"/></g></g>';
-  h+='<path class="wave w1" d="'+wp(430,22)+'"/><path class="wave w3" d="'+wp(470,18)+'"/>';
   $('spg').innerHTML=h;
+  $('spwb').innerHTML='<path class="wave w2" d="'+wp(345,14)+'"/>';
+  $('spwf').innerHTML='<path class="wave w1" d="'+wp(362,12)+'"/><path class="wave w3" d="'+wp(386,10)+'"/>';
 }
 function splashAllowed(s){
   var st=s.settings||{};
   return st.splash_enabled!==false&&st.splash_callroom!==false;
 }
-function showSplash(s){
+function splashNames(s){
+  var el=$('spn'),t=$('spnt');if(!el||!t)return;
+  var names=(s.lanes||[]).slice().sort(function(a,b){return a.lane-b.lane}).map(function(l){
+    return ((l.firstName||'')+' '+(l.lastName||'')).trim()||l.team||'';}).filter(Boolean);
+  if(!names.length){el.hidden=true;t.textContent='';return}
+  el.hidden=false;el.classList.remove('scroll');
+  var k=0,html=names.map(function(n){return '<span>'+n.split('').map(function(ch){return '<i style="--i:'+(k++)+'">'+(ch===' '?'&nbsp;':esc(ch))+'</i>'}).join('')+'</span>'}).join('');
+  t.innerHTML=html;
+  var availH=el.clientHeight||window.innerHeight*0.30;
+  if(el.clientWidth>0&&t.scrollHeight>availH+2){   // enkel meten als er layout is (zichtbaar venster)
+    t.innerHTML=html+html;el.classList.add('scroll');
+    var secs=parseFloat((s.settings||{}).splash_seconds)||5;
+    el.style.setProperty('--snd',($('splash').classList.contains('portrait')?Math.max(6,names.length*1.1):Math.max(4,secs*1.6))+'s');
+  }
+}
+window.__ltSplashNames=splashNames;window.__ltSplashTest=function(){pollCR(callSplash)};
+
+function splashOrient(){
+  var sp=$('splash');if(!sp)return;
+  var por=window.innerHeight>window.innerWidth*1.1;
+  sp.classList.toggle('portrait',por);
+  // golven in staande stand minder samengedrukt: smaller zichtvenster op hetzelfde golfpatroon (periode 150)
+  Array.prototype.forEach.call(sp.querySelectorAll('svg.wv'),function(v){v.setAttribute('viewBox',por?'0 120 450 480':'0 0 1200 600')});
+  var g=sp.querySelector('svg.spb');if(g)g.setAttribute('viewBox',por?'300 0 600 600':'0 0 1200 600');
+  return por;
+}
+window.addEventListener('resize',function(){if($('splash')&&$('splash').classList.contains('on'))splashOrient()});
+function showSplash(s,label){
   var sp=$('splash'),e=s.event||{},h=s.heat||{},st=s.settings||{};
-  var secs=parseFloat(st.splash_seconds);if(isNaN(secs))secs=2;secs=Math.max(0.5,Math.min(5,secs));
+  var secs=parseFloat(label?st.callroom_splash_seconds:st.splash_seconds);if(isNaN(secs))secs=label?8:2;secs=Math.max(0.5,Math.min(label?60:5,secs));
   splashBuild();
-  $('sp1').textContent=['Event '+(e.number||'?'),e.discipline].filter(Boolean).join(' · ');
-  $('sp2').textContent=(h.name||('Serie '+(h.number||'?')))+(h.startTime?' · gepland '+h.startTime:'');
-  sp.style.setProperty('--sd',secs+'s');
-  clearTimeout(splashT);sp.classList.remove('on');void sp.offsetWidth;sp.classList.add('on');
+  var por=splashOrient();
+  var lab=label?'<span class="spcall">'+esc(label)+'</span>':'';
+  if(por){$('sp1').innerHTML=lab+'<span class="spe">Event '+esc(String(e.number||'?'))+'</span>'+esc(e.discipline||'')}
+  else $('sp1').innerHTML=lab+esc(['Event '+(e.number||'?'),e.discipline].filter(Boolean).join(' · '));
+  $('sp2').textContent=h.name||('Serie '+(h.number||'?'));
+  var sw=parseFloat(st.splash_swim_seconds);if(isNaN(sw))sw=2;sw=Math.max(0.5,Math.min(10,sw));
+  sp.style.setProperty('--sd',secs+'s');sp.style.setProperty('--swd',sw+'s');
+  clearTimeout(splashT);sp.classList.remove('on','run');void sp.offsetWidth;sp.classList.add('on','run');
+  splashNames(s);
   splashT=setTimeout(function(){sp.classList.remove('on')},secs*1000);
 }
 function applyClock(c){if(c){clk.status=c.status;clk.rt=c.rt;clk.at=performance.now()}}
@@ -371,12 +547,21 @@ function live(){
   fetch('/state').then(function(r){return r.json()}).then(applyState).catch(function(){});
   fetch('/history').then(function(r){return r.json()}).then(applyHistory).catch(function(){});
   pollCR();setInterval(pollCR,5000);
-  var es=new EventSource('/events');
-  es.onopen=function(){setConn(true)};
+  /* live-verbinding: zelf opnieuw opbouwen als de browser opgeeft (bv. foutpagina van een proxy tijdens een storing)
+     of als er lang niets binnenkomt; de server stuurt elke paar seconden iets zolang hij leeft */
+  var es=null,lastEv=Date.now();
+  function openES(){try{if(es)es.close()}catch(x){}
+  es=new EventSource('/events?page=callroom');
+  es.onopen=function(){lastEv=Date.now();setConn(true)};
   es.onerror=function(){setConn(false)};
-  es.addEventListener('state',function(e){try{setConn(true);applyState(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('state',function(e){try{if(window.InfoScreen){var _s=JSON.parse(e.data);InfoScreen.setConnected(!!(_s&&_s.connected))}setConn(true);applyState(JSON.parse(e.data))}catch(x){}});
   es.addEventListener('history',function(e){try{applyHistory(JSON.parse(e.data))}catch(x){}});
-  es.addEventListener('clock',function(e){try{applyClock(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('clock',function(e){try{var c=JSON.parse(e.data);applyClock(c);if(window.InfoScreen)InfoScreen.setLive(c&&c.status==='running')}catch(x){}});
+  es.addEventListener('info',function(e){try{if(window.InfoScreen)InfoScreen.apply(JSON.parse(e.data))}catch(x){}});
+  ['state','clock','history','info'].forEach(function(t){es.addEventListener(t,function(){lastEv=Date.now()})})}
+  openES();
+  setInterval(function(){if(!es||es.readyState===2||Date.now()-lastEv>90000){lastEv=Date.now();openES();
+    fetch('/state',{cache:'no-store'}).then(function(r){return r.json()}).then(applyState).catch(function(){})}},5000);
 }
 
 /* demo */
@@ -407,7 +592,7 @@ function demoRun(){
     var done=lanes.every(function(l){return l.finished});
     if(done&&!doneAt)doneAt=now;
     if(done&&now-doneAt>6000){t0=now;doneAt=0;hn++}
-    applyState({settings:{callroom_heats:4,callroom_next_big:true,callroom_next_scale:1.6,callroom_show_previous:true,callroom_split_left_pct:60,splash_enabled:true,splash_seconds:2,splash_callroom:true},meet:{name:'PK 25m Limburg 2026'},event:{number:'22',discipline:'100m Vrije slag dames'},heat:{number:''+hn,name:'Serie '+hn,startTime:'14:'+(50+hn),distance:100,laps:2},layout:done?'RankOriented':'LaneOriented',officialDistances:[50],clock:{status:done?'idle':'running',rt:done?null:el},lanes:lanes});
+    applyState({settings:{callroom_heats:4,callroom_next_big:true,callroom_next_scale:1.6,callroom_show_previous:true,callroom_split_left_pct:60,splash_enabled:true,splash_seconds:2,splash_swim_seconds:2,splash_callroom:true},meet:{name:'PK 25m Limburg 2026'},event:{number:'22',discipline:'100m Vrije slag dames'},heat:{number:''+hn,name:'Serie '+hn,startTime:'14:'+(50+hn),distance:100,laps:2},layout:done?'RankOriented':'LaneOriented',officialDistances:[50],clock:{status:done?'idle':'running',rt:done?null:el},lanes:lanes});
   },200);
   setConn(true);
 }
@@ -418,6 +603,7 @@ document.addEventListener('keydown',function(e){
   var k=(e.key||'').toLowerCase();
   if(k==='f'){if(document.fullscreenElement)document.exitFullscreen();else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen()}
   else if(k==='t')$('themebtn').click();
+  else if(k==='v'&&S)pollCR(callSplash);
 });
 var idleT,wake=function(){document.body.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(function(){document.body.classList.add('idle')},3000)};
 ['mousemove','mousedown','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,wake)});wake();
@@ -426,5 +612,7 @@ renderUp();renderNow();renderPrev();
 if(demo){document.title+=' (demo)';demoRun()}else live();
 })();
 </script>
+<script src="/infoscreen.js"></script>
+<script>if(window.InfoScreen)InfoScreen.init({page:'callroom'})</script>
 </body>
 </html>

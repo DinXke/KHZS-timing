@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="nl-BE">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"><meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Live timing</title>
 <script id="themeinit">
@@ -316,37 +316,105 @@ footer{font-size:max(12px,.75rem)}
  .spg{grid-template-columns:repeat(4,minmax(0,1fr));font-size:.95rem;gap:.15rem .3rem}
 }
 
-#splash{position:fixed;inset:0;z-index:200;pointer-events:none;visibility:hidden;opacity:0;background:linear-gradient(180deg,var(--bg) 0%,var(--card2) 100%);transition:opacity .45s ease,visibility 0s linear .45s;overflow:hidden}
+#splash{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:200;pointer-events:none;visibility:hidden;opacity:0;background:linear-gradient(180deg,var(--bg) 0%,var(--card2) 100%);transition:opacity .45s ease,visibility 0s linear .45s;overflow:hidden;--swh:clamp(90px,17vh,240px);--sww:calc(var(--swh)*2.2)}
 #splash.on{visibility:visible;opacity:1;transition:opacity .3s ease}
-#splash svg{position:absolute;inset:0;width:100%;height:100%}
+#splash>svg{position:absolute;inset:0;width:100%;height:100%}
 #splash .wave{fill:var(--accent);animation:spwv linear infinite}
-#splash .w1{opacity:.22;animation-duration:3.2s}
-#splash .w2{opacity:.16;animation-duration:4.6s;animation-direction:reverse}
-#splash .w3{opacity:.30;animation-duration:2.4s}
+#splash .w1{opacity:.36;animation-duration:3.2s}
+#splash .w2{opacity:.18;animation-duration:4.6s;animation-direction:reverse}
+#splash .w3{opacity:.5;animation-duration:2.4s}
 @keyframes spwv{to{transform:translateX(-1200px)}}
-#splash .swimmer{animation:spsw var(--sd,2s) cubic-bezier(.35,.1,.65,.9) both}
-@keyframes spsw{from{transform:translate(-200px,410px)}to{transform:translate(1400px,410px)}}
-#splash .bob{animation:spbob .5s ease-in-out infinite alternate}
-@keyframes spbob{to{transform:translateY(-9px)}}
-#splash .arm{transform-box:fill-box;transform-origin:0% 100%;animation:sparm .6s ease-in-out infinite alternate}
-@keyframes sparm{from{transform:rotate(-25deg)}to{transform:rotate(30deg)}}
-#splash .sw{fill:var(--text);stroke:var(--text)}
+#splash .swim{display:none!important;position:absolute;left:0;top:calc(60% - var(--swh)*.62);width:var(--sww);height:var(--swh);transform:translateX(calc(-1 * var(--sww)))}
+#splash.run .swim{animation:spsw var(--swd,2s) linear both}
+@keyframes spsw{from{transform:translateX(calc(-1 * var(--sww)))}to{transform:translateX(100vw)}}
+#splash .swim svg{width:100%;height:100%;overflow:visible;animation:spbob .45s ease-in-out infinite alternate}
+@keyframes spbob{to{transform:translateY(-6%)}}
+#splash .swm{filter:drop-shadow(0 0 5px var(--accent))}
+#splash .sb{fill:var(--text)}
+#splash .lg,#splash .arm{fill:none;stroke:var(--text);stroke-width:8;stroke-linecap:round}
+#splash .cap{fill:var(--accent)}
+#splash .arm{transform-box:fill-box;transform-origin:0% 100%;animation:sparm .55s ease-in-out infinite alternate}
+#splash .a2{animation-delay:-.55s}
+@keyframes sparm{from{transform:rotate(-55deg)}to{transform:rotate(60deg)}}
+#splash .lg{transform-box:fill-box;transform-origin:100% 50%;animation:splg .22s ease-in-out infinite alternate}
+#splash .l2{animation-delay:-.22s}
+@keyframes splg{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
+#splash .tr{fill:var(--accent);transform-box:fill-box;transform-origin:center;animation:sptr .6s ease-out infinite}
+#splash .tr:nth-child(2){animation-delay:-.2s}#splash .tr:nth-child(3){animation-delay:-.4s}#splash .tr:nth-child(4){animation-delay:-.1s}
+@keyframes sptr{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:translate(-14px,-6px) scale(1.7)}}
 #splash .bub{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;animation:spbub var(--bd,2s) ease-in infinite}
 @keyframes spbub{0%{transform:translateY(0);opacity:0}25%{opacity:.7}100%{transform:translateY(-420px);opacity:0}}
-#splash .spt{position:absolute;left:0;right:0;top:34%;text-align:center;padding:0 5vw;color:var(--text);opacity:0}
-#splash.on .spt{animation:spfade .6s .1s ease both}
+#splash .spn{position:absolute;left:4vw;right:4vw;bottom:5%;height:30%;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#fff;opacity:0;font-weight:700;font-size:clamp(14px,2.2vw,2.3rem);line-height:1.35;letter-spacing:.02em;mix-blend-mode:soft-light;pointer-events:none}
+#splash.on .spn{animation:spfade .8s .3s ease both;opacity:.45}
+#splash .spn[hidden]{display:none}
+#splash .spn .spnt{display:inline-block}
+#splash .spn .spnt span{display:inline-block;margin:0 .9em}
+#splash .spn.scroll{justify-content:flex-start;white-space:nowrap;height:14%;bottom:12%;left:0;right:0}
+#splash .spn.scroll .spnt{animation:spnm var(--snd,10s) linear infinite;padding-left:4vw}
+@keyframes spnm{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+#splash .spn i{display:inline-block;font-style:normal;animation:spwave 1.8s ease-in-out infinite;animation-delay:calc(var(--i) * -.09s)}
+@keyframes spwave{0%,100%{transform:translateY(0)}50%{transform:translateY(-.16em)}}
+@media (prefers-reduced-motion:reduce){#splash .spn.scroll .spnt{animation:none}#splash .spn i{animation:none}}
+#splash .spt{position:absolute;left:0;right:0;top:20%;text-align:center;padding:0 5vw;color:var(--text);opacity:0}
+#splash.run .spt{animation:spfade .6s .1s ease both}
 @keyframes spfade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 #splash .sp1{font-size:clamp(26px,5.5vw,5.5rem);font-weight:800;line-height:1.15}
 #splash .sp2{font-size:clamp(18px,3vw,3rem);color:var(--accent);font-weight:700;margin-top:.5em}
-@media (prefers-reduced-motion:reduce){#splash svg{display:none}#splash.on .spt{animation:spfade2 .4s ease both}@keyframes spfade2{from{opacity:0}to{opacity:1}}}
+@media (prefers-reduced-motion:reduce){#splash .spb,#splash .wv{display:none}#splash .swim{animation:none!important;transform:none;left:calc(50% - var(--sww)/2)}#splash .swim svg,#splash .arm,#splash .lg,#splash .tr{animation:none}#splash.run .spt{animation:spfade2 .4s ease both}@keyframes spfade2{from{opacity:0}to{opacity:1}}}
 #splchk{display:inline-flex;gap:.35rem;align-items:center;cursor:pointer}
 #splchk[hidden]{display:none}
+.disclaimer{flex-basis:100%;order:9;text-align:center;font-size:.92em;opacity:.85}#simban{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:60;background:#f59e0b;color:#1a1200;font-weight:800;letter-spacing:.06em;padding:3px 16px;border-radius:0 0 10px 10px;font-size:clamp(12px,1.3vw,18px);box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none}#simban[hidden]{display:none}
+/* ---- telefoon (publiek): huidige reeks altijd volledig op het scherm ---- */
+body.phone main{padding:2px 8px 16px}
+body.phone .clockbox,body.phone .records,body.phone .toolbar,body.phone .legend,body.phone header .meet,body.phone header .sub{display:none!important}
+body.phone .topbar{padding:3px 10px}
+body.phone #cur{font-size:var(--mf,16px)}
+body.phone #cur h1{font-size:1.02em;margin:.2em 0 .25em;line-height:1.2}
+body.phone #nextbar{font-size:.78em;margin:.2em 0}
+body.phone .tablewrap{font-size:1em}
+body.phone tbody tr:not(.memrow):not(.empty){grid-template-columns:1.7em minmax(0,1fr) auto 1.6em;gap:0 .4em;margin:.2em 0;padding:.22em .45em;border-radius:.45em;font-size:1em;line-height:1.15}
+body.phone td.lane{font-size:1.05em}
+body.phone td.name{font-size:.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.phone td.name small{font-size:.74em;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+body.phone td.fin{font-size:1.12em}
+body.phone td.rank{font-size:1.05em}
+body.phone td.col-rt{font-size:.7em}
+body.phone .spg{font-size:.78em;gap:0 .3em}
+body.phone .sd,body.phone sup.r,body.phone .mlab{font-size:.62em}
+body.phone tbody tr.hasmem{margin-bottom:0}
+body.phone tbody tr.memrow{font-size:.74em;margin:0 0 .2em;padding:0 .6em .3em}
+body.phone .nodata{font-size:.9em}
+body.phone.nosp td.sps,body.phone.nosp td.col-rt{display:none}
+body.phone.nosp tbody tr:not(.memrow):not(.empty){grid-template-areas:"lane name fin rank"}
+body.phone.nomem tbody tr.memrow{display:none}
+body.phone.nomem tbody tr.hasmem{margin-bottom:.2em;border-radius:.45em}
+body.phone #simban{font-size:10px;padding:1px 10px;top:auto;bottom:0;border-radius:8px 8px 0 0}
+body.phone .disclaimer{font-size:11px}
+
+/* ---- tussenscherm op een staand scherm (gsm) ---- */
+#splash.portrait .spt{top:11%;padding:0 6vw}
+#splash.portrait .sp1{font-size:clamp(24px,8.4vw,3.2rem);line-height:1.12}
+#splash.portrait .sp1 .spe{display:block;font-size:.62em;color:var(--muted);font-weight:700;letter-spacing:.04em;margin-bottom:.25em}
+#splash.portrait .sp2{font-size:clamp(18px,6vw,2.4rem);margin-top:.45em}
+#splash.portrait .spn{left:5vw;right:5vw;bottom:4%;height:38%;font-size:clamp(15px,4.6vw,1.6rem);line-height:1.3;align-items:center}
+#splash.portrait .spn .spnt span{display:block;margin:.1em 0}
+#splash.portrait .spn.scroll{height:38%;bottom:4%;left:5vw;right:5vw;white-space:normal;justify-content:center;align-items:flex-start}
+#splash.portrait .spn.scroll .spnt{animation:spnv var(--snd,10s) linear infinite;padding:0}
+@keyframes spnv{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+a.tblink{text-decoration:none;display:inline-flex;align-items:center}
+.tblink .tbs,.tblink .tbx{display:none}
+body.phone .tblink .tbl,body.phone .tblink .tbi{display:none}body.phone .tblink .tbs{display:inline}
+body.phone #crbtn{font-weight:700;color:var(--amber);border-color:var(--amber)}
+@media (max-width:379px){body.phone .tblink .tbs{display:none}body.phone .tblink .tbx{display:inline}}
+body.phone .topbar{gap:6px;padding:3px 8px}body.phone .tbr{gap:5px}body.phone .tbt{display:none}
+body.phone .tbtn{padding:3px 7px;font-size:12px}body.phone .seg button{padding:3px 7px;font-size:12px}body.phone .mini{font-size:20px}
+@media (max-width:379px){body.phone #themebtn{display:none}body.phone .seg button{padding:3px 5px}}
 </style>
 </head>
 <body>
 <div id="bnConn" class="banner" role="alert" hidden>Verbinding met de server verbroken – opnieuw verbinden…</div>
 <div id="bnData" class="banner" role="alert" hidden>Server ontvangt momenteel geen gegevens van het tijdsysteem.</div>
-<div class="topbar" id="topbar"><span class="tbt" id="tbTitle">Live timing</span><span class="tbr"><button type="button" class="tbtn" id="dbbtn" hidden>Database</button><label class="tbtn" id="splchk" hidden><input type="checkbox" id="splchkbox" style="margin:0"> Tussenscherm</label><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
+<div class="topbar" id="topbar"><span class="tbt" id="tbTitle">Live timing</span><span class="tbr"><button type="button" class="tbtn" id="dbbtn" hidden>Database</button><label class="tbtn" id="splchk" hidden><input type="checkbox" id="splchkbox" style="margin:0"> Tussenscherm</label><button type="button" class="tbtn" id="spltest" hidden title="Tussenscherm afspelen voor de huidige reeks (test)">&#9654; Test</button><a class="tbtn tblink" id="crbtn" href="/callroom" title="Oproepkamer: wie zit er in de oproepkamer en aan de startblok"><span class="tbi" aria-hidden="true">&#128203;</span><span class="tbl"> Oproepkamer</span><span class="tbs">Callroom</span><span class="tbx">Call</span></a><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
 <main>
 <div id="layout"><div id="cur">
 <header>
@@ -377,8 +445,9 @@ footer{font-size:max(12px,.75rem)}
   </details>
 </section>
 </main>
-<footer><span>Read-only live timing · bron: ALGE SwimTime</span><span class="keys" id="keys">sneltoetsen: F volledig scherm · T thema · J jurymodus · B baan · P plaats · S scorebord · X tussenscherm</span><span class="dbline" id="dbline"></span><span><a id="pubLink" href="/publiek" style="color:inherit;margin-right:10px">publieke weergave</a><a id="crLink" href="/callroom" style="color:inherit;margin-right:10px">oproepkamer</a><a class="gear" href="/settings" aria-label="Instellingen" title="Instellingen" style="color:inherit;text-decoration:none;margin-right:10px">&#9881;</a><span class="dot" id="dot"></span><span id="cstat">Verbinden…</span></span></footer>
-<div id="splash" aria-hidden="true"><svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g id="spg"></g></svg><div class="spt"><div class="sp1" id="sp1"></div><div class="sp2" id="sp2"></div></div></div>
+<div id="simban" hidden>SIMULATIE – geen echte wedstrijd</div>
+<footer><span>Read-only live timing · bron: ALGE SwimTime</span><span class="keys" id="keys">sneltoetsen: F volledig scherm · T thema · J jurymodus · B baan · P plaats · S scorebord · X tussenscherm · V tussenscherm testen</span><span class="dbline" id="dbline"></span><span><a id="pubLink" href="/" style="color:inherit;margin-right:10px">publieke weergave</a><a id="crLink" href="/callroom" style="color:inherit;margin-right:10px">oproepkamer</a><a class="gear" href="/settings" aria-label="Instellingen" title="Instellingen" style="color:inherit;text-decoration:none;margin-right:10px">&#9881;</a><span class="dot" id="dot"></span><span id="cstat">Verbinden…</span></span><span class="disclaimer">Geen officiële tijden – enkel ter informatie. De officiële uitslag wordt door de organisatie gepubliceerd.</span></footer>
+<div id="splash" aria-hidden="true"><svg class="spb" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g id="spg"></g></svg><svg class="wv" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true"><g id="spwb"></g></svg><div class="swim"><svg viewBox="-110 -62 220 100" aria-hidden="true"><g class="swm"><g><circle class="tr" cx="-94" cy="6" r="4"/><circle class="tr" cx="-106" cy="-2" r="3"/><circle class="tr" cx="-100" cy="14" r="3.5"/><circle class="tr" cx="-86" cy="12" r="2.5"/></g><path class="lg l1" d="M-40 2 Q-66 8 -86 -2"/><path class="lg l2" d="M-40 4 Q-66 16 -86 12"/><ellipse class="sb" cx="0" cy="2" rx="44" ry="12"/><circle class="sb" cx="56" cy="-2" r="11"/><path class="cap" d="M45 -7 Q56 -19 67 -7Z"/><g transform="translate(30 -4)"><path class="arm a1" d="M0 0 Q28 -54 62 -22"/></g><g transform="translate(30 -4)"><path class="arm a2" d="M0 0 Q28 -54 62 -22"/></g></g></svg></div><svg class="wv" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true"><g id="spwf"></g></svg><div class="spt"><div class="sp1" id="sp1"></div><div class="sp2" id="sp2"></div></div><div class="spn" id="spn" hidden><div class="spnt" id="spnt"></div></div></div>
 <div id="dbmodal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="dbt"><div class="mbox">
 <button type="button" class="mx" id="dbx" aria-label="Sluiten">&times;</button>
 <h2 id="dbt">SwimTime-database</h2>
@@ -446,10 +515,9 @@ function splashBuild(){
   function wp(y,a){var d='M0 '+y;for(var x=0;x<2400;x+=150)d+=' q 37.5 '+(-a)+' 75 0 t 75 0';return d+' V600 H0Z'}
   var h='';
   for(var i=0;i<12;i++){var cx=60+Math.random()*1080,r0=3+Math.random()*7;h+='<circle class="bub" cx="'+cx.toFixed(0)+'" cy="'+(560-Math.random()*80).toFixed(0)+'" r="'+r0.toFixed(1)+'" style="--bd:'+(1.4+Math.random()*1.6).toFixed(1)+'s;animation-delay:-'+(Math.random()*2).toFixed(1)+'s"/>'}
-  h+='<path class="wave w2" d="'+wp(440,26)+'"/>';
-  h+='<g class="swimmer"><g class="bob"><ellipse class="sw" cx="0" cy="0" rx="46" ry="11"/><circle class="sw" cx="54" cy="-4" r="11"/><path class="sw arm" d="M8 -6 Q 30 -50 64 -32" fill="none" stroke-width="8" stroke-linecap="round"/><path class="sw" d="M-44 0 Q-70 8 -88 -2" fill="none" stroke-width="7" stroke-linecap="round"/></g></g>';
-  h+='<path class="wave w1" d="'+wp(430,22)+'"/><path class="wave w3" d="'+wp(470,18)+'"/>';
   $('spg').innerHTML=h;
+  $('spwb').innerHTML='<path class="wave w2" d="'+wp(345,14)+'"/>';
+  $('spwf').innerHTML='<path class="wave w1" d="'+wp(362,12)+'"/><path class="wave w3" d="'+wp(386,10)+'"/>';
 }
 function juryOn(st){
   var o=null;
@@ -460,6 +528,7 @@ function juryOn(st){
 function splUpdate(){
   if(!isJury)return;
   var b=$('splchkbox'),on=juryOn((S&&S.settings)||{});
+  $('spltest').onclick=splTest;
   b.checked=on;$('splchk').title=(dbI&&dbI.canEdit)?'Tussenscherm op de jurypagina (instelling van de server)':'Enkel in deze browser';
 }
 function splToggle(){
@@ -479,14 +548,46 @@ function splashAllowed(s){
   var st=s.settings||{};
   return st.splash_enabled!==false&&(!isJury||juryOn(st));
 }
+function splTest(){if(S)showSplash(S)}
+function splashNames(s){
+  var el=$('spn'),t=$('spnt');if(!el||!t)return;
+  var names=(s.lanes||[]).slice().sort(function(a,b){return a.lane-b.lane}).map(function(l){
+    return ((l.firstName||'')+' '+(l.lastName||'')).trim()||l.team||'';}).filter(Boolean);
+  if(!names.length){el.hidden=true;t.textContent='';return}
+  el.hidden=false;el.classList.remove('scroll');
+  var k=0,html=names.map(function(n){return '<span>'+n.split('').map(function(ch){return '<i style="--i:'+(k++)+'">'+(ch===' '?'&nbsp;':esc(ch))+'</i>'}).join('')+'</span>'}).join('');
+  t.innerHTML=html;
+  var availH=el.clientHeight||window.innerHeight*0.30;
+  if(el.clientWidth>0&&t.scrollHeight>availH+2){   // enkel meten als er layout is (zichtbaar venster)
+    t.innerHTML=html+html;el.classList.add('scroll');
+    var secs=parseFloat((s.settings||{}).splash_seconds)||5;
+    el.style.setProperty('--snd',($('splash').classList.contains('portrait')?Math.max(6,names.length*1.1):Math.max(4,secs*1.6))+'s');
+  }
+}
+window.__ltSplashNames=splashNames;window.__ltSplashTest=function(){if(S)showSplash(S)};
+
+function splashOrient(){
+  var sp=$('splash');if(!sp)return;
+  var por=window.innerHeight>window.innerWidth*1.1;
+  sp.classList.toggle('portrait',por);
+  // golven in staande stand minder samengedrukt: smaller zichtvenster op hetzelfde golfpatroon (periode 150)
+  Array.prototype.forEach.call(sp.querySelectorAll('svg.wv'),function(v){v.setAttribute('viewBox',por?'0 120 450 480':'0 0 1200 600')});
+  var g=sp.querySelector('svg.spb');if(g)g.setAttribute('viewBox',por?'300 0 600 600':'0 0 1200 600');
+  return por;
+}
+window.addEventListener('resize',function(){if($('splash')&&$('splash').classList.contains('on'))splashOrient()});
 function showSplash(s){
   var sp=$('splash'),e=s.event||{},h=s.heat||{},st=s.settings||{};
   var secs=parseFloat(st.splash_seconds);if(isNaN(secs))secs=2;secs=Math.max(0.5,Math.min(5,secs));
   splashBuild();
-  $('sp1').textContent=['Event '+(e.number||'?'),e.discipline].filter(Boolean).join(' · ');
-  $('sp2').textContent=(h.name||('Serie '+(h.number||'?')))+(h.startTime?' · gepland '+h.startTime:'');
-  sp.style.setProperty('--sd',secs+'s');
-  clearTimeout(splashT);sp.classList.remove('on');void sp.offsetWidth;sp.classList.add('on');
+  var por=splashOrient();
+  if(por){$('sp1').innerHTML='<span class="spe">Event '+esc(String(e.number||'?'))+'</span>'+esc(e.discipline||'')}
+  else $('sp1').textContent=['Event '+(e.number||'?'),e.discipline].filter(Boolean).join(' · ');
+  $('sp2').textContent=h.name||('Serie '+(h.number||'?'));
+  var sw=parseFloat(st.splash_swim_seconds);if(isNaN(sw))sw=2;sw=Math.max(0.5,Math.min(10,sw));
+  sp.style.setProperty('--sd',secs+'s');sp.style.setProperty('--swd',sw+'s');
+  clearTimeout(splashT);sp.classList.remove('on','run');void sp.offsetWidth;sp.classList.add('on','run');
+  splashNames(s);
   splashT=setTimeout(function(){sp.classList.remove('on')},secs*1000);
 }
 function heatKey(s){return s&&s.event&&s.heat?s.event.number+'/'+s.heat.number:''}
@@ -531,7 +632,7 @@ function sbox(l,d,fin){
 }
 function renderTable(){
   var w=$('tablewrap');
-  if(!S||!S.lanes||!S.lanes.length){w.innerHTML='<div class="nodata">Nog geen reeks actief.</div>';return}
+  if(!S||!S.lanes||!S.lanes.length){w.innerHTML='<div class="nodata">Nog geen reeks actief.</div>';fitPhone();return}
   var ls=sortedLanes(),dist=(S.heat&&S.heat.distance)||0,laps=(S.heat&&S.heat.laps)||0,D=[],ds={};
   function num(a,b){return a-b}
   if(isJury){
@@ -562,6 +663,7 @@ function renderTable(){
   });
   w.innerHTML=h+'</tbody></table>';
   if(kiosk())fitTable();
+  fitPhone();
 }
 function renderHead(){
   if(!S)return;
@@ -692,7 +794,12 @@ function frame(){
 }
 function applyState(s){
   if(!s)return;
+  (function(){var b=document.getElementById('simban');if(b){b.hidden=!s.simulated;if(phSim!==!!s.simulated){phSim=!!s.simulated;phKey=''}}})();
+  if(s.relay&&!$('relayLinks')){var ft=document.querySelector('footer');if(ft){var sp=document.createElement('span');sp.id='relayLinks';sp.style.marginRight='10px';
+    sp.innerHTML=isJury?'<a href="/callroom" style="color:inherit;margin-right:10px">oproepkamer</a><a href="/logout" style="color:inherit">afmelden</a>':'<a href="/jury" style="color:inherit">jury</a> · <a href="/callroom" style="color:inherit">oproepkamer</a>';
+    ft.insertBefore(sp,ft.lastElementChild)}}
   if(S&&heatKey(S)&&heatKey(s)&&heatKey(S)!==heatKey(s)&&splashAllowed(s))showSplash(s);
+  else if(S&&heatKey(S)===heatKey(s)&&$('splash').classList.contains('on'))splashNames(s);
   if(S&&heatKey(S)!==heatKey(s)){flashAt={};prevT={};firstState=true}
   if(firstState){(s.lanes||[]).forEach(function(l){(l.splits||[]).forEach(function(x){prevT[l.lane+'s'+x.distance]=x.time});prevT[l.lane+'f']=l.final});firstState=false}
   else detectFlash(s.lanes);
@@ -704,6 +811,32 @@ function applyState(s){
 function applyClock(c){if(!c)return;clk.status=c.status;clk.rt=c.rt;clk.at=performance.now()}
 
 var jury=true,jKey='';
+
+/* ---- telefoon: huidige reeks passend maken (publiek) ---- */
+function phone(){return !isJury&&(window.innerWidth<700||window.innerHeight<500)}
+var phKey='';var phSim=null;
+function fitPhone(force){
+  var b=document.body,on=phone();
+  b.classList.toggle('phone',on);
+  if(!on){b.classList.remove('nosp','nomem');document.getElementById('cur').style.removeProperty('--mf');phKey='';return}
+  var w=$('tablewrap'),cur=$('cur');if(!w||!cur)return;
+  var chips=w.querySelectorAll('.sc').length,rows=w.querySelectorAll('tbody tr').length;
+  var key=innerWidth+'x'+innerHeight+'|'+rows+'|'+chips+'|'+($('title')?$('title').textContent:'')+'|'+(!$('nextbar').hidden);
+  if(!force&&key===phKey)return;phKey=key;
+  var sb=$('simban'),limit=window.innerHeight-6-(sb&&!sb.hidden?sb.offsetHeight:0);
+  function bottom(){var r=w.getBoundingClientRect();return r.bottom+window.scrollY}
+  function fits(){return bottom()<=limit&&document.documentElement.scrollWidth<=window.innerWidth+1}
+  function fitFont(min,max){var f=max;cur.style.setProperty('--mf',f+'px');while(!fits()&&f>min){f-=0.5;cur.style.setProperty('--mf',f+'px')}return fits()}
+  var max=Math.min(30,Math.max(16,window.innerWidth/18));
+  b.classList.remove('nosp','nomem');
+  if(fitFont(12.5,max))return;            // alles tonen (met tussentijden)
+  b.classList.add('nomem');
+  if(fitFont(12.5,max))return;            // aflossingsleden weg
+  b.classList.add('nosp');
+  fitFont(11,max);                        // enkel baan, naam, eindtijd, plaats
+}
+window.addEventListener('resize',function(){setTimeout(function(){fitPhone(true)},120)});
+window.addEventListener('orientationchange',function(){setTimeout(function(){fitPhone(true)},300)});
 function kiosk(){return (isJury||pubSplit)&&jury&&window.matchMedia('(min-width:1000px)').matches}
 function fitBox(box,key,start,min,max){
   var f=start;
@@ -818,6 +951,7 @@ if(true){
     else if(k==='t')$('themebtn').click();
     else if(k==='j'&&isJury)setJury(!jury);
     else if(k==='x'&&isJury)splToggle();
+    else if(k==='v'&&isJury)splTest();
     else if(k==='b')setSort('lane');
     else if(k==='p')setSort('rank');
     else if(k==='s')setSort('auto');
@@ -848,10 +982,18 @@ function renderHist(){
   });
   $('hlist').innerHTML=out||'<div class="nodata">'+(H.length?'Geen resultaten voor deze zoekterm.':'Nog geen afgelopen reeksen.')+'</div>';
 }
+function staleText(s){
+  var ago=(s&&(s.relayAgo!=null||s.lastPacketAgo!=null))?Math.max(s.relayAgo||0,s.lastPacketAgo||0):null;
+  if(ago==null)return 'Nog geen gegevens ontvangen van het tijdsysteem.';
+  var t=new Date(Date.now()-ago*1000),hm=('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2);
+  var d=(Date.now()-ago*1000<new Date().setHours(0,0,0,0))?t.toLocaleDateString('nl-BE')+' ':'';
+  return 'Geen nieuwe gegevens sinds '+d+hm+' – je ziet de laatst ontvangen stand.';
+}
 function setConn(ok){
   conn=ok;
   var nodata=ok&&S&&S.connected===false;
   $('bnConn').hidden=ok;$('bnData').hidden=!nodata;
+  if(nodata)$('bnData').textContent=staleText(S);
   $('dot').className='dot'+(ok&&!nodata?' ok':'');
   $('cstat').textContent=!ok?'Verbinding verbroken':(nodata?'Server verbonden, geen data van tijdsysteem':'Verbonden');
 }
@@ -864,7 +1006,7 @@ document.querySelectorAll('.seg button').forEach(function(b){b.addEventListener(
 $('hsearch').addEventListener('input',renderHist);
 setSort(sortMode);
 $('tablewrap').addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('th[data-sort]');if(t)setSort(t.dataset.sort)});
-if(isJury){$('splchk').hidden=false;$('splchkbox').addEventListener('change',splToggle);splUpdate()}
+if(isJury){$('splchk').hidden=false;$('spltest').hidden=false;$('splchkbox').addEventListener('change',splToggle);splUpdate()}
 {
   var vl=document.querySelector('.toolbar>span');if(vl)vl.remove();
   var sg=document.querySelector('.seg'),tbr=document.querySelector('.tbr'),lab={auto:'Scorebord',lane:'Baan',rank:'Plaats'};
@@ -875,12 +1017,21 @@ if(isJury){$('splchk').hidden=false;$('splchkbox').addEventListener('change',spl
 function live(){
   fetch('/state'+Q).then(function(r){return r.json()}).then(applyState).catch(function(){});
   fetch('/history'+Q).then(function(r){return r.json()}).then(applyHistory).catch(function(){});
-  var es=new EventSource('/events'+Q);
-  es.onopen=function(){setConn(true)};
+  /* live-verbinding: zelf opnieuw opbouwen als de browser opgeeft (bv. foutpagina van een proxy tijdens een storing)
+     of als er lang niets binnenkomt; de server stuurt elke paar seconden iets zolang hij leeft */
+  var es=null,lastEv=Date.now();
+  function openES(){try{if(es)es.close()}catch(x){}
+  es=new EventSource('/events'+Q);
+  es.onopen=function(){lastEv=Date.now();setConn(true)};
   es.onerror=function(){setConn(false)};
-  es.addEventListener('state',function(e){try{conn=true;applyState(JSON.parse(e.data))}catch(x){}});
-  es.addEventListener('clock',function(e){try{applyClock(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('state',function(e){try{if(window.InfoScreen){var _s=JSON.parse(e.data);InfoScreen.setConnected(!!(_s&&_s.connected))}conn=true;applyState(JSON.parse(e.data))}catch(x){}});
+  es.addEventListener('clock',function(e){try{var c=JSON.parse(e.data);applyClock(c);if(window.InfoScreen)InfoScreen.setLive(c&&c.status==='running')}catch(x){}});
+  es.addEventListener('info',function(e){try{if(window.InfoScreen&&!/view=jury/.test(Q))InfoScreen.apply(JSON.parse(e.data))}catch(x){}});
   es.addEventListener('history',function(e){try{applyHistory(JSON.parse(e.data))}catch(x){}});
+  ['state','clock','history','info'].forEach(function(t){es.addEventListener(t,function(){lastEv=Date.now()})})}
+  openES();
+  setInterval(function(){if(!es||es.readyState===2||Date.now()-lastEv>90000){lastEv=Date.now();openES();
+    fetch('/state'+Q,{cache:'no-store'}).then(function(r){return r.json()}).then(applyState).catch(function(){})}},5000);
 }
 
 function demoRun(){
@@ -924,7 +1075,7 @@ function demoRun(){
       var layout=done?'RankOriented':(el>base[0]*0.3?'LaneOriented':'Startlist');
       var clock={status:done?'idle':(running?'running':'ready'),rt:running&&!done?el:null};
       conn=true;
-      applyState(vS({view:'jury',showing:done?'previous':'current',next:done?nextH:null,issues:[],officialDistances:[50,100,150,200,250,300,350],settings:{show_clock:true,show_reaction:true,show_manual:true,show_suspect:true,show_peer:true,max_peer_panel_diff_s:0.3,public_split_layout:true,splash_enabled:true,splash_seconds:2,splash_jury:true,overview_heats:1,jury_split_left_pct:67},connected:true,lastPacketAgo:0.1,meet:meet,event:ev,heat:heat,layout:layout,clock:clock,records:recs,lanes:lanes}));
+      applyState(vS({view:'jury',showing:done?'previous':'current',next:done?nextH:null,issues:[],officialDistances:[50,100,150,200,250,300,350],settings:{show_clock:true,show_reaction:true,show_manual:true,show_suspect:true,show_peer:true,max_peer_panel_diff_s:0.3,public_split_layout:true,splash_enabled:true,splash_seconds:2,splash_swim_seconds:2,splash_jury:true,overview_heats:1,jury_split_left_pct:67},connected:true,lastPacketAgo:0.1,meet:meet,event:ev,heat:heat,layout:layout,clock:clock,records:recs,lanes:lanes}));
       if(done&&!ended){ended=true;clearInterval(iv);
         var iss=[];lanes.forEach(function(l){var nm='Baan '+l.lane+' – '+name(l);
           if(l.finalManual)iss.push({lane:l.lane,severity:'fout',type:'manueel',text:nm+': eindtijd '+fmt(l.final)+' manueel opgehoogd (geen paneeltijd)'});
@@ -968,5 +1119,7 @@ document.title=isJury?'Jury – Live timing':'Live uitslagen';
 if(demo){document.title+=' (demo)';demoRun()}else live();
 })();
 </script>
+<script src="/infoscreen.js"></script>
+<script>if(!/\/jury/.test(location.pathname)&&window.InfoScreen)InfoScreen.init({page:'publiek'})</script>
 </body>
 </html>

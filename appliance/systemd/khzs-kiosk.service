@@ -1,0 +1,35 @@
+[Unit]
+Description=KHZS Timing – HDMI-scherm (Chromium kiosk)
+After=systemd-user-sessions.service khzs-timing.service plymouth-quit-wait.service
+Wants=khzs-timing.service
+Conflicts=getty@tty1.service
+
+[Service]
+User=kiosk
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=KIOSK_URL=http://localhost/jury
+Environment=KIOSK_ZOOM=1.0
+Environment=KIOSK_MODE=auto
+Environment=KIOSK_ROTATE=0
+EnvironmentFile=-/var/lib/khzs/kiosk.env
+# wachten tot de server antwoordt (max. 60 s) zodat het scherm niet met een foutpagina start
+ExecStartPre=/usr/bin/python3 /opt/khzs/agent/wait_server.py
+ExecStart=/usr/bin/cage -d -s -- /usr/bin/python3 /opt/khzs/agent/kiosk_start.py --kiosk --noerrdialogs --disable-infobars --no-first-run \
+  --disable-session-crashed-bubble --disable-features=Translate,TouchpadOverscrollHistoryNavigation \
+  --password-store=basic --check-for-update-interval=31536000 --ozone-platform=wayland \
+  --remote-debugging-port=9222 --remote-allow-origins=http://localhost:9222 \
+  --user-data-dir=/home/kiosk/.config/khzs-kiosk --force-device-scale-factor=${KIOSK_ZOOM} ${KIOSK_URL}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target multi-user.target

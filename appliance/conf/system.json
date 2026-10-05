@@ -1,0 +1,6 @@
+{
+ "hotspot": {"ssid": "KHZS-Timing", "password": "zwemclub", "after_s": 60},
+ "device": {"name": "khzs-timing", "role": "uit", "display_url": "https://timing.khzs.be/callroom", "display_key": ""},
+ "kiosk": {"enabled": true, "url": "http://localhost/jury", "zoom": 1.0},
+ "update": {"auto": false, "repo": "DinXke/KHZS-timing", "token": "", "idle_min": 15}
+}
