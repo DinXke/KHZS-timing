@@ -97,7 +97,7 @@ def main():
     n0 = wintypes.DWORD()
     if not k32.WriteFile(h, zero, len(zero), ctypes.byref(n0), None):
         fail("oude partitietabel wissen")
-    total, t0, n = 0, time.time(), wintypes.DWORD()
+    total, skipped, t0, n = 0, 0, time.time(), wintypes.DWORD()
     try:
         while True:
             buf = src.read(CHUNK)
@@ -111,11 +111,17 @@ def main():
                 first = buf
                 if not k32.SetFilePointerEx(h, len(buf), None, 0):
                     fail("verder spoelen")
+            elif total >= VERIFY and not buf.strip(bytes(1)):
+                # leeg stuk (vrije ruimte in het bestandssysteem): overslaan, zoals Etcher/bmaptool
+                if not k32.SetFilePointerEx(h, len(buf), None, 1):
+                    fail("leeg stuk overslaan")
+                skipped += len(buf)
             elif not k32.WriteFile(h, buf, len(buf), ctypes.byref(n), None) or n.value != len(buf):
                 fail(f"schrijven op {total / 2**20:.0f} MB")
             total += len(buf)
             mb = total / 2**20
-            sys.stdout.write(f"\r  {mb:7.0f} MB geschreven  ({mb / max(1e-6, time.time() - t0):5.1f} MB/s)")
+            sys.stdout.write(f"\r  {mb:7.0f} van het image verwerkt, {skipped / 2**20:5.0f} MB leeg overgeslagen  "
+                             f"({(total - skipped) / 2**20 / max(1e-6, time.time() - t0):5.1f} MB/s schrijven)")
             sys.stdout.flush()
         # nu pas de partitietabel: Windows herkent de nieuwe partities pas als alles erop staat
         if first is not None:
