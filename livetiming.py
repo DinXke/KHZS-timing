@@ -33,7 +33,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -2379,7 +2379,7 @@ def make_handler(state, hub, relay=None):
                 relay.clear()
                 print("cache gewist via beheer")
                 return self._json({"ok": True})
-            if not (sub in ("/status", "/logs", "/restart", "/update", "/console/open", "/console/password")
+            if not (sub in ("/status", "/logs", "/restart", "/update", "/update/github", "/console/open", "/console/password")
                     or re.fullmatch(r"/console/[A-Za-z0-9_-]{20,64}/(read|write|resize|close)", sub)):
                 return self._json({"ok": False, "error": "onbekend"}, 404)
             who = (self.headers.get("X-Who", "?")[:40] + " via " +
@@ -2457,6 +2457,13 @@ def make_handler(state, hub, relay=None):
                     return self._json({"ok": True, "req": req})
                 if path0.startswith("/admin/"):
                     return self._admin("POST")
+                if path0 == "/api/cloud-update":
+                    # beheerder van de cloudserver: zichzelf bijwerken naar de nieuwste GitHub-release
+                    origin = self.headers.get("Origin") or ""
+                    if not self._cloud_admin() or (origin and urllib.parse.urlsplit(origin).netloc != (self.headers.get("Host") or "")):
+                        return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
+                    code, data, ctype = cloud_agent_call("POST", "/update/github", b"{}", {"X-Who": "beheer cloudserver"}, timeout=240)
+                    return self._send(code, data, ctype)
                 if path0 == "/api/info":
                     # beheer op de cloudserver zelf (zonder kastje); Origin moet deze site zijn
                     origin = self.headers.get("Origin") or ""
@@ -2904,6 +2911,25 @@ class SimHost:
         o["speed"] = max(0.25, min(64.0, float(o["speed"])))
         return o
 
+    STATE_FILE = None
+
+    def _remember(self, running, over=None):
+        """Lopende simulator onthouden: na een herstart van de server (rol, update, stroom) loopt hij gewoon verder."""
+        try:
+            with open(os.path.join(DATA, "simulator.json"), "w", encoding="utf-8") as f:
+                json.dump({"running": running, "options": over or {}}, f)
+        except OSError:
+            pass
+
+    def resume(self):
+        try:
+            d = json.load(open(os.path.join(DATA, "simulator.json"), encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if d.get("running"):
+            print("simulator liep voor de herstart: opnieuw gestart")
+            self.start(d.get("options") or {})
+
     def start(self, over=None):
         err = self.available()
         if err:
@@ -2919,6 +2945,7 @@ class SimHost:
             for fn in (eng.heartbeat, eng.loop):
                 threading.Thread(target=fn, daemon=True).start()
             self.eng, self.started, self.opts = eng, time.time(), o
+            self._remember(True, over)
             print(f"ingebouwde simulator gestart: {len(eng.prog.events)} wedstrijden, {len(eng.order)} reeksen, x{eng.speed:g}")
         return True, None
 
@@ -2927,6 +2954,8 @@ class SimHost:
         if eng is not None:
             eng.quit = True
             self.last_stop = {"at": time.time(), "why": why}
+            if why:                                  # bewust gestopt (beheer of echte gegevens): niet hervatten
+                self._remember(False)
             if why:
                 print("ingebouwde simulator gestopt:", why)
 
@@ -3194,6 +3223,8 @@ def main():
         INTAKE = intake
         if SETTINGS.get("sim_autostart"):
             threading.Timer(3.0, SIM.start).start()
+        else:
+            threading.Timer(3.0, SIM.resume).start()
         fport = args.feed_port if args.feed_port is not None else int(SETTINGS.get("feed_port") or 0)
         if fport:
             threading.Thread(target=feed_listener, args=(intake, SETTINGS.get("feed_bind") or "127.0.0.1", fport),

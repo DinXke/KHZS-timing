@@ -331,6 +331,7 @@ const TABS=[
  {id:'cloud',ic:'🛰',t:'Cloudserver'},
  {g:'Kastje',pi:1},
  {id:'rol',ic:'🎛',t:'Rol & scherm',pi:1},
+ {id:'scherm',ic:'📺',t:'Scherm bekijken',pi:1},
  {id:'netwerk',ic:'🌐',t:'Netwerk & router',pi:1},
  {id:'portal',ic:'🔑',t:'Hotspot-login',pi:1},
  {id:'schijven',ic:'🗄',t:'Netwerkschijven',pi:1},
@@ -355,6 +356,7 @@ function showTab(){let id=(location.hash||(relayMode?'#info':'#overzicht')).slic
   if(id==='schijven')loadShares();
   if(id==='netwerk'&&$('dhLeases'))dhLoad();
   if(id==='rol')loadPeers();
+  if(id==='scherm')scStart();else scStop();
   if(id==='gebruikers')loadUsers();if(id==='updates')loadUpdates();if(id==='portal')portalShow();else portalStop(false);
   window.scrollTo(0,0)}
 window.addEventListener('hashchange',showTab);
@@ -395,7 +397,7 @@ function pages(){
    '<div id="imSched"></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="imAdd" type="button">＋ Wedstrijd toevoegen</button>'+
    '<label style="display:flex;gap:8px;align-items:center">Volgende wedstrijd tonen vanaf <input type="number" id="imDays" min="0" max="90" value="7" style="width:70px"> dagen vooraf</label></div></div>'+
   '<div class="card"><h2>Voorbeeld</h2><div class="ipv" id="imPv"><iframe id="imFrame" title="Voorbeeld infoscherm" tabindex="-1"></iframe></div></div>';
- if(relayMode)P.kastjes='<h1>Kastjes</h1><p class="lead">Lokale servers en schermkastjes met <b>beheer op afstand</b> aan. Je opent hun beheer hier via een tunnel over HTTPS; de beheerderscode van het kastje blijft nodig.</p><div class="card"><div id="kjBoxes" class="muted">…</div><div style="margin-top:12px"><button class="btn" id="kjBoxRefresh">↻ Vernieuwen</button></div></div>';
+ if(relayMode)P.kastjes='<div class="card"><h2>Deze cloudserver</h2><p class="desc">Zichzelf bijwerken naar de nieuwste release op GitHub (zelftest, terug naar de vorige als het niet werkt).</p><button class="btn pri" id="kjCloudGh" type="button">⬆ Bijwerken van GitHub</button></div>'+'<h1>Kastjes</h1><p class="lead">Lokale servers en schermkastjes met <b>beheer op afstand</b> aan. Je opent hun beheer hier via een tunnel over HTTPS; de beheerderscode van het kastje blijft nodig.</p><div class="card"><div id="kjBoxes" class="muted">…</div><div style="margin-top:12px"><button class="btn" id="kjBoxRefresh">↻ Vernieuwen</button></div></div>';
  if(relayMode)P.kijkers='<h1>Kijkers</h1><p class="lead">Bezoekers van deze publieke server.</p><div class="card"><div id="clStats" class="muted">…</div><div style="margin-top:12px"><button class="btn" id="kjRefresh">↻ Vernieuwen</button></div></div>';
  P.controles='<h1>Controles</h1><p class="lead">Drempels voor markeringen in de jurymodus.</p>'+
   fieldsCard('Tijden','',['manual_threshold_s','official_split_distances','relay_min_takeover_s','max_peer_panel_diff_s'])+
@@ -421,7 +423,7 @@ function pages(){
   fieldsCard('Veiligheid en demo','',['sim_stop_on_real','sim_autostart']);
  P.cloud='<h1>Cloudserver</h1><p class="lead">De publieke server (bv. timing.khzs.be) beheren via dit toestel. Alles loopt over HTTPS met het token van Doorsturen – ook op wifi waar enkel het web open is.</p>'+
   '<div class="card"><h2>Status</h2><div id="clStat" class="muted">…</div>'+
-  '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="clRefresh">↻ Vernieuwen</button><button class="btn pri" id="clUpdate">⬆ Bijwerken naar deze versie</button><button class="btn" id="clRelease" title="De kastjes kunnen dit pakket daarna ophalen (Updates › Van de publieke server)">📦 Pakket aanbieden aan de kastjes</button>'+
+  '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="clRefresh">↻ Vernieuwen</button><button class="btn pri" id="clUpdate">⬆ Bijwerken naar deze versie</button><button class="btn" id="clGithub" title="De cloudserver haalt zelf de nieuwste release van GitHub">⬆ Bijwerken van GitHub</button><button class="btn" id="clRelease" title="De kastjes kunnen dit pakket daarna ophalen (Updates › Van de publieke server)">📦 Pakket aanbieden aan de kastjes</button>'+
   '<button class="btn" id="clRestart">Live timing herstarten</button><button class="btn" id="clRestartCf">Tunnel herstarten</button><button class="btn danger" id="clClear">Laatste stand wissen</button></div></div>'+
   '<div class="card"><h2>Kijkers</h2><p class="desc">Op de publieke server. Unieke bezoekers worden geteld zonder IP-adressen te bewaren (hash met dagelijks wisselend zout).</p><div id="clStats" class="muted">…</div></div>'+
   '<div class="card"><h2>Instellingen van de cloudserver</h2><p class="desc">De weergave-instellingen (tussenscherm, oproepkamer, …) gaan automatisch mee met de live stand. Hier staat wat enkel op de cloudserver leeft.</p>'+
@@ -439,6 +441,15 @@ function pages(){
   '<div class="card"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn pri" id="lcOpen">⌨ Console openen</button><button class="btn danger hide" id="lcClose">Console sluiten</button><span id="lcStat" class="muted"></span></div>'+
   '<div class="chips" id="lcCmds" style="margin-top:12px">'+[['khzs status','Status'],['khzs logs all -n 80','Logboek'],['khzs net','Netwerk'],['khzs wifi scan','Wi-Fi'],['khzs diag','Diagnose'],['htop','htop'],['df -h','Schijf']].map(x=>'<button class="btn sm" data-cmd="'+esc(x[0])+'" title="'+esc(x[0])+'">'+x[1]+'</button>').join('')+'</div>'+
   '<div class="term hide" id="lcTerm"></div></div>';
+ P.scherm='<h1>Scherm bekijken</h1><p class="lead">Live wat er op de HDMI-uitgang staat – klik, scrol en typ om het scherm te bedienen (ook via de cloudserver).</p>'+
+  '<div class="card"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'+
+   '<button class="btn" id="scReload" type="button">↻ Herladen</button><button class="btn" id="scHome" type="button">🏠 Startpagina</button>'+
+   '<select id="scTheme" title="Thema op het scherm"><option value="auto">Thema: automatisch</option><option value="dark">Thema: donker</option><option value="light">Thema: licht</option></select>'+
+   '<label class="chk"><input type="checkbox" id="scLive" checked> Live</label><span id="scInfo" class="muted" style="font-size:12.5px"></span></div>'+
+   '<div id="scBox" style="background:#000;border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:120px;display:flex;align-items:center;justify-content:center;color:#888">Laden…</div>'+
+   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><input type="text" id="scText" placeholder="Tekst typen op het scherm…" style="flex:1;min-width:180px"><button class="btn" id="scSend" type="button">Typen</button>'+
+   ['Enter','Tab','Escape','Backspace','PageDown','PageUp','F5'].map(k=>'<button class="btn sm" type="button" data-sckey="'+k+'">'+k+'</button>').join('')+'</div>'+
+   '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><input type="text" id="scUrl" placeholder="Naar een adres gaan, bv. https://timing.khzs.be/callroom" style="flex:1;min-width:220px"><button class="btn" id="scGo" type="button">Openen</button></div></div>';
  P.schijven='<h1>Netwerkschijven</h1><p class="lead">Windows-shares (bv. de SwimTime-pc) koppelen op dit kastje – altijd <b>alleen-lezen</b>: het kastje kan er technisch niets schrijven, ook geen lockbestanden.</p>'+
   '<div class="card"><h2>Gekoppelde shares</h2><div id="shList" class="muted">…</div><div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn pri" id="shAdd">＋ Share toevoegen</button><button class="btn" id="shReload">↻ Vernieuwen</button></div></div>'+
   '<div class="card hide" id="shBrowse"><h2 id="shBTitle">Bestanden</h2><p class="desc">Kies het SwimTime-bestand (.mdb). Het wordt de database van de live timing.</p><div id="shFiles"></div></div>';
@@ -459,6 +470,7 @@ function pages(){
    '<div class="sub-f"><div><label>Vergroting scherm</label><select id="kZoom">'+[.75,1,1.25,1.5,1.75,2].map(z=>'<option value="'+z+'">'+z+'×</option>').join('')+'</select></div>'+
    '<div><label>HDMI-scherm</label><label class="sw" style="margin-top:4px"><input type="checkbox" id="kOn"><span></span></label></div></div>'+
    '<div class="sub-f"><div><label>Resolutie</label><select id="kMode">'+[['auto','Automatisch (voorkeur van de tv)'],['1920x1080','1920 × 1080 (Full HD)'],['1680x1050','1680 × 1050'],['1600x900','1600 × 900'],['1366x768','1366 × 768'],['1280x1024','1280 × 1024'],['1280x720','1280 × 720 (HD)'],['1024x768','1024 × 768'],['1920x1200','1920 × 1200']].map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select></div>'+
+   '<div><label>Thema op het scherm</label><select id="kTheme"><option value="auto">Automatisch</option><option value="dark">Donker</option><option value="light">Licht</option></select></div>'+
    '<div><label>Draaiing</label><select id="kRot"><option value="0">Liggend (normaal)</option><option value="90">Staand – 90°</option><option value="270">Staand – 270°</option><option value="180">Ondersteboven – 180°</option></select></div></div>'+
    '<p class="desc" style="margin:6px 0 0">Automatisch past zich aan elk scherm aan, ook als je later een andere tv aansluit. Alle pagina\'s schalen mee; met "Vergroting" maak je tekst groter of kleiner.</p>'+
    '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" id="roleSave">Toepassen</button><button class="btn" id="kRestart">Scherm herladen</button></div></div>';
@@ -588,7 +600,7 @@ function fillRole(){
   document.querySelectorAll('#roleSel button').forEach(b=>b.classList.toggle('on',b.dataset.r===roleSel));
   $('devName').value=sys.hostname;$('devNameLocal').textContent=sys.hostname+'.local';
   const known=['http://localhost/jury','http://localhost/','http://localhost/callroom'];$('kPage').value=known.indexOf(k.url)>=0?k.url:'custom';$('kCustom').value=k.url||'';
-  $('kZoom').value=String(k.zoom||1);$('kOn').checked=k.enabled!==false;$('kMode').value=k.mode||'auto';$('kRot').value=String(k.rotate||0);
+  $('kZoom').value=String(k.zoom||1);$('kOn').checked=k.enabled!==false;$('kMode').value=k.mode||'auto';$('kRot').value=String(k.rotate||0);$('kTheme').value=k.theme||'auto';
   const u=d.display_url||'';let src='custom',lan='',page='/callroom';
   if(u.indexOf('auto')===0){src='auto';page=u.slice(5)||'/callroom'}
   else try{const x=new URL(u);if(x.host==='timing.khzs.be'){src='pub';page=x.pathname}else if(x.protocol==='http:'){src='lan';lan=x.host;page=x.pathname}}catch(e){}
@@ -606,7 +618,7 @@ function wireRole(){
   $('roleSave').onclick=e=>act(e.target,async()=>{
     const s=$('sSrc').value,url=s==='auto'?'auto:'+$('sPage').value:s==='pub'?'https://timing.khzs.be'+$('sPage').value:s==='lan'?'http://'+$('sLan').value.trim().replace(/^https?:\/\//,'').replace(/\/$/,'')+$('sPage').value:$('sCustom').value.trim();
     const kurl=$('kPage').value==='custom'?$('kCustom').value.trim():$('kPage').value;
-    await api('/api/system/kiosk',{json:{url:kurl||'http://localhost/jury',zoom:parseFloat($('kZoom').value),mode:$('kMode').value,rotate:parseInt($('kRot').value,10),enabled:$('kOn').checked}});
+    await api('/api/system/kiosk',{json:{url:kurl||'http://localhost/jury',zoom:parseFloat($('kZoom').value),mode:$('kMode').value,rotate:parseInt($('kRot').value,10),theme:$('kTheme').value,enabled:$('kOn').checked}});
     const body={role:roleSel,display_url:url,display_backup_url:$('sBackup').value.trim(),name:$('devName').value.trim()};if($('sKey').value)body.display_key=$('sKey').value;
     await api('/api/system/device',{json:body});$('sKey').value='';sys=await api('/api/system/status');fillRole()},'Toegepast – het scherm laadt opnieuw');
   $('kRestart').onclick=e=>act(e.target,()=>api('/api/system/kiosk/restart',{json:{}}),'Scherm herladen');
@@ -903,6 +915,8 @@ function wireCloud(){if(!$('clStat'))return;
   $('clRefresh').onclick=()=>loadCloud();
   $('clUpdate').onclick=()=>confirmBox('Cloudserver bijwerken','De cloudserver krijgt de code van dit toestel. Eerst een zelftest; antwoordt de nieuwe versie niet, dan gaat hij vanzelf terug naar de vorige. Bezoekers merken een onderbreking van enkele seconden.','Bijwerken',
     ()=>act($('clUpdate'),async()=>{const r=await api('/api/cloud/update-self',{method:'POST',json:{}});modal('Cloudserver bijgewerkt','<pre class="logs">'+esc((r.log||[]).join('\n'))+'</pre>');setTimeout(loadCloud,2500)}));
+  $('clGithub').onclick=()=>confirmBox('Cloudserver bijwerken van GitHub','De cloudserver haalt de nieuwste GitHub-release, test ze en schakelt over (terug naar de vorige als ze niet werkt).','Bijwerken',
+    ()=>act($('clGithub'),async()=>{const r=await api('/api/cloud/update/github',{method:'POST',json:{}});modal('Cloudserver bijgewerkt','<pre class="logs">'+esc((r.log||[]).join('\n'))+'</pre>');setTimeout(loadCloud,2500)}));
   $('clRelease').onclick=()=>act($('clRelease'),async()=>{const r=await api('/api/cloud/release-upload',{method:'POST',json:{}});return r},'Pakket staat klaar voor de kastjes');
   $('clRestart').onclick=()=>confirmBox('Live timing herstarten','De dienst op de cloudserver herstart (enkele seconden onderbreking).','Herstarten',()=>act(null,async()=>{await api('/api/cloud/restart',{json:{unit:'livetiming'}});setTimeout(loadCloud,4000)},'Herstart gevraagd'));
   $('clRestartCf').onclick=()=>confirmBox('Tunnel herstarten','cloudflared herstart: de site is enkele seconden onbereikbaar, ook dit beheer.','Herstarten',()=>act(null,async()=>{await api('/api/cloud/restart',{json:{unit:'cloudflared'}});setTimeout(loadCloud,8000)},'Herstart gevraagd'));
@@ -1030,13 +1044,41 @@ function wireInfo(){if(!$('imModes'))return;
   $('imShow').onclick=e=>send(imSel,e.target);$('imOff').onclick=e=>send('off',e.target);
   window.addEventListener('resize',imScale)}
 
+/* ---------------------------------------------------------------- HDMI-scherm bekijken en bedienen */
+let scTimer=null,scBusy=false,scObj=null,scScale=1,scOn=false;
+async function scShot(){if(scBusy||!scOn)return;scBusy=true;try{const r=await fetch('/api/system/kiosk/screenshot',{headers:hdr(),cache:'no-store'});
+  if(!r.ok){let m='geen beeld';try{m=(await r.json()).error||m}catch(e){}throw new Error(m)}
+  scScale=parseFloat(r.headers.get('X-Scale'))||1;const url=decodeURIComponent(r.headers.get('X-Url')||'');
+  const b=await r.blob();if(scObj)URL.revokeObjectURL(scObj);scObj=URL.createObjectURL(b);
+  let img=$('scImg');if(!img){$('scBox').innerHTML='<img id="scImg" alt="HDMI-scherm" style="max-width:100%;display:block;cursor:crosshair" tabindex="0">';img=$('scImg');
+    img.onclick=e=>scMouse(e,'click');img.oncontextmenu=e=>{e.preventDefault();scMouse(e,'click','right')};
+    img.addEventListener('wheel',e=>{e.preventDefault();const p=scPos(e);api('/api/system/kiosk/scroll',{json:{x:p.x,y:p.y,dy:e.deltaY}}).then(()=>setTimeout(scShot,150)).catch(()=>{})},{passive:false});
+    img.addEventListener('keydown',e=>{if(e.key.length===1)api('/api/system/kiosk/type',{json:{text:e.key}}).catch(()=>{});else api('/api/system/kiosk/key',{json:{key:e.key}}).catch(()=>{});e.preventDefault()})}
+  img.src=scObj;$('scInfo').textContent=url;if(document.activeElement!==$('scUrl')&&!$('scUrl').value)$('scUrl').placeholder=url||'adres';
+}catch(e){$('scBox').textContent=e.message}finally{scBusy=false}}
+function scPos(e){const img=$('scImg'),r=img.getBoundingClientRect();return {x:(e.clientX-r.left)*img.naturalWidth/r.width/scScale,y:(e.clientY-r.top)*img.naturalHeight/r.height/scScale}}
+function scMouse(e,kind,button){const p=scPos(e);$('scImg').focus();api('/api/system/kiosk/'+kind,{json:{x:p.x,y:p.y,button:button||'left'}}).then(()=>setTimeout(scShot,250)).catch(x=>toast(x.message,'err'))}
+function scStart(){scOn=true;clearInterval(scTimer);scShot();scTimer=setInterval(()=>{if(!document.hidden&&$('scLive').checked)scShot()},1200);
+  const k=(sys&&sys.kiosk)||{};if($('scTheme'))$('scTheme').value=k.theme||'auto'}
+function scStop(){scOn=false;clearInterval(scTimer)}
+function wireScreen(){if(!$('scBox'))return;
+  $('scReload').onclick=()=>api('/api/system/kiosk/reload',{json:{}}).then(()=>setTimeout(scShot,800)).catch(e=>toast(e.message,'err'));
+  $('scHome').onclick=()=>api('/api/system/kiosk/home',{json:{}}).then(()=>setTimeout(scShot,1200)).catch(e=>toast(e.message,'err'));
+  $('scSend').onclick=()=>{const t=$('scText').value;if(!t)return;api('/api/system/kiosk/type',{json:{text:t}}).then(()=>{$('scText').value='';setTimeout(scShot,300)}).catch(e=>toast(e.message,'err'))};
+  $('scText').onkeydown=e=>{if(e.key==='Enter')$('scSend').click()};
+  document.querySelectorAll('[data-sckey]').forEach(b=>b.onclick=()=>api('/api/system/kiosk/key',{json:{key:b.dataset.sckey}}).then(()=>setTimeout(scShot,300)).catch(e=>toast(e.message,'err')));
+  $('scGo').onclick=()=>{const u=$('scUrl').value.trim();if(!u)return;api('/api/system/kiosk/navigate',{json:{url:u}}).then(()=>{$('scUrl').value='';setTimeout(scShot,1500)}).catch(e=>toast(e.message,'err'))};
+  $('scTheme').onchange=()=>act(null,async()=>{const k=(sys&&sys.kiosk)||{};await api('/api/system/kiosk',{json:{url:k.url||'http://localhost/jury',zoom:k.zoom||1,mode:k.mode||'auto',rotate:k.rotate||0,enabled:k.enabled!==false,theme:$('scTheme').value}});
+    sys=await api('/api/system/status');setTimeout(scShot,4000)},'Thema ingesteld (het scherm herstart even)')}
+
 /* ---------------------------------------------------------------- opstart */
 async function boot(){
   try{await loadSettings()}catch(e){toast('Instellingen niet geladen: '+e.message,'err')}
   sys=null;try{const r=await fetch('/api/system/status',{headers:hdr()});const d=await r.json();if(r.ok&&d.hostname)sys=d;else sysLocked=!!d.locked}catch(e){}
   buildNav();pages();fillFields();wireData();
   if(sys){wireRole();fillRole();wireNet();renderNet(true);wirePortal();wireUsers();wireUpdates();renderSys()}
-  wireSystem();wireSim();wireCloud();wireShares();wireLocalConsole();wireInfo();if($('kjRefresh'))$('kjRefresh').onclick=()=>loadCloudStats();if($('kjBoxRefresh'))$('kjBoxRefresh').onclick=()=>loadBoxes();loadData();showTab();refreshStatus();
+  wireSystem();wireSim();wireCloud();wireShares();wireLocalConsole();wireInfo();wireScreen();if($('kjRefresh'))$('kjRefresh').onclick=()=>loadCloudStats();if($('kjBoxRefresh'))$('kjBoxRefresh').onclick=()=>loadBoxes();
+  if($('kjCloudGh'))$('kjCloudGh').onclick=()=>confirmBox('Cloudserver bijwerken van GitHub','Bezoekers merken een onderbreking van enkele seconden.','Bijwerken',()=>act($('kjCloudGh'),async()=>{const r=await api('/api/cloud-update',{method:'POST',json:{}});modal('Bijgewerkt','<pre class="logs">'+esc((r.log||[]).join('\n'))+'</pre>')}));loadData();showTab();refreshStatus();
 }
 setInterval(()=>{if(!document.hidden){refreshStatus();loadSim()}},5000);
 setInterval(()=>{if(!document.hidden&&$('dbStat'))loadData()},15000);

@@ -74,7 +74,8 @@ DEFAULTS = {
         },
         "reservations": [],                              # vaste adressen: {mac, ip, name} (bv. de SwimTime-pc)
     },
-    "kiosk": {"enabled": True, "url": "http://localhost/jury", "zoom": 1.0, "mode": "auto", "rotate": 0},
+    "kiosk": {"enabled": True, "url": "http://localhost/jury", "zoom": 1.0, "mode": "auto", "rotate": 0,
+              "theme": "auto"},                         # auto | light | dark (ook voor pagina's van de cloudserver)
     "device": {"name": "khzs-timing", "role": "uit", "display_url": "https://timing.khzs.be/callroom",
                "display_key": ""},
     "update": {"auto": False, "repo": "DinXke/KHZS-timing", "token": "", "idle_min": 15},
@@ -1030,7 +1031,8 @@ class Portal:
         self.call(("Input.insertText", {"text": text}))
 
     def key(self, key):
-        codes = {"Enter": 13, "Tab": 9, "Backspace": 8, "Escape": 27}
+        codes = {"Enter": 13, "Tab": 9, "Backspace": 8, "Escape": 27, "ArrowUp": 38, "ArrowDown": 40, "ArrowLeft": 37,
+                 "ArrowRight": 39, "PageUp": 33, "PageDown": 34, "Home": 36, "End": 35, "F5": 116, " ": 32}
         k = {"key": key, "code": key, "windowsVirtualKeyCode": codes.get(key, 0)}
         self.call(("Input.dispatchKeyEvent", dict(k, type="keyDown")), ("Input.dispatchKeyEvent", dict(k, type="keyUp")))
 
@@ -1427,8 +1429,13 @@ def display_backup(d):
     return b
 
 
-KIOSK_LABEL_JS = """(function(){if(window.top!==window)return;var L=%s;function add(){var d=document.getElementById('__khzs_lbl');
-if(!d){d=document.createElement('div');d.id='__khzs_lbl';d.style.cssText='position:fixed;right:6px;bottom:4px;z-index:2147483647;font:600 11px system-ui,sans-serif;color:rgba(255,255,255,.6);background:rgba(0,0,0,.3);padding:1px 7px;border-radius:6px;pointer-events:none;letter-spacing:.02em';(document.body||document.documentElement).appendChild(d)}d.textContent=L}
+KIOSK_LABEL_JS = r"""(function(){if(window.top!==window)return;var L=__LABEL__,T=__THEME__;
+if(T!=='auto'){try{localStorage.removeItem('lt_theme')}catch(e){}}
+function add(){var d=document.getElementById('__khzs_lbl');
+if(!d){d=document.createElement('div');d.id='__khzs_lbl';d.style.cssText='position:fixed;right:6px;bottom:4px;z-index:2147483647;font:600 11px system-ui,sans-serif;color:rgba(255,255,255,.6);background:rgba(0,0,0,.3);padding:1px 7px;border-radius:6px;pointer-events:none;letter-spacing:.02em';(document.body||document.documentElement).appendChild(d)}d.textContent=L;
+if(!document.getElementById('__khzs_cur')){var st=document.createElement('style');st.id='__khzs_cur';st.textContent='html.__khzs_nocur,html.__khzs_nocur *{cursor:none!important}';(document.head||document.documentElement).appendChild(st)}
+var h=document.documentElement,t=null;h.classList.add('__khzs_nocur');
+if(!window.__khzs_mm){window.__khzs_mm=1;document.addEventListener('mousemove',function(){h.classList.remove('__khzs_nocur');clearTimeout(t);t=setTimeout(function(){h.classList.add('__khzs_nocur')},3000)},true)}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add);else add()})();"""
 
 
@@ -1447,8 +1454,12 @@ def kiosk_label():
             cur, script_id, n = None, None, 10
             while True:
                 label = app_settings().get("device_label") or socket.gethostname()
-                if label != cur:
-                    js = KIOSK_LABEL_JS % json.dumps(label)
+                theme = load_conf()["kiosk"].get("theme", "auto")
+                if (label, theme) != cur:
+                    js = KIOSK_LABEL_JS.replace("__LABEL__", json.dumps(label)).replace("__THEME__", json.dumps(theme))
+                    n += 1
+                    ws.send(json.dumps({"id": n, "method": "Emulation.setEmulatedMedia", "params": {
+                        "features": [{"name": "prefers-color-scheme", "value": "" if theme == "auto" else theme}]}}))
                     if script_id:
                         n += 1
                         ws.send(json.dumps({"id": n, "method": "Page.removeScriptToEvaluateOnNewDocument", "params": {"identifier": script_id}}))
@@ -1457,7 +1468,10 @@ def kiosk_label():
                     want = n
                     n += 1
                     ws.send(json.dumps({"id": n, "method": "Runtime.evaluate", "params": {"expression": js}}))
-                    cur = label
+                    if cur and cur[1] != theme:          # ander thema: pagina herladen zodat alles klopt
+                        n += 1
+                        ws.send(json.dumps({"id": n, "method": "Page.reload", "params": {}}))
+                    cur = (label, theme)
                     script_id = None
                     t0 = time.time()
                     while time.time() - t0 < 10:
@@ -1482,6 +1496,49 @@ def kiosk_label():
                     ws.close()
                 except Exception:
                     pass
+
+
+class KioskCtl(Portal):
+    """Het HDMI-scherm bekijken en bedienen vanuit het beheer (Chromium remote-debugging, enkel localhost)."""
+    PORT = 9222
+
+    def __init__(self):
+        super().__init__()
+        self.proc = None
+
+    def start(self, url=None):
+        return None                          # het scherm draait als eigen dienst (khzs-kiosk)
+
+    def stop(self):
+        return None
+
+    def shot(self):
+        r = self.call(("Page.captureScreenshot", {"format": "jpeg", "quality": 70}))
+        info = self.call(("Runtime.evaluate", {"expression": "JSON.stringify([location.href, document.title, devicePixelRatio])",
+                                              "returnByValue": True}))
+        try:
+            href, title, dpr = json.loads(info["result"]["value"])
+        except (KeyError, ValueError, TypeError):
+            href, title, dpr = "", "", 1
+        return base64.b64decode(r["data"]), href, title, dpr
+
+    def mouse(self, kind, x, y, button="left"):
+        base = {"x": x, "y": y, "button": button, "clickCount": 1}
+        if kind == "move":
+            self.call(("Input.dispatchMouseEvent", dict(base, type="mouseMoved", button="none")))
+        else:
+            self.call(("Input.dispatchMouseEvent", dict(base, type="mouseMoved", button="none")),
+                      ("Input.dispatchMouseEvent", dict(base, type="mousePressed")),
+                      ("Input.dispatchMouseEvent", dict(base, type="mouseReleased")))
+
+    def scroll(self, x, y, dy):
+        self.call(("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": x, "y": y, "deltaX": 0, "deltaY": dy}))
+
+    def reload(self):
+        self.call(("Page.reload", {"ignoreCache": True}))
+
+
+KIOSK = KioskCtl()
 
 
 def display_watch():
@@ -2048,6 +2105,18 @@ class H(BaseHTTPRequestHandler):
             if p == "/shares/files":
                 q = urllib.parse.parse_qs(self.path.partition("?")[2])
                 return self._send(200, share_files(q.get("name", [""])[0], q.get("sub", [""])[0]))
+            if p == "/kiosk/screenshot":
+                img, href, title, dpr = KIOSK.shot()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("X-Url", urllib.parse.quote(href[:500]))
+                self.send_header("X-Title", urllib.parse.quote(title[:200]))
+                self.send_header("X-Scale", str(dpr))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(img)))
+                self.end_headers()
+                self.wfile.write(img)
+                return
             if p == "/portal/screenshot":
                 if not (PORTAL.proc and PORTAL.proc.poll() is None):
                     PORTAL.start()
@@ -2180,13 +2249,15 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True})
             if p == "/kiosk":
                 k = c["kiosk"]
-                for key in ("enabled", "url", "zoom", "mode", "rotate"):
+                for key in ("enabled", "url", "zoom", "mode", "rotate", "theme"):
                     if key in d:
                         k[key] = d[key]
                 if not re.fullmatch(r"auto|\d{3,4}x\d{3,4}(@\d+(\.\d+)?Hz)?", str(k.get("mode") or "auto")):
                     raise RuntimeError("ongeldige resolutie")
                 if int(k.get("rotate") or 0) not in (0, 90, 180, 270):
                     raise RuntimeError("draaiing: 0, 90, 180 of 270")
+                if k.get("theme", "auto") not in ("auto", "light", "dark"):
+                    raise RuntimeError("thema: auto, light of dark")
                 if not str(k["url"]).startswith(("http://", "https://")):
                     raise RuntimeError("pagina moet met http:// of https:// beginnen")
                 save_conf(c)
@@ -2260,6 +2331,33 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, user_action(p, d))
             if p == "/ssh":
                 return self._send(200, ssh_set(d))
+            if p.startswith("/kiosk/") and p != "/kiosk/restart":
+                act = p.split("/")[2]
+                if act == "click":
+                    KIOSK.mouse("click", float(d["x"]), float(d["y"]), d.get("button", "left"))
+                elif act == "move":
+                    KIOSK.mouse("move", float(d["x"]), float(d["y"]))
+                elif act == "scroll":
+                    KIOSK.scroll(float(d["x"]), float(d["y"]), float(d.get("dy", 120)))
+                elif act == "type":
+                    KIOSK.type(str(d.get("text", ""))[:500])
+                elif act == "key":
+                    KIOSK.key(str(d.get("key", "Enter")))
+                elif act == "reload":
+                    KIOSK.reload()
+                elif act == "home":
+                    c = load_conf()
+                    KIOSK.navigate("http://localhost/display" if c["device"].get("role") == "scherm"
+                                   else (c["kiosk"].get("url") or "http://localhost/jury"))
+                elif act == "navigate":
+                    url = str(d.get("url", ""))
+                    if not url.startswith(("http://", "https://")):
+                        url = "http://" + url
+                    KIOSK.navigate(url)
+                else:
+                    raise LookupError("onbekend")
+                log(f"scherm bediend vanuit het beheer: {act}")
+                return self._send(200, {"ok": True})
             if p == "/portal/start":
                 PORTAL.start(d.get("url") or "http://neverssl.com/")
                 return self._send(200, {"ok": True})

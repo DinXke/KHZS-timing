@@ -263,6 +263,30 @@ def install_release(blob):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+GITHUB_REPO = "DinXke/KHZS-timing"
+
+
+def github_latest():
+    """Nieuwste release van de (publieke) repo: enkel het updatepakket khzs-timing-<versie>.zip, nooit het image."""
+    import re as _re
+    req = urllib.request.Request(f"https://api.github.com/repos/{load_conf().get('github_repo') or GITHUB_REPO}/releases/latest",
+                                 headers={"Accept": "application/vnd.github+json", "User-Agent": "khzs-cloud-agent"})
+    rel = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    asset = next((a for a in rel.get("assets", []) if _re.fullmatch(r"khzs-timing-[0-9][0-9.]*\.zip", a.get("name", ""))), None)
+    if not asset:
+        raise RuntimeError("de nieuwste GitHub-release bevat geen updatepakket")
+    return rel.get("tag_name", ""), asset["browser_download_url"]
+
+
+def github_update():
+    tag, url = github_latest()
+    req = urllib.request.Request(url, headers={"User-Agent": "khzs-cloud-agent"})
+    blob = urllib.request.urlopen(req, timeout=180).read()
+    res = install_release(blob)
+    res["log"].insert(0, f"GitHub-release {tag}")
+    return res
+
+
 # ---------------------------------------------------------------- console (PTY)
 class Session:
     def __init__(self, sid, who):
@@ -429,6 +453,9 @@ class H(BaseHTTPRequestHandler):
         try:
             if path == "/update":
                 return self._send(200, install_release(self._body(60 * 1024 * 1024)))
+            if path == "/update/github":
+                self._body()
+                return self._send(200, github_update())
             d = json.loads(self._body() or b"{}")
             if path == "/restart":
                 return self._send(200, {"ok": restart(d.get("unit", ""))})

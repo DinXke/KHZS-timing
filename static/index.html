@@ -881,6 +881,8 @@ function fitTable(){
 }
 function fitJury(){
   var cs=document.querySelectorAll('#jlist .jcard'),mx=(cs.length===1?40:26)*sc()/16;
+  // nooit groter dan de huidige reeks links (anders reusachtige tekst bij een reeks met weinig zwemmers)
+  var tw=$('tablewrap');if(tw&&tw._f)mx=Math.min(mx,Math.max(14,tw._f*0.95));
   cs.forEach(function(c){c._f=0;fitBox(c,'--jf',mx,12,mx);autoScroll(c)});
 }
 var rzT=null;
