@@ -360,6 +360,10 @@ def start_ap(reason):
     else:
         dev = "wlan0"
         channel = None
+        for d in devices():
+            if d["device"] == "wlan0" and d["connection"] != AP_CON and d["state"].startswith(("connecting", "connected")):
+                log(f"Wi-Fi-client {d['connection']} ({d['state']}) stoppen: de hotspot heeft de radio nodig")
+                nmcli("device", "disconnect", "wlan0", timeout=20)
     has_up = bool(uplink())
     write_captive(not has_up, c["ip"])
     nmcli("connection", "delete", AP_CON)
@@ -370,7 +374,7 @@ def start_ap(reason):
         args += ["802-11-wireless.channel", str(channel)]
     if c.get("password"):
         args += ["wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", c["password"], "wifi-sec.proto", "rsn",
-                 "wifi-sec.pairwise", "ccmp", "wifi-sec.group", "ccmp"]
+                 "wifi-sec.pairwise", "ccmp", "wifi-sec.group", "ccmp", "wifi-sec.pmf", "disable"]
     rc, _, err = nmcli(*args)
     if rc != 0:
         log(f"hotspot aanmaken faalde: {err.strip()}")
@@ -473,6 +477,18 @@ def netwatch():
                 pass                                            # beheer is aan het verbinden: niets forceren
             elif c.get("always"):
                 if not ap:
+                    if now - STATE.get("ap_fail_at", 0) > 30:
+                        if not start_ap("altijd aan"):
+                            STATE["ap_fail_at"] = now
+                elif ap == "wlan0" and net["wifi"]["role"] == "client+hotspot" and len(wifi_ifaces()) == 1 \
+                        and saved_wifi() and ap_clients(ap) == 0 and now - STATE["last_retry"] > 600:
+                    STATE["last_retry"] = now
+                    log("client + hotspot: bekende Wi-Fi-netwerken opnieuw proberen")
+                    stop_ap()
+                    nmcli("device", "connect", "wlan0", timeout=45)
+                    t0 = time.time()
+                    while time.time() - t0 < 30 and not active_wifi():
+                        time.sleep(3)
                     start_ap("altijd aan")
             elif net.get("fallback", True) and not up and not ap \
                     and now - STATE["since_uplink"] >= float(c.get("after_s", 60)):
