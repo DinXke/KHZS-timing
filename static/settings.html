@@ -925,7 +925,10 @@ function wireCloud(){if(!$('clStat'))return;
   $('clUpdate').onclick=()=>confirmBox('Cloudserver bijwerken','De cloudserver krijgt de code van dit toestel. Eerst een zelftest; antwoordt de nieuwe versie niet, dan gaat hij vanzelf terug naar de vorige. Bezoekers merken een onderbreking van enkele seconden.','Bijwerken',
     ()=>act($('clUpdate'),async()=>{const r=await api('/api/cloud/update-self',{method:'POST',json:{}});modal('Cloudserver bijgewerkt','<pre class="logs">'+esc((r.log||[]).join('\n'))+'</pre>');setTimeout(loadCloud,2500)}));
   $('clGithub').onclick=()=>confirmBox('Cloudserver bijwerken van GitHub','De cloudserver haalt de nieuwste GitHub-release, test ze en schakelt over (terug naar de vorige als ze niet werkt).','Bijwerken',
-    ()=>act($('clGithub'),async()=>{const r=await api('/api/cloud/update/github',{method:'POST',json:{}});modal('Cloudserver bijgewerkt','<pre class="logs">'+esc((r.log||[]).join('\n'))+'</pre>');setTimeout(loadCloud,2500)}));
+    ()=>act($('clGithub'),async()=>{let r;try{r=await api('/api/cloud/update/github',{method:'POST',json:{}})}catch(e){
+      // de cloudserver herstart tijdens de update: het antwoord gaat dan verloren – nakijken welke versie er nu draait
+      await new Promise(z=>setTimeout(z,8000));const st=await api('/api/cloud/settings');toast('Cloudserver draait nu versie '+st.version);loadCloud();return}
+      modal('Cloudserver bijgewerkt','<pre class="logs">'+esc((r.log||[]).join('\n'))+'</pre>');setTimeout(loadCloud,2500)}));
   $('clRelease').onclick=()=>act($('clRelease'),async()=>{const r=await api('/api/cloud/release-upload',{method:'POST',json:{}});return r},'Pakket staat klaar voor de kastjes');
   $('clRestart').onclick=()=>confirmBox('Live timing herstarten','De dienst op de cloudserver herstart (enkele seconden onderbreking).','Herstarten',()=>act(null,async()=>{await api('/api/cloud/restart',{json:{unit:'livetiming'}});setTimeout(loadCloud,4000)},'Herstart gevraagd'));
   $('clRestartCf').onclick=()=>confirmBox('Tunnel herstarten','cloudflared herstart: de site is enkele seconden onbereikbaar, ook dit beheer.','Herstarten',()=>act(null,async()=>{await api('/api/cloud/restart',{json:{unit:'cloudflared'}});setTimeout(loadCloud,8000)},'Herstart gevraagd'));
