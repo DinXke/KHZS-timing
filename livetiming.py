@@ -33,7 +33,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -92,6 +92,7 @@ DEFAULT_SETTINGS = {
     "relay_token": "",             # gedeeld geheim tussen laptop en publieke server
     "jury_password": "",           # relay-modus: wachtwoord voor /jury en /settings (oproepkamer is publiek)
     "cloud_admin_password": "",
+    "https_port": 0,               # versleutelde toegang (zelfondertekend certificaat); 0 = op het kastje 443, laptop uit; -1 = uit
     "device_label": "",            # vrije naam van dit toestel, bv. "Scherm cafetaria" (zichtbaar in beheer, Kastjes, scherm)
     "remote_admin": False,         # beheer op afstand: dit toestel bereikbaar via https://<publieke server>/kastje/<naam>/    # relay-modus: beheerwachtwoord (infoscherm, agenda, statistieken) – zonder kastje
     # ingebouwde simulator (beheer > Simulator): nep-wedstrijd zonder SwimTime, ook op het kastje
@@ -1821,6 +1822,52 @@ document.addEventListener('DOMContentLoaded',function(){document.querySelectorAl
 })();</script>"""
 
 
+TLS = {"port": None, "fingerprint": None, "error": None}
+
+
+def tls_context():
+    """Zelfondertekend certificaat (10 jaar) in DATA/tls; wordt bij de eerste start aangemaakt met openssl."""
+    import ssl
+    d = os.path.join(DATA, "tls")
+    cert, key = os.path.join(d, "cert.pem"), os.path.join(d, "key.pem")
+    if not (os.path.exists(cert) and os.path.exists(key)):
+        os.makedirs(d, exist_ok=True)
+        host = socket.gethostname()
+        san = f"subjectAltName=DNS:{host}.local,DNS:{host},DNS:localhost,IP:127.0.0.1,IP:10.42.0.1,IP:10.43.0.1"
+        r = subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "3650",
+                            "-keyout", key, "-out", cert, "-subj", f"/CN={host}.local/O=HZS Timing", "-addext", san],
+                           capture_output=True, timeout=120)
+        if r.returncode != 0:
+            raise OSError("certificaat maken mislukt: " + r.stderr.decode("utf-8", "replace")[-200:])
+        os.chmod(key, 0o600)
+        print("zelfondertekend certificaat aangemaakt:", cert)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.load_cert_chain(cert, key)
+    der = ssl.PEM_cert_to_DER_cert(open(cert, encoding="ascii").read())
+    TLS["fingerprint"] = ":".join(f"{b:02X}" for b in hashlib.sha256(der).digest())
+    return ctx
+
+
+def https_server(handler, bind):
+    """Beheer (en alle pagina's) ook via HTTPS; HTTP blijft werken."""
+    want = int(SETTINGS.get("https_port") or 0)
+    port = want if want > 0 else (443 if (want == 0 and AGENT_URL) else None)
+    if not port:
+        return
+    try:
+        ctx = tls_context()
+        srv = ThreadingHTTPServer((bind, port), handler)
+        srv.daemon_threads = True
+        srv.socket = ctx.wrap_socket(srv.socket, server_side=True, do_handshake_on_connect=False)   # handshake in de thread per verbinding
+        TLS["port"] = port
+        print(f"HTTPS op poort {port} (vingerafdruk {TLS['fingerprint'][:23]}…)")
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+    except Exception as e:
+        TLS["error"] = str(e)
+        print("HTTPS niet gestart:", e)
+
+
 def tunnel_client(port):
     """Lokale kant: verzoeken van de publieke server ophalen en lokaal uitvoeren (4 tegelijk, voor console + rest)."""
     def worker(n):
@@ -2106,6 +2153,8 @@ def make_handler(state, hub, relay=None):
                 return self._json(dict(STATS.report(), ok=True))
             if path == "/api/info":
                 return self._json(INFO)
+            if path == "/api/tls" and relay is None:
+                return self._json(TLS)
             if path == "/api/peers" and relay is None:
                 return self._json({"peers": peers_json()})
             if path == "/api/udp" and relay is None:
@@ -3241,6 +3290,7 @@ def main():
     tunnel_client(args.http_port)
     threading.Thread(target=discovery, args=(args.http_port,), daemon=True).start()
 
+    https_server(make_handler(state, hub), args.bind)
     srv = ThreadingHTTPServer((args.bind, args.http_port), make_handler(state, hub))
     srv.daemon_threads = True
     threading.Thread(target=srv.serve_forever, daemon=True).start()

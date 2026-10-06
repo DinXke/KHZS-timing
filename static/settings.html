@@ -287,7 +287,7 @@ const F={
  sim_stop_on_real:{l:'Stoppen bij echte gegevens',h:'Aanbevolen: komt er data van SwimTime binnen, dan stopt de simulator meteen.',b:1}
 };
 function fieldHtml(k){
-  const f=F[k];if(!f||!(k in cur||k in defs))return '';
+  const f=F[k];if(!f||(!(k in cur||k in defs)&&!f.pw))return '';   // geheime velden (pw) altijd tonen: ze komen bewust niet mee van de server
   const id='f_'+k,dis=canEdit?'':' disabled';let c='';
   if(f.b)c='<label class="sw"><input type="checkbox" id="'+id+'"'+dis+'><span></span></label>';
   else if(f.sel)c='<select id="'+id+'"'+dis+'>'+f.sel.map(o=>'<option value="'+o[0]+'">'+esc(o[1])+'</option>').join('')+'</select>';
@@ -357,6 +357,7 @@ function showTab(){let id=(location.hash||(relayMode?'#info':'#overzicht')).slic
   if(id==='netwerk'&&$('dhLeases'))dhLoad();
   if(id==='rol')loadPeers();
   if(id==='scherm')scStart();else scStop();
+  if(id==='systeem')loadTls();
   if(id==='gebruikers')loadUsers();if(id==='updates')loadUpdates();if(id==='portal')portalShow();else portalStop(false);
   window.scrollTo(0,0)}
 window.addEventListener('hashchange',showTab);
@@ -522,6 +523,7 @@ function pages(){
   '<div class="card"><h2>Logboek</h2><div class="log" id="upLog">–</div></div>';
  }
  P.systeem='<h1>Systeem</h1><p class="lead">Beveiliging, simulator'+(sys?' en het kastje zelf':'')+'.</p>'+
+  '<div class="card" id="tlsCard" style="display:none"><h2>Versleutelde toegang (HTTPS)</h2><div id="tlsInfo" class="muted"></div></div>'+
   fieldsCard('Dit toestel','',['device_label'])+
   fieldsCard('Beveiliging','',['admin_token','jury_password'])+
   fieldsCard('Simulator','Ontvangt een simulatie van simulator.py naast SwimTime.',['feed_port','feed_bind'])+
@@ -1070,6 +1072,12 @@ function wireScreen(){if(!$('scBox'))return;
   $('scGo').onclick=()=>{const u=$('scUrl').value.trim();if(!u)return;api('/api/system/kiosk/navigate',{json:{url:u}}).then(()=>{$('scUrl').value='';setTimeout(scShot,1500)}).catch(e=>toast(e.message,'err'))};
   $('scTheme').onchange=()=>act(null,async()=>{const k=(sys&&sys.kiosk)||{};await api('/api/system/kiosk',{json:{url:k.url||'http://localhost/jury',zoom:k.zoom||1,mode:k.mode||'auto',rotate:k.rotate||0,enabled:k.enabled!==false,theme:$('scTheme').value}});
     sys=await api('/api/system/status');setTimeout(scShot,4000)},'Thema ingesteld (het scherm herstart even)')}
+
+async function loadTls(){const c=$('tlsCard');if(!c||relayMode)return;let d;try{d=await (await fetch('/api/tls')).json()}catch(e){return}
+  if(!d.port&&!d.error)return;c.style.display='';const host=location.hostname,url='https://'+host+(d.port&&d.port!==443?':'+d.port:'')+'/settings';
+  $('tlsInfo').innerHTML=d.error?'<span style="color:var(--bad)">'+esc(d.error)+'</span>':
+   'Dit beheer is ook bereikbaar via <a href="'+esc(url)+'">'+esc(url)+'</a>'+(location.protocol==='https:'?' <span class="pill"><span class="dot ok"></span>je gebruikt nu HTTPS</span>':'')+
+   '<p class="desc" style="margin:10px 0 4px">Het certificaat is zelfondertekend: je browser waarschuwt de eerste keer. Klopt deze vingerafdruk (SHA-256) met wat je browser toont, dan praat je echt met dit kastje:</p><code style="font-size:12px;word-break:break-all">'+esc(d.fingerprint||'')+'</code>'}
 
 /* ---------------------------------------------------------------- opstart */
 async function boot(){
