@@ -34,3 +34,4 @@ settings.json.tmp
 appliance/secrets.env
 appliance/plymouth/preview.png
 appliance/plymouth/bron/woordmerk-voorbeeld.png
+simulator.json

@@ -264,7 +264,7 @@ function persistScroll(w){
     requestAnimationFrame(step);
   })(last);
 }
-function fitEl(el){if(!kiosk())return;fitBox(el,'--cf',el._f||26*sc()/16,12,26*sc()/16);persistScroll(el)}
+function fitEl(el){if(!kiosk())return;fitBox(el,'--cf',el._f||26*sc()/16,7,26*sc()/16);persistScroll(el)}
 
 /* aankomende reeksen */
 var upSig='';
@@ -276,16 +276,41 @@ function upcomingList(){
     return true;
   });
 }
-function maxLane(h){var m=8;(h.lanes||[]).forEach(function(l){if(l.lane>m)m=l.lane});return m}
-function needPx(h){var pl=+so('pool_lanes',0)||0;return (h.lanesKnown===false||!(h.lanes&&h.lanes.length))?60:60+Math.max(maxLane(h)+((h.lanes||[]).some(function(l){return l.lane===0})?1:0),pl)*20}
+var FMIN=12;   // kleinste letter (px) waarmee een kaart nog leesbaar is; daarop wordt het aantal kaarten bepaald
+function laneRange(h){
+  var pl=+so('pool_lanes',0)||0,mn=pl>=10?0:1,mx=pl?mn+pl-1:8;
+  (h&&h.lanes||[]).forEach(function(l){if(l.lane>mx)mx=l.lane;if(l.lane<mn)mn=l.lane});
+  return [mn,mx];
+}
+/* hoogte van een kaart = vast deel + per baan, in em; gemeten op een onzichtbare proefkaart */
+var emK=null;
+function cardEm(){
+  var w=Math.round($('up').clientWidth/2),key=w+'|'+sc()+'|'+so('pool_lanes',0);
+  if(emK&&emK.key===key)return emK;
+  var fake={event:{number:1,name:'100m vrije slag'},heat:{number:1,startTime:'12:00'},lanes:[{lane:1,firstName:'Proef',lastName:'Kaart',club:'Club',entryTime:61.23}]};
+  var d=document.createElement('div');d.style.cssText='position:absolute;left:-9999px;top:0;visibility:hidden;width:'+Math.max(200,w)+'px';
+  d.innerHTML=cardHtml(fake,0);$('up').appendChild(d);
+  var c=d.firstChild;c.style.flex='none';c.style.setProperty('--cf','100px');
+  var tr=c.querySelectorAll('tbody tr'),rowH=0;
+  Array.prototype.forEach.call(tr,function(r){rowH+=r.offsetHeight});
+  var H=c.offsetHeight,n=tr.length||1;
+  d.remove();
+  emK={key:key,a:(H-rowH)/100,b:rowH/n/100};
+  return emK;
+}
+function needPx(h,f){
+  var k=cardEm();f=f||FMIN;
+  if(h.lanesKnown===false||!(h.lanes&&h.lanes.length))return Math.ceil((k.a+2.4)*f)+6;
+  var r=laneRange(h);return Math.ceil((k.a+k.b*(r[1]-r[0]+1))*f*1.03)+6;
+}
 function sc(){return parseFloat(getComputedStyle(document.documentElement).fontSize)||16}
 function dayTag(h){var l=h&&h.dayLabel,c=CR&&CR.liveLabel;return l&&l!==c?'<span class="daytag">'+esc(l)+'</span>':''}
 function cardHtml(h,i){
     var hh=h.heat||{};
     if(h.lanesKnown===false||!(h.lanes&&h.lanes.length))
       return '<section class="card'+(i===0?' first':'')+'" style="flex:0 0 auto"><h3>'+(i===0?'<span class="badge">Hierna naar de startblok</span>':'')+esc(title(h.event,hh))+(hh.startTime?'<span class="when">'+esc(hh.startTime)+'</span>':'')+dayTag(h)+'</h3><div class="msg" style="padding:.3em">Startlijst nog niet beschikbaar — synchroniseer de database</div></section>';
-    var ls=h.lanes||[],by={},pl=+so('pool_lanes',0)||0,mn=pl>=10?0:1,mx=pl?mn+pl-1:8;
-    ls.forEach(function(l){by[l.lane]=l;if(l.lane>mx)mx=l.lane;if(l.lane<mn)mn=l.lane});
+    var ls=h.lanes||[],by={},lr=laneRange(h),mn=lr[0],mx=lr[1];
+    ls.forEach(function(l){by[l.lane]=l});
     var rows='';
     for(var n=mn;n<=mx;n++){
       var l=by[n];
@@ -298,7 +323,7 @@ function packCols(up,nc,av){
   var cols=[],used=[],cur=0,n=0,GAP=10,i;
   for(i=0;i<nc;i++){cols.push([]);used.push(0)}
   for(i=0;i<up.length;i++){
-    var need=needPx(up[i])+GAP;
+    var need=needPx(up[i],FMIN)+GAP;
     if(used[cur]+need>av+GAP){cur++;if(cur>=nc)break;if(need>av+GAP)break}
     cols[cur].push(up[i]);used[cur]+=need;n++;
   }
@@ -348,7 +373,17 @@ function renderUp(){
     box.innerHTML='<div class="card"><div class="msg big">'+(noProg?'Nog geen programma beschikbaar.':(blockHeat()?'Geen volgende reeksen meer in het programma.':'Einde van het programma.'))+'</div></div>';return}
   var first=up[0],bigOK=nextBig()&&!!(first&&first.lanesKnown!==false&&first.lanes&&first.lanes.length);
   var rest=bigOK?up.slice(1):up,bigH=0,full=false;
-  if(k&&avail>0&&bigOK){full=!rest.length;bigH=full?avail:Math.max(needPx(first),Math.round(avail*0.45))}
+  if(k&&avail>0&&bigOK){
+    full=!rest.length;
+    if(full)bigH=avail;
+    else{
+      var bMin=needPx(first,FMIN*1.15),bMax=needPx(first,26*nextScale()*sc()/16);
+      var s_=nextScale(),pr=Math.max(0.4,Math.min(0.55,0.85*s_/(1+s_)));   // groter dan de kaarten eronder, maar die blijven leesbaar
+      bigH=Math.min(bMax,Math.max(bMin,Math.round((avail-10)*pr)));
+      var room=avail-10-needPx(rest[0],FMIN)-10-(rest.length>1?30:0);   // plaats voor minstens 1 volledige kaart
+      if(bigH>room)bigH=Math.max(bMin,room);
+    }
+  }
   var availRest=avail-(bigH&&!full?bigH+10:0);
   var cols=[rest],shown=up.length;
   if(k&&avail>0){
@@ -360,7 +395,7 @@ function renderUp(){
   var more=all.length-shown;
   var bigHtml=bigOK?(k?bigify(cardHtml(first,0),bigH,full):cardHtml(first,0).replace('class="card','class="card nextbig')):'';
   box.innerHTML=bigHtml+(cols.length?'<div class="ucols">'+cols.map(function(col){return '<div class="ucol">'+col.map(function(h){return cardHtml(h,up.indexOf(h))}).join('')+'</div>'}).join('')+'</div>':'')+(more>0?'<div class="more">+'+more+' volgende '+(more===1?'reeks':'reeksen')+'</div>':'');
-  if(k)Array.prototype.forEach.call(box.querySelectorAll('.card'),function(c){c._f=0;var mxf=(c.classList.contains('nextbig')?26*nextScale():26)*sc()/16;fitBox(c,'--cf',mxf,12,mxf);if(c.scrollHeight>c.clientHeight+1)persistScroll(c)});
+  if(k)Array.prototype.forEach.call(box.querySelectorAll('.card'),function(c){c._f=0;var mxf=(c.classList.contains('nextbig')?26*nextScale():26)*sc()/16;fitBox(c,'--cf',mxf,7,mxf);if(c.scrollHeight>c.clientHeight+1)persistScroll(c)});
 }
 
 /* nu + vorige */
@@ -408,10 +443,11 @@ function renderPrev(){
   if(sig===prevSig)return;prevSig=sig;
   if(!hp){b.innerHTML='<h3><span class="tag">Vorige reeks</span></h3><div class="msg">Nog geen afgelopen reeks.</div>';return}
   var ls=(hp.lanes||[]).filter(function(l){return name(l)}).sort(function(a,b){var ra=a.rank==null?1e9:a.rank,rb=b.rank==null?1e9:b.rank;return ra-rb||a.lane-b.lane});
+  var lr=laneRange(hp),pad='';for(var i=ls.length;i<lr[1]-lr[0]+1;i++)pad+='<tr style="visibility:hidden"><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>';
   b.innerHTML='<h3><span class="tag">Vorige reeks</span>'+esc(title(hp.event,hp.heat))+'</h3><table><thead><tr><th>Pl.</th><th>Baan</th><th>Naam</th><th>Club</th><th class="r">Eindtijd</th></tr></thead><tbody>'+ls.map(function(l){
     var pc=l.rank>=1&&l.rank<=3?' p'+l.rank:'';
     return '<tr><td class="rank'+pc+'">'+(l.rank!=null?l.rank:'–')+'</td><td class="lane">'+l.lane+'</td><td class="nm">'+esc(name(l))+'</td><td>'+esc(l.club||'')+'</td><td class="fin'+pc+'">'+(l.final!=null?fmt(l.final):'–')+'</td></tr>';
-  }).join('')+'</tbody></table>';
+  }).join('')+pad+'</tbody></table>';
   b._f=0;fitEl(b);
 }
 
