@@ -2,7 +2,8 @@
    (de grafische chip doet dat), geen overvloeimodus, minder belletjes. ?lite=0/1 om te forceren. */
 (function(){
   var q=location.search.match(/[?&]lite=([01])/),ua=navigator.userAgent||'';
-  var lite=q?q[1]==='1':(/aarch64|armv7|armv8|Raspberry/i.test(ua)||(navigator.hardwareConcurrency||8)<=2);
+  var da=document.documentElement.getAttribute('data-anim');   // gezet door het HDMI-scherm van een kastje
+  var lite=q?q[1]==='1':(da==='light'||(navigator.hardwareConcurrency||8)<=2);
   if(!lite)return;
   document.documentElement.classList.add('lite');
   var st=document.createElement('style');

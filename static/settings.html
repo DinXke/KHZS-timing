@@ -472,6 +472,8 @@ function pages(){
    '<div class="sub-f"><div><label>Vergroting scherm</label><select id="kZoom">'+[.75,1,1.25,1.5,1.75,2].map(z=>'<option value="'+z+'">'+z+'×</option>').join('')+'</select></div>'+
    '<div><label>HDMI-scherm</label><label class="sw" style="margin-top:4px"><input type="checkbox" id="kOn"><span></span></label></div></div>'+
    '<div class="sub-f"><div><label>Resolutie</label><select id="kMode">'+[['auto','Automatisch (voorkeur van de tv)'],['1920x1080','1920 × 1080 (Full HD)'],['1680x1050','1680 × 1050'],['1600x900','1600 × 900'],['1366x768','1366 × 768'],['1280x1024','1280 × 1024'],['1280x720','1280 × 720 (HD)'],['1024x768','1024 × 768'],['1920x1200','1920 × 1200']].map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select></div>'+
+   '<div><label>Animaties</label><select id="kAnim"><option value="auto">Automatisch (uit op Pi 3 of ouder)</option><option value="full">Volledig</option><option value="light">Licht</option><option value="off">Uit</option></select><div class="muted" id="kAnimInfo" style="font-size:12px;margin-top:3px"></div></div>'+
+   '<div><label>Muisaanwijzer</label><select id="kCursor"><option value="hide">Altijd verbergen</option><option value="auto">Tonen bij bewegen (3 s)</option></select></div>'+
    '<div><label>Thema op het scherm</label><select id="kTheme"><option value="auto">Automatisch</option><option value="dark">Donker</option><option value="light">Licht</option></select></div>'+
    '<div><label>Draaiing</label><select id="kRot"><option value="0">Liggend (normaal)</option><option value="90">Staand – 90°</option><option value="270">Staand – 270°</option><option value="180">Ondersteboven – 180°</option></select></div></div>'+
    '<p class="desc" style="margin:6px 0 0">Automatisch past zich aan elk scherm aan, ook als je later een andere tv aansluit. Alle pagina\'s schalen mee; met "Vergroting" maak je tekst groter of kleiner.</p>'+
@@ -609,7 +611,8 @@ function fillRole(){
   document.querySelectorAll('#roleSel button').forEach(b=>b.classList.toggle('on',b.dataset.r===roleSel));
   $('devName').value=sys.hostname;$('devNameLocal').textContent=sys.hostname+'.local';
   const known=['http://localhost/jury','http://localhost/','http://localhost/callroom'];$('kPage').value=known.indexOf(k.url)>=0?k.url:'custom';$('kCustom').value=k.url||'';
-  $('kZoom').value=String(k.zoom||1);$('kOn').checked=k.enabled!==false;$('kMode').value=k.mode||'auto';$('kRot').value=String(k.rotate||0);$('kTheme').value=k.theme||'auto';
+  $('kZoom').value=String(k.zoom||1);$('kOn').checked=k.enabled!==false;$('kMode').value=k.mode||'auto';$('kRot').value=String(k.rotate||0);$('kTheme').value=k.theme||'auto';$('kAnim').value=k.animations||'auto';$('kCursor').value=k.cursor||'hide';
+  $('kAnimInfo').textContent=(sys.model?sys.model+' – ':'')+'nu: '+({off:'uit',light:'licht',full:'volledig'}[sys.animLevel]||'?');
   const u=d.display_url||'';let src='custom',lan='',page='/callroom';
   if(u.indexOf('auto')===0){src='auto';page=u.slice(5)||'/callroom'}
   else try{const x=new URL(u);if(x.host==='timing.khzs.be'){src='pub';page=x.pathname}else if(x.protocol==='http:'){src='lan';lan=x.host;page=x.pathname}}catch(e){}
@@ -627,7 +630,7 @@ function wireRole(){
   $('roleSave').onclick=e=>act(e.target,async()=>{
     const s=$('sSrc').value,url=s==='auto'?'auto:'+$('sPage').value:s==='pub'?'https://timing.khzs.be'+$('sPage').value:s==='lan'?'http://'+$('sLan').value.trim().replace(/^https?:\/\//,'').replace(/\/$/,'')+$('sPage').value:$('sCustom').value.trim();
     const kurl=$('kPage').value==='custom'?$('kCustom').value.trim():$('kPage').value;
-    await api('/api/system/kiosk',{json:{url:kurl||'http://localhost/jury',zoom:parseFloat($('kZoom').value),mode:$('kMode').value,rotate:parseInt($('kRot').value,10),theme:$('kTheme').value,enabled:$('kOn').checked}});
+    await api('/api/system/kiosk',{json:{url:kurl||'http://localhost/jury',zoom:parseFloat($('kZoom').value),mode:$('kMode').value,rotate:parseInt($('kRot').value,10),theme:$('kTheme').value,animations:$('kAnim').value,cursor:$('kCursor').value,enabled:$('kOn').checked}});
     const body={role:roleSel,display_url:url,display_backup_url:$('sBackup').value.trim(),name:$('devName').value.trim()};if($('sKey').value)body.display_key=$('sKey').value;
     await api('/api/system/device',{json:body});$('sKey').value='';sys=await api('/api/system/status');fillRole()},'Toegepast – het scherm laadt opnieuw');
   $('kRestart').onclick=e=>act(e.target,async()=>{const r=await api('/api/system/kiosk/restart',{json:{}});toast(r.how==='herstart'?'Scherm wordt herstart':'Scherm herladen')});

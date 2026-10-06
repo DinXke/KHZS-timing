@@ -75,7 +75,9 @@ DEFAULTS = {
         "reservations": [],                              # vaste adressen: {mac, ip, name} (bv. de SwimTime-pc)
     },
     "kiosk": {"enabled": True, "url": "http://localhost/jury", "zoom": 1.0, "mode": "auto", "rotate": 0,
-              "theme": "auto"},                         # auto | light | dark (ook voor pagina's van de cloudserver)
+              "theme": "auto",                          # auto | light | dark (ook voor pagina's van de cloudserver)
+              "animations": "auto",                     # auto (uit op Pi 3 of ouder) | full | light | off
+              "cursor": "hide"},                        # hide (altijd onzichtbaar) | auto (zichtbaar bij bewegen)
     "device": {"name": "khzs-timing", "role": "uit", "display_url": "https://timing.khzs.be/callroom",
                "display_key": ""},
     "update": {"auto": False, "repo": "DinXke/KHZS-timing", "token": "", "idle_min": 15},
@@ -924,11 +926,44 @@ def set_ethernet(cfg):
 
 
 # ---------------------------------------------------------------- kiosk (HDMI)
+CURSOR_THEME_DIR = "/usr/share/icons/khzs-geen"
+CURSOR_NAMES = ("default left_ptr arrow top_left_arrow pointer hand1 hand2 grab grabbing text xterm ibeam crosshair cross "
+                "move fleur wait watch progress left_ptr_watch help question_arrow not-allowed no-drop context-menu cell "
+                "copy alias all-scroll col-resize row-resize n-resize s-resize e-resize w-resize ne-resize nw-resize "
+                "se-resize sw-resize ew-resize ns-resize nesw-resize nwse-resize sb_h_double_arrow sb_v_double_arrow "
+                "zoom-in zoom-out vertical-text openhand closedhand").split()
+
+
+def ensure_cursor_theme():
+    """Onzichtbaar cursorthema voor het HDMI-scherm (cage en Chromium tekenen dan een volledig doorzichtige aanwijzer)."""
+    d = os.path.join(CURSOR_THEME_DIR, "cursors")
+    if os.path.exists(os.path.join(d, "default")):
+        return
+    os.makedirs(d, exist_ok=True)
+    size = 24
+    img = (struct.pack("<9I", 36, 0xFFFD0002, size, 1, size, size, 0, 0, 0) + b"\x00" * (size * size * 4))
+    data = b"Xcur" + struct.pack("<3I", 16, 0x10000, 1) + struct.pack("<3I", 0xFFFD0002, size, 28) + img
+    with open(os.path.join(d, "default"), "wb") as f:
+        f.write(data)
+    for n in CURSOR_NAMES:
+        p_ = os.path.join(d, n)
+        if n != "default" and not os.path.lexists(p_):
+            os.symlink("default", p_)
+    with open(os.path.join(CURSOR_THEME_DIR, "index.theme"), "w") as f:
+        f.write("[Icon Theme]\nName=khzs-geen\nComment=Onzichtbare muisaanwijzer (HZS Timing-scherm)\n")
+
+
 def apply_kiosk(k):
     """Instellingen van het HDMI-scherm toepassen. Chromium herstarten duurt op een Pi 3 lang: enkel als het moet
     (vergroting, resolutie, draaiing, aan/uit). Een andere pagina gaat via CDP; het thema past kiosk_label() toe."""
     new = (f"KIOSK_URL={k.get('url') or 'http://localhost/jury'}\nKIOSK_ZOOM={float(k.get('zoom') or 1.0)}\n"
            f"KIOSK_MODE={k.get('mode') or 'auto'}\nKIOSK_ROTATE={int(k.get('rotate') or 0)}\n")
+    if k.get("cursor", "hide") == "hide":
+        try:
+            ensure_cursor_theme()
+            new += "XCURSOR_THEME=khzs-geen\nXCURSOR_SIZE=24\n"
+        except OSError as e:
+            log(f"cursorthema: {e}")
     try:
         old = open(KIOSK_ENV).read()
     except OSError:
@@ -1445,7 +1480,29 @@ def display_backup(d):
     return b
 
 
-KIOSK_LABEL_JS = r"""(function(){if(window.top!==window)return;var L=__LABEL__,T=__THEME__;
+def pi_model():
+    try:
+        return open("/proc/device-tree/model").read().strip("\x00 \n")
+    except OSError:
+        return ""
+
+
+def anim_level(k):
+    """Animaties op het HDMI-scherm: automatisch uit op een Pi 3 of ouder (te zwaar), anders volledig."""
+    a = k.get("animations", "auto")
+    if a != "auto":
+        return a
+    m = pi_model()
+    return "off" if re.search(r"Raspberry Pi (Model|Zero|[123]\b)", m) else "full"
+
+
+KIOSK_LABEL_JS = r"""(function(){if(window.top!==window)return;var L=__LABEL__,T=__THEME__,A=__ANIM__;
+document.documentElement.setAttribute('data-anim',A);
+if(A==='off'&&!document.getElementById('__khzs_anim')){var sa=document.createElement('style');sa.id='__khzs_anim';
+sa.textContent='html[data-anim=off] *,html[data-anim=off] *::before,html[data-anim=off] *::after{animation:none!important;transition:none!important}'+
+'html[data-anim=off] .is-tick span{animation:isTick var(--td,30s) linear infinite!important}'+
+'html[data-anim=off] #splash .bub,html[data-anim=off] #infoscreen .is-bub{display:none!important}'+
+'html[data-anim=off] #splash .spn{mix-blend-mode:normal!important;opacity:.6}';(document.head||document.documentElement).appendChild(sa)}
 if(T!=='auto'){try{localStorage.removeItem('lt_theme')}catch(e){}}
 function add(){var d=document.getElementById('__khzs_lbl');
 if(!d){d=document.createElement('div');d.id='__khzs_lbl';d.style.cssText='position:fixed;right:6px;bottom:4px;z-index:2147483647;font:600 11px system-ui,sans-serif;color:rgba(255,255,255,.6);background:rgba(0,0,0,.3);padding:1px 7px;border-radius:6px;pointer-events:none;letter-spacing:.02em';(document.body||document.documentElement).appendChild(d)}d.textContent=L;
@@ -1470,9 +1527,11 @@ def kiosk_label():
             cur, script_id, n = None, None, 10
             while True:
                 label = app_settings().get("device_label") or socket.gethostname()
-                theme = load_conf()["kiosk"].get("theme", "auto")
-                if (label, theme) != cur:
-                    js = KIOSK_LABEL_JS.replace("__LABEL__", json.dumps(label)).replace("__THEME__", json.dumps(theme))
+                kc = load_conf()["kiosk"]
+                theme, anim = kc.get("theme", "auto"), anim_level(kc)
+                if (label, theme, anim) != cur:
+                    js = (KIOSK_LABEL_JS.replace("__LABEL__", json.dumps(label)).replace("__THEME__", json.dumps(theme))
+                          .replace("__ANIM__", json.dumps(anim)))
                     n += 1
                     ws.send(json.dumps({"id": n, "method": "Emulation.setEmulatedMedia", "params": {
                         "features": [{"name": "prefers-color-scheme", "value": "" if theme == "auto" else theme}]}}))
@@ -1484,10 +1543,10 @@ def kiosk_label():
                     want = n
                     n += 1
                     ws.send(json.dumps({"id": n, "method": "Runtime.evaluate", "params": {"expression": js}}))
-                    if cur and cur[1] != theme:          # ander thema: pagina herladen zodat alles klopt
+                    if cur and cur[1:] != (theme, anim):     # ander thema/animaties: pagina herladen zodat alles klopt
                         n += 1
                         ws.send(json.dumps({"id": n, "method": "Page.reload", "params": {}}))
-                    cur = (label, theme)
+                    cur = (label, theme, anim)
                     script_id = None
                     t0 = time.time()
                     while time.time() - t0 < 10:
@@ -2039,6 +2098,7 @@ def status():
                     "wifiJob": STATE.get("wifi_job"), "lastWifi": STATE.get("last_wifi")},
         "routing": c["network"], "hotspot": hs, "kiosk": c["kiosk"],
         "device": dict(c["device"], display_key=bool(c["device"].get("display_key"))),
+        "model": pi_model(), "animLevel": anim_level(c["kiosk"]),
         "connectivity": STATE.get("connectivity"), "sdErrors": STATE.get("sd_errors") or [],
         "confirm": STATE["confirm"] and {"remaining": max(0, round(STATE["confirm"]["deadline"] - time.time())),
                                          "applied": STATE["confirm"]["applied"]},
@@ -2270,7 +2330,7 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True})
             if p == "/kiosk":
                 k = c["kiosk"]
-                for key in ("enabled", "url", "zoom", "mode", "rotate", "theme"):
+                for key in ("enabled", "url", "zoom", "mode", "rotate", "theme", "animations", "cursor"):
                     if key in d:
                         k[key] = d[key]
                 if not re.fullmatch(r"auto|\d{3,4}x\d{3,4}(@\d+(\.\d+)?Hz)?", str(k.get("mode") or "auto")):
@@ -2279,6 +2339,10 @@ class H(BaseHTTPRequestHandler):
                     raise RuntimeError("draaiing: 0, 90, 180 of 270")
                 if k.get("theme", "auto") not in ("auto", "light", "dark"):
                     raise RuntimeError("thema: auto, light of dark")
+                if k.get("animations", "auto") not in ("auto", "full", "light", "off"):
+                    raise RuntimeError("animaties: auto, full, light of off")
+                if k.get("cursor", "hide") not in ("hide", "auto"):
+                    raise RuntimeError("muisaanwijzer: hide of auto")
                 if not str(k["url"]).startswith(("http://", "https://")):
                     raise RuntimeError("pagina moet met http:// of https:// beginnen")
                 save_conf(c)
@@ -2768,7 +2832,9 @@ def main():
     if not os.path.exists(CONF):
         save_conf(c)
     try:
-        apply_kiosk(c["kiosk"]) if not os.path.exists(KIOSK_ENV) else None
+        if not os.path.exists(KIOSK_ENV) or (c["kiosk"].get("cursor", "hide") == "hide"
+                                             and "XCURSOR_THEME" not in open(KIOSK_ENV).read()):
+            apply_kiosk(c["kiosk"])
     except Exception as e:
         log(f"kiosk: {e}")
     try:
