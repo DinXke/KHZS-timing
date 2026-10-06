@@ -630,7 +630,7 @@ function wireRole(){
     await api('/api/system/kiosk',{json:{url:kurl||'http://localhost/jury',zoom:parseFloat($('kZoom').value),mode:$('kMode').value,rotate:parseInt($('kRot').value,10),theme:$('kTheme').value,enabled:$('kOn').checked}});
     const body={role:roleSel,display_url:url,display_backup_url:$('sBackup').value.trim(),name:$('devName').value.trim()};if($('sKey').value)body.display_key=$('sKey').value;
     await api('/api/system/device',{json:body});$('sKey').value='';sys=await api('/api/system/status');fillRole()},'Toegepast – het scherm laadt opnieuw');
-  $('kRestart').onclick=e=>act(e.target,()=>api('/api/system/kiosk/restart',{json:{}}),'Scherm herladen');
+  $('kRestart').onclick=e=>act(e.target,async()=>{const r=await api('/api/system/kiosk/restart',{json:{}});toast(r.how==='herstart'?'Scherm wordt herstart':'Scherm herladen')});
 }
 
 /* ---------------------------------------------------------------- netwerk en router */
@@ -1070,7 +1070,7 @@ async function scShot(){if(scBusy||!scOn)return;scBusy=true;try{const r=await fe
 }catch(e){$('scBox').textContent=e.message}finally{scBusy=false}}
 function scPos(e){const img=$('scImg'),r=img.getBoundingClientRect();return {x:(e.clientX-r.left)*img.naturalWidth/r.width/scScale,y:(e.clientY-r.top)*img.naturalHeight/r.height/scScale}}
 function scMouse(e,kind,button){const p=scPos(e);$('scImg').focus();api('/api/system/kiosk/'+kind,{json:{x:p.x,y:p.y,button:button||'left'}}).then(()=>setTimeout(scShot,250)).catch(x=>toast(x.message,'err'))}
-function scStart(){scOn=true;clearInterval(scTimer);scShot();scTimer=setInterval(()=>{if(!document.hidden&&$('scLive').checked)scShot()},1200);
+function scStart(){scOn=true;clearInterval(scTimer);scShot();scTimer=setInterval(()=>{if(!document.hidden&&$('scLive').checked)scShot()},2000);
   const k=(sys&&sys.kiosk)||{};if($('scTheme'))$('scTheme').value=k.theme||'auto'}
 function scStop(){scOn=false;clearInterval(scTimer)}
 function wireScreen(){if(!$('scBox'))return;

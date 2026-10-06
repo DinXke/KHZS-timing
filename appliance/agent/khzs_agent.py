@@ -925,14 +925,30 @@ def set_ethernet(cfg):
 
 # ---------------------------------------------------------------- kiosk (HDMI)
 def apply_kiosk(k):
+    """Instellingen van het HDMI-scherm toepassen. Chromium herstarten duurt op een Pi 3 lang: enkel als het moet
+    (vergroting, resolutie, draaiing, aan/uit). Een andere pagina gaat via CDP; het thema past kiosk_label() toe."""
+    new = (f"KIOSK_URL={k.get('url') or 'http://localhost/jury'}\nKIOSK_ZOOM={float(k.get('zoom') or 1.0)}\n"
+           f"KIOSK_MODE={k.get('mode') or 'auto'}\nKIOSK_ROTATE={int(k.get('rotate') or 0)}\n")
+    try:
+        old = open(KIOSK_ENV).read()
+    except OSError:
+        old = ""
     with open(KIOSK_ENV, "w") as f:
-        f.write(f"KIOSK_URL={k.get('url') or 'http://localhost/jury'}\nKIOSK_ZOOM={float(k.get('zoom') or 1.0)}\n"
-                f"KIOSK_MODE={k.get('mode') or 'auto'}\nKIOSK_ROTATE={int(k.get('rotate') or 0)}\n")
-    if k.get("enabled", True):
-        run(["systemctl", "enable", "khzs-kiosk.service"])
-        run(["systemctl", "restart", "khzs-kiosk.service"])
-    else:
+        f.write(new)
+    if not k.get("enabled", True):
         run(["systemctl", "disable", "--now", "khzs-kiosk.service"])
+        return
+    run(["systemctl", "enable", "khzs-kiosk.service"])
+    active = run(["systemctl", "is-active", "khzs-kiosk.service"])[1].strip() == "active"
+    strip = lambda t: "".join(l for l in t.splitlines(True) if not l.startswith("KIOSK_URL="))
+    if active and strip(old) == strip(new):
+        if old != new:                                   # enkel de pagina anders: meteen navigeren
+            try:
+                KIOSK.navigate(k.get("url") or "http://localhost/jury")
+            except Exception:
+                run(["systemctl", "restart", "khzs-kiosk.service"])
+        return
+    run(["systemctl", "restart", "khzs-kiosk.service"])
 
 
 # ---------------------------------------------------------------- hotspot-login (browser op afstand via CDP)
@@ -1513,14 +1529,19 @@ class KioskCtl(Portal):
         return None
 
     def shot(self):
-        r = self.call(("Page.captureScreenshot", {"format": "jpeg", "quality": 70}))
+        # halve grootte: 4x minder pixels om te coderen (een Pi 3 merkt dat), scherp genoeg om mee te kijken
+        m = self.call(("Page.getLayoutMetrics", {}))
+        vp = (m or {}).get("cssLayoutViewport") or (m or {}).get("layoutViewport") or {}
+        w, h = vp.get("clientWidth") or 1920, vp.get("clientHeight") or 1080
+        r = self.call(("Page.captureScreenshot", {"format": "jpeg", "quality": 65,
+                                                  "clip": {"x": 0, "y": 0, "width": w, "height": h, "scale": 0.5}}))
         info = self.call(("Runtime.evaluate", {"expression": "JSON.stringify([location.href, document.title, devicePixelRatio])",
                                               "returnByValue": True}))
         try:
             href, title, dpr = json.loads(info["result"]["value"])
         except (KeyError, ValueError, TypeError):
             href, title, dpr = "", "", 1
-        return base64.b64decode(r["data"]), href, title, dpr
+        return base64.b64decode(r["data"]), href, title, 0.5     # schaal t.o.v. CSS-pixels (klikken omrekenen)
 
     def mouse(self, kind, x, y, button="left"):
         base = {"x": x, "y": y, "button": button, "clickCount": 1}
@@ -2264,8 +2285,14 @@ class H(BaseHTTPRequestHandler):
                 apply_kiosk(k)
                 return self._send(200, {"ok": True})
             if p == "/kiosk/restart":
-                run(["systemctl", "restart", "khzs-kiosk.service"])
-                return self._send(200, {"ok": True})
+                try:
+                    if d.get("hard"):
+                        raise RuntimeError("volledig herstarten gevraagd")
+                    KIOSK.reload()                       # enkele seconden i.p.v. Chromium herstarten
+                    return self._send(200, {"ok": True, "how": "herladen"})
+                except Exception:
+                    run(["systemctl", "restart", "khzs-kiosk.service"])
+                    return self._send(200, {"ok": True, "how": "herstart"})
             if p == "/power":
                 act = d.get("action")
                 if act not in ("reboot", "poweroff"):
