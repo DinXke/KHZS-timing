@@ -153,6 +153,12 @@ pre.logs{background:#04090f;color:#cfe3f3;border:1px solid var(--border);border-
 .modes button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer;font:inherit}
 .modes button b{font-size:15px}.modes button span{font-size:12.5px;color:var(--muted)}.modes button i{font-style:normal;font-size:22px}
 .modes button.on{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.sl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.sl-list .sl{border:1px solid var(--border);border-radius:12px;background:var(--card2);overflow:hidden;cursor:pointer;position:relative}
+.sl-list .sl.on{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.sl-list .sl img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#000}
+.sl-list .sl div{padding:6px 10px;font-size:13px;display:flex;justify-content:space-between;gap:6px;align-items:center}
+.sl-list .sl b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ipv{position:relative;width:100%;aspect-ratio:16/9;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#07131f}
 .ipv iframe{position:absolute;left:0;top:0;width:1600px;height:900px;border:0;transform-origin:0 0}
 .ifl{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.ifl label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:13.5px}
@@ -376,7 +382,7 @@ function pages(){
   fieldsCard('Indeling','',['callroom_heats','callroom_split_left_pct','callroom_next_big','callroom_next_scale','callroom_show_previous'])+
   fieldsCard('"Naar de oproepkamer"','Tussenscherm bij elke nieuwe reeks.',['callroom_splash_seconds','callroom_splash_heat']);
  P.info=(relayMode?'<div class="banner '+(relayAdmin?'info':'warn')+'"><span class="sp">'+(relayAdmin?'☁ Beheer op de <b>cloudserver</b>: wijzigingen gelden hier meteen. Een lokale server die later iets instelt, overschrijft dit.':(relayInfo.adminConfigured?'🔒 Je bent aangemeld als jury. Meld je aan met het <b>beheerwachtwoord</b> van de cloudserver om te wijzigen.':'🔒 Er is nog geen beheerwachtwoord ingesteld op deze cloudserver (lokaal beheer › Cloudserver).'))+'</span>'+(relayAdmin?'<a class="btn" href="/logout">Afmelden</a>':'<a class="btn pri" href="/logout?next=/login">Aanmelden als beheerder</a>')+'</div>':'')+'<h1>Infoscherm</h1><p class="lead">Een scherm in de stijl van de splash screens voor als er geen race loopt: geen wedstrijd, volgende wedstrijd, pauze, … Het verschijnt op de publieke pagina en in de oproepkamer – hier en op de publieke server – en altijd op <a href="/info" target="_blank">/info</a> (handig voor een tv in de cafetaria).</p>'+
-  '<div class="card"><h2>Wat tonen?</h2><div class="modes" id="imModes">'+[['off','⏹','Uit','gewone live uitslagen'],['auto','🗓','Automatisch','volgens de agenda'],['geen','🌙','Geen wedstrijd','met de volgende wedstrijd'],['volgende','📅','Volgende wedstrijd','met aftellen'],['welkom','👋','Welkom','voor de start'],['inzwemmen','🏊','Inzwemmen','aftellen tot de start'],['pauze','🥤','Pauze','aftellen tot de hervatting'],['prijsuitreiking','🏅','Prijsuitreiking',''],['einde','🏁','Einde','bedankt en tot ziens'],['bericht','📣','Eigen bericht','titel en tekst']].map(m=>'<button type="button" data-mode="'+m[0]+'"><i>'+m[1]+'</i><b>'+m[2]+'</b><span>'+m[3]+'</span></button>').join('')+'</div>'+
+  '<div class="card"><h2>Wat tonen?</h2><div class="modes" id="imModes">'+[['off','⏹','Uit','gewone live uitslagen'],['auto','🗓','Automatisch','volgens de agenda'],['geen','🌙','Geen wedstrijd','met de volgende wedstrijd'],['volgende','📅','Volgende wedstrijd','met aftellen'],['welkom','👋','Welkom','voor de start'],['inzwemmen','🏊','Inzwemmen','aftellen tot de start'],['pauze','🥤','Pauze','aftellen tot de hervatting'],['prijsuitreiking','🏅','Prijsuitreiking',''],['einde','🏁','Einde','bedankt en tot ziens'],['bericht','📣','Eigen bericht','titel en tekst'],['presentatie','🖼','Presentatie','PowerPoint of PDF']].map(m=>'<button type="button" data-mode="'+m[0]+'"><i>'+m[1]+'</i><b>'+m[2]+'</b><span>'+m[3]+'</span></button>').join('')+'</div>'+
   '<div id="imStat" class="muted" style="margin-top:12px"></div></div>'+
   '<div class="card"><h2>Inhoud</h2><p class="desc">Alles is optioneel: lege velden krijgen een passende standaardtekst.</p><div class="ifl">'+
    '<label>Wedstrijd<input type="text" id="imMeet" placeholder="bv. PK Limburg 25 m"></label>'+
@@ -395,6 +401,11 @@ function pages(){
    '<label class="chk"><input type="checkbox" id="imPub" checked> Op de publieke pagina</label>'+
    '<label class="chk"><input type="checkbox" id="imCr" checked> In de oproepkamer</label></div>'+
    '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn pri" id="imShow">📺 Tonen</button><button class="btn" id="imOff">⏹ Uitzetten</button><a class="btn" href="/info" target="_blank">/info openen ↗</a></div></div>'+
+  '<div class="card"><h2>Presentatie</h2><p class="desc">Een PowerPoint (.pptx, .ppt, .ppsx), OpenOffice (.odp) of PDF als diavoorstelling op het infoscherm. Het bestand wordt omgezet naar afbeeldingen'+(relayMode?'':' – op de publieke server als dit toestel dat zelf niet kan (een Pi heeft er de kracht niet voor), daarna staan de dia\'s op het kastje en werkt het ook zonder internet')+'. Animaties en video\'s in de presentatie vallen weg. Kies een presentatie en klik bij <b>Wat tonen?</b> op <b>Presentatie</b>.</p>'+
+   '<p class="muted" id="slNote" style="font-size:13px"></p><div class="drop" id="slDrop">Sleep een presentatie hierheen of <b>klik om te kiezen</b><input type="file" id="slFile" accept=".pptx,.ppt,.pps,.ppsx,.odp,.pdf" hidden></div>'+
+   '<div id="slList" class="sl-list" style="margin-top:12px"></div>'+
+   '<label style="display:flex;gap:8px;align-items:center;margin-top:12px">Elke dia <input type="number" id="slSec" min="3" max="600" value="10" style="width:80px"> seconden</label>'+
+   '<p class="muted" style="font-size:12.5px;margin-top:8px">De lopende tekst (hierboven) verschijnt als balk onderaan de dia\'s; laat ze leeg voor dia\'s over het hele scherm.</p></div>'+
   '<div class="card"><h2>Agenda</h2><p class="desc">Voor de modus <b>Automatisch</b>: de komende wedstrijden. Het scherm toont dan zelf "Volgende wedstrijd" (met aftellen) vanaf het aantal dagen hieronder, "Welkom" op de dag zelf tot de start, en anders "Geen wedstrijd" met de eerstvolgende. Zodra er live gegevens zijn, verdwijnt het.</p>'+
    '<div id="imSched"></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="imAdd" type="button">＋ Wedstrijd toevoegen</button>'+
    '<label style="display:flex;gap:8px;align-items:center">Volgende wedstrijd tonen vanaf <input type="number" id="imDays" min="0" max="90" value="7" style="width:70px"> dagen vooraf</label></div></div>'+
@@ -1022,7 +1033,13 @@ document.addEventListener('click',e=>{const a=e.target.closest('[data-peer-src],
   toast('Ingevuld – klik Toepassen')});
 
 /* ---------------------------------------------------------------- infoscherm */
-let imCur={mode:'off'},imSel='geen',imT=null;
+let imCur={mode:'off'},imSel='geen',imT=null,imDeck='',slDecks=[];
+function slDraw(){const el=$('slList');if(!el)return;
+  el.innerHTML=slDecks.length?slDecks.map(d=>'<div class="sl'+(d.id===imDeck?' on':'')+'" data-id="'+d.id+'"><img loading="lazy" src="/slides/'+d.id+'/001.jpg" alt=""><div><b title="'+esc(d.name)+'">'+esc(d.name)+'</b><span class="muted">'+d.count+'&nbsp;dia\'s</span><button class="btn sm danger" type="button" data-sldel="'+d.id+'" title="Verwijderen">✕</button></div></div>').join(''):'<p class="muted">Nog geen presentaties.</p>'}
+async function slLoad(){try{const r=await api('/api/slides');slDecks=r.decks||[];
+  const n=$('slNote');if(n)n.innerHTML=r.local?'':r.viaCloud?'☁ PowerPoint wordt omgezet op de publieke server; daarna staan de dia’s op dit toestel.':
+    (r.pdf?'⚠ Dit toestel kan geen PowerPoint omzetten en er is geen publieke server ingesteld (<a href="#doorsturen">Doorsturen</a>). <b>PDF lukt wel</b>: in PowerPoint via Bestand › Exporteren › PDF.':
+    '⚠ Dit toestel kan geen presentaties omzetten en er is geen publieke server ingesteld (<a href="#doorsturen">Doorsturen</a>).')}catch(e){slDecks=[]}slDraw()}
 let imSchedule=[];
 function imDrawSched(){const el=$('imSched');if(!el)return;
   el.innerHTML=imSchedule.length?'<table class="list"><tr><th>Wedstrijd</th><th>Datum</th><th>Start</th><th>Plaats</th><th></th></tr>'+imSchedule.map((m,i)=>'<tr>'+
@@ -1034,20 +1051,22 @@ function imDrawSched(){const el=$('imSched');if(!el)return;
 function imBody(mode){return {mode:mode,meet:$('imMeet').value,date:$('imDate').value,place:$('imPlace').value,until:$('imDur').value?'':$('imUntil').value,
   duration:parseFloat($('imDur').value)||0,schedule:imSchedule.filter(m=>m.date),daysBefore:parseInt($('imDays').value,10)||0,title:$('imTitle').value,
   kicker:$('imKicker').value,footer:$('imFoot').value,text:$('imText').value,ticker:$('imTicker').value,autoHide:$('imAuto').checked,allowClose:$('imClose').checked,
-  pages:{publiek:$('imPub').checked,callroom:$('imCr').checked}}}
+  pages:{publiek:$('imPub').checked,callroom:$('imCr').checked},deck:imDeck,slideSec:parseFloat($('slSec').value)||10,
+  deckCount:(slDecks.find(d=>d.id===imDeck)||{}).count||0}}
 function imPreview(){clearTimeout(imT);imT=setTimeout(()=>{const f=$('imFrame');if(!f)return;const b=imBody(imSel==='off'?'geen':imSel);b.updatedAt=1;
   if(b.duration){b.untilAt=Math.round(Date.now()/1000+b.duration*60);delete b.until}
   f.src='/info?preview='+encodeURIComponent(JSON.stringify(b));imScale()},350)}
 function imScale(){const pv=$('imPv'),f=$('imFrame');if(pv&&f)f.style.transform='scale('+(pv.clientWidth/1600)+')'}
 function imMarks(){document.querySelectorAll('#imModes button').forEach(b=>b.classList.toggle('on',b.dataset.mode===imSel))}
-function imStatus(cloud){const M={off:'uit (gewone live uitslagen)',auto:'automatisch volgens de agenda',geen:'geen wedstrijd',volgende:'volgende wedstrijd',welkom:'welkom',inzwemmen:'inzwemmen',pauze:'pauze',prijsuitreiking:'prijsuitreiking',einde:'einde',bericht:'eigen bericht'};
+function imStatus(cloud){const M={presentatie:'presentatie'+(imCur.deckName?' – '+imCur.deckName:''),off:'uit (gewone live uitslagen)',auto:'automatisch volgens de agenda',geen:'geen wedstrijd',volgende:'volgende wedstrijd',welkom:'welkom',inzwemmen:'inzwemmen',pauze:'pauze',prijsuitreiking:'prijsuitreiking',einde:'einde',bericht:'eigen bericht'};
   $('imStat').innerHTML='Nu actief: <b>'+esc(M[imCur.mode]||imCur.mode)+'</b>'+(imCur.updatedAt?' <span class="muted">· ingesteld '+new Date(imCur.updatedAt*1000).toLocaleString('nl-BE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+(imCur.source?' via '+(imCur.source==='cloud'?'de cloudserver':'een lokale server'):'')+'</span>':'')+(cloud?(' · publieke server '+(cloud.ok?'<span style="color:var(--ok)">✓ bijgewerkt</span>':'<span style="color:var(--bad)">✗ '+esc(cloud.error||'')+'</span>')):'')}
 async function loadInfo(){try{imCur=await (await fetch('/api/info')).json()}catch(e){imCur={mode:'off'}}
   const i=imCur;imSel=i.mode&&i.mode!=='off'?i.mode:imSel;
   [['imMeet','meet'],['imDate','date'],['imPlace','place'],['imUntil','until'],['imTitle','title'],['imKicker','kicker'],['imFoot','footer'],['imText','text'],['imTicker','ticker']].forEach(([id,k])=>{if(i[k]!=null)$(id).value=i[k]});
   imSchedule=(i.schedule||[]).map(m=>Object.assign({},m));imDrawSched();$('imDays').value=i.daysBefore!=null?i.daysBefore:7;$('imDur').value=i.duration||'';
   $('imAuto').checked=i.autoHide!==false;$('imClose').checked=i.allowClose!==false;$('imPub').checked=!(i.pages&&i.pages.publiek===false);$('imCr').checked=!(i.pages&&i.pages.callroom===false);
-  imMarks();imStatus();imPreview()}
+  imDeck=i.deck||imDeck;$('slSec').value=i.slideSec||10;
+  imMarks();imStatus();imPreview();slLoad()}
 function wireInfo(){if(!$('imModes'))return;
   $('imModes').onclick=e=>{const b=e.target.closest('button[data-mode]');if(!b)return;if(b.dataset.mode==='off'){$('imOff').click();return}imSel=b.dataset.mode;imMarks();imPreview()};
   $('pg_info').addEventListener('input',imPreview);$('pg_info').addEventListener('change',imPreview);
@@ -1057,6 +1076,14 @@ function wireInfo(){if(!$('imModes'))return;
   const send=async(mode,btn)=>act(btn,async()=>{if(relayMode&&!relayAdmin)throw new Error('meld je aan met het beheerwachtwoord van de cloudserver');
     const r=await api('/api/info',{json:imBody(mode)});imCur=r.info;imStatus(r.cloud);imMarks()},mode==='off'?'Infoscherm uit':'Infoscherm getoond');
   $('imShow').onclick=e=>send(imSel,e.target);$('imOff').onclick=e=>send('off',e.target);
+  const slUp=f=>{if(f.size>60*1024*1024){toast('Groter dan 60 MB – maak de presentatie kleiner (afbeeldingen comprimeren)','err');return}
+    const z=$('slDrop'),old=z.innerHTML;z.innerHTML='⏳ '+esc(f.name)+' uploaden en omzetten… (kan een minuut duren)';
+    act(null,async()=>{try{const r=await api('/api/slides',{body:f,headers:{'Content-Type':'application/octet-stream','X-Filename':encodeURIComponent(f.name)}});
+      slDecks=r.decks||[];imDeck=r.deck.id;imSel='presentatie';imMarks();slDraw();imPreview();return r}finally{z.innerHTML=old;wireSlDrop()}},'Presentatie klaar – klik op Tonen')};
+  const wireSlDrop=()=>dropZone($('slDrop'),$('slFile'),slUp);wireSlDrop();
+  $('slList').addEventListener('click',e=>{const del=e.target.closest('[data-sldel]');
+    if(del){e.stopPropagation();const id=del.dataset.sldel;confirmBox('Presentatie verwijderen','De dia\'s worden van dit toestel verwijderd.','Verwijderen',()=>act(null,async()=>{const r=await api('/api/slides/delete',{json:{id:id}});slDecks=r.decks||[];if(imDeck===id)imDeck='';slDraw()},'Verwijderd'),true);return}
+    const c=e.target.closest('.sl');if(c){imDeck=c.dataset.id;imSel='presentatie';imMarks();slDraw();imPreview()}});
   window.addEventListener('resize',imScale)}
 
 /* ---------------------------------------------------------------- HDMI-scherm bekijken en bedienen */

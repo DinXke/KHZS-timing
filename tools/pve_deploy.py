@@ -397,6 +397,12 @@ def cmd_deploy():
             con.run("apt-get -qq -o Acquire::ForceIPv4=true update && apt-get -qq -o Acquire::ForceIPv4=true -y install "
                     "python3 unattended-upgrades curl >/dev/null && echo 'Acquire::ForceIPv4 \"true\";' > /etc/apt/apt.conf.d/99force-ipv4", 600)
         print("  ", con.run("python3 --version")[1])
+        # presentaties voor het infoscherm: PowerPoint -> PDF -> afbeeldingen (ook voor de kastjes)
+        if con.run("command -v soffice >/dev/null && command -v pdftoppm >/dev/null", check=False)[0] != 0:
+            print("LibreOffice en poppler installeren (presentaties omzetten)…")
+            con.run("DEBIAN_FRONTEND=noninteractive apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y "
+                    "--no-install-recommends install libreoffice-impress-nogui poppler-utils fonts-dejavu fonts-liberation2 "
+                    "fonts-crosextra-carlito fonts-crosextra-caladea fonts-noto-color-emoji >/dev/null", 1500)
         con.run("printf 'net.ipv6.conf.all.disable_ipv6=1\nnet.ipv6.conf.default.disable_ipv6=1\n' "
                 "> /etc/sysctl.d/90-geen-ipv6.conf && sysctl -q -p /etc/sysctl.d/90-geen-ipv6.conf; "
                 "grep -q '^precedence ::ffff:0:0/96' /etc/gai.conf 2>/dev/null || echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf",

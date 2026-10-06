@@ -1643,7 +1643,9 @@ class Stats:
 STATS = None
 
 # ---------- infoscherm (geen wedstrijd, volgende wedstrijd, pauze, …): lokaal en op de publieke server ----------
-INFO_MODES = ("off", "auto", "geen", "volgende", "welkom", "inzwemmen", "pauze", "prijsuitreiking", "einde", "bericht")
+INFO_MODES = ("off", "auto", "geen", "volgende", "welkom", "inzwemmen", "pauze", "prijsuitreiking", "einde", "bericht",
+              "presentatie")
+IS_RELAY = False
 INFO = {"mode": "off"}
 INFO_FILE = None
 
@@ -1701,6 +1703,21 @@ def info_set(d, source="lokaal"):
     new["allowClose"] = bool(d.get("allowClose", True))
     pages = d.get("pages") or {}
     new["pages"] = {"publiek": bool(pages.get("publiek", True)), "callroom": bool(pages.get("callroom", True))}
+    # presentatie: gekozen dia's en hoe lang elke dia blijft staan (ook bewaard bij een andere modus, voor het beheer)
+    sid = str(d.get("deck") or "")
+    if SLIDE_ID_RX.fullmatch(sid):
+        new["deck"] = sid
+    try:
+        new["slideSec"] = max(3.0, min(600.0, float(d.get("slideSec") or 10)))
+    except (TypeError, ValueError):
+        new["slideSec"] = 10.0
+    if new["mode"] == "presentatie":
+        meta = slides_get(new.get("deck", ""))
+        if not new.get("deck"):
+            raise ValueError("kies eerst een presentatie")
+        if not meta:
+            raise ValueError("presentatie niet gevonden op dit toestel")
+        new["deckCount"], new["deckName"] = meta["count"], meta.get("name") or ""
     INFO.clear()
     INFO.update(new)
     if INFO_FILE:
@@ -1710,6 +1727,181 @@ def info_set(d, source="lokaal"):
         os.replace(tmp, INFO_FILE)
     print(f"infoscherm: {INFO['mode']}")
     return dict(INFO)
+
+
+# ---------- presentaties voor het infoscherm: PowerPoint/PDF -> afbeeldingen (LibreOffice + pdftoppm) ----------
+# Omzetten gebeurt waar LibreOffice staat (de cloudserver); een kastje zonder LibreOffice stuurt het bestand daarheen
+# en krijgt de dia's terug als zip. De id is een hash van het bestand: dezelfde presentatie = dezelfde map, overal.
+SLIDE_EXTS = (".pptx", ".ppt", ".pps", ".ppsx", ".odp", ".pdf")
+SLIDE_ID_RX = re.compile(r"[0-9a-f]{16}")
+SLIDES_MAX = 12                     # zoveel presentaties bewaren (de oudste ongebruikte gaat eerst weg)
+SLIDES_LOCK = threading.Lock()
+
+
+def slides_dir():
+    return os.path.join(DATA, "slides")
+
+
+def slides_list():
+    out = []
+    d = slides_dir()
+    for sid in (os.listdir(d) if os.path.isdir(d) else []):
+        try:
+            with open(os.path.join(d, sid, "deck.json"), encoding="utf-8") as f:
+                m = json.load(f)
+            if m.get("id") == sid and m.get("count"):
+                out.append(m)
+        except (OSError, ValueError):
+            pass
+    return sorted(out, key=lambda m: -m.get("created", 0))
+
+
+def slides_get(sid):
+    if not SLIDE_ID_RX.fullmatch(sid or ""):
+        return None
+    try:
+        with open(os.path.join(slides_dir(), sid, "deck.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def slides_tools():
+    """(soffice, pdftoppm) als ze op dit toestel staan."""
+    return (shutil.which("soffice") or shutil.which("libreoffice"), shutil.which("pdftoppm"))
+
+
+def slides_convert_local(data, fname):
+    """Bestand -> lijst JPEG-dia's (bytes), 1920 px breed."""
+    import tempfile
+    soffice, pdftoppm = slides_tools()
+    if not pdftoppm:
+        raise RuntimeError("pdftoppm (poppler-utils) ontbreekt")
+    ext = os.path.splitext(fname.lower())[1]
+    with tempfile.TemporaryDirectory(prefix="khzs-dia-") as tmp:
+        src = os.path.join(tmp, "in" + ext)
+        with open(src, "wb") as f:
+            f.write(data)
+        pdf = src
+        if ext != ".pdf":
+            if not soffice:
+                raise RuntimeError("LibreOffice ontbreekt")
+            r = subprocess.run([soffice, "--headless", "--norestore", "-env:UserInstallation=file://" + tmp + "/lo",
+                                "--convert-to", "pdf", "--outdir", tmp, src],
+                               capture_output=True, text=True, timeout=300, env=dict(os.environ, HOME=tmp))
+            pdf = os.path.join(tmp, "in.pdf")
+            if not os.path.exists(pdf):
+                raise RuntimeError("omzetten mislukt: " + ((r.stderr or r.stdout or "").strip()[-300:] or "geen PDF"))
+        r = subprocess.run([pdftoppm, "-jpeg", "-jpegopt", "quality=86", "-scale-to-x", "1920", "-scale-to-y", "-1",
+                            "-l", "300", pdf, os.path.join(tmp, "s")], capture_output=True, text=True, timeout=300)
+        files = sorted(f for f in os.listdir(tmp) if f.startswith("s-") and f.endswith(".jpg"))
+        if not files:
+            raise RuntimeError("geen dia's gevonden: " + (r.stderr or "").strip()[-200:])
+        out = []
+        for fn in files:
+            with open(os.path.join(tmp, fn), "rb") as f:
+                out.append(f.read())
+        return out
+
+
+def slides_store(sid, name, images):
+    d = os.path.join(slides_dir(), sid)
+    tmp = d + ".tmp"
+    shutil.rmtree(tmp, ignore_errors=True)
+    os.makedirs(tmp)
+    for i, img in enumerate(images, 1):
+        with open(os.path.join(tmp, f"{i:03d}.jpg"), "wb") as f:
+            f.write(img)
+    meta = {"id": sid, "name": name[:120], "count": len(images), "created": int(time.time())}
+    with open(os.path.join(tmp, "deck.json"), "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False)
+    with SLIDES_LOCK:
+        shutil.rmtree(d, ignore_errors=True)
+        os.replace(tmp, d)
+        decks = slides_list()
+        for m in decks[SLIDES_MAX:]:
+            if m["id"] not in (sid, INFO.get("deck")):
+                shutil.rmtree(os.path.join(slides_dir(), m["id"]), ignore_errors=True)
+    print(f"presentatie {name}: {len(images)} dia's")
+    return meta
+
+
+def slides_zip(sid):
+    import zipfile
+    d = os.path.join(slides_dir(), sid)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        for fn in sorted(os.listdir(d)):
+            if fn == "deck.json" or re.fullmatch(r"\d{3}\.jpg", fn):
+                z.write(os.path.join(d, fn), fn)
+    return buf.getvalue()
+
+
+def slides_from_zip(data):
+    import zipfile
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        meta = json.loads(z.read("deck.json"))
+        sid = str(meta.get("id") or "")
+        if not SLIDE_ID_RX.fullmatch(sid):
+            raise ValueError("ongeldige presentatie")
+        names = sorted(n for n in z.namelist() if re.fullmatch(r"\d{3}\.jpg", n))
+        if not names or len(names) > 300:
+            raise ValueError("geen dia's")
+        imgs = [z.read(n) for n in names]
+    return slides_store(sid, str(meta.get("name") or sid), imgs)
+
+
+def slides_import(data, fname):
+    """Upload verwerken: zelf omzetten als het kan, anders via de publieke server."""
+    fname = os.path.basename(fname or "presentatie.pptx")
+    ext = os.path.splitext(fname.lower())[1]
+    if ext not in SLIDE_EXTS:
+        raise ValueError("enkel PowerPoint (.pptx/.ppt/.ppsx), OpenOffice (.odp) of PDF")
+    sid = hashlib.sha256(data).hexdigest()[:16]
+    have = slides_get(sid)
+    if have:
+        return have
+    name = os.path.splitext(fname)[0]
+    soffice, pdftoppm = slides_tools()
+    if pdftoppm and (soffice or ext == ".pdf"):
+        meta = slides_store(sid, name, slides_convert_local(data, fname))
+        if SETTINGS.get("relay_url") and SETTINGS.get("relay_token") and not IS_RELAY:
+            threading.Thread(target=slides_push, args=(sid,), daemon=True).start()
+        return meta
+    if not (SETTINGS.get("relay_url") and SETTINGS.get("relay_token")):
+        raise RuntimeError("dit toestel kan zelf geen PowerPoint omzetten en er is geen publieke server ingesteld (Doorsturen)")
+    code, body, ctype = cloud_call("POST", "slides/convert?name=" + urllib.parse.quote(fname), data,
+                                   "application/octet-stream", timeout=360)
+    if code != 200 or not ctype.startswith("application/zip"):
+        try:
+            err = json.loads(body).get("error")
+        except ValueError:
+            err = None
+        raise RuntimeError("omzetten op de publieke server mislukt: " + (err or f"HTTP {code}"))
+    return slides_from_zip(body)
+
+
+def slides_push(sid):
+    """Kastje -> publieke server, zodat die dezelfde presentatie kan tonen (enkel als ze er nog niet is)."""
+    code, body, _ = cloud_call("GET", "slides/has?id=" + sid, timeout=20)
+    try:
+        if code == 200 and json.loads(body).get("has"):
+            return True
+    except ValueError:
+        pass
+    code, body, _ = cloud_call("POST", "slides/put", slides_zip(sid), "application/zip", timeout=300)
+    if code != 200:
+        print(f"presentatie {sid} naar de publieke server: HTTP {code}")
+    return code == 200
+
+
+def slides_delete(sid):
+    if not SLIDE_ID_RX.fullmatch(sid or ""):
+        raise ValueError("ongeldige presentatie")
+    if INFO.get("mode") == "presentatie" and INFO.get("deck") == sid:
+        raise ValueError("deze presentatie wordt nu getoond – zet eerst het infoscherm om")
+    with SLIDES_LOCK:
+        shutil.rmtree(os.path.join(slides_dir(), sid), ignore_errors=True)
 
 
 # ---------- beheer op afstand: de publieke server stuurt verzoeken door naar een kastje (tunnel over HTTPS) ----------
@@ -2158,6 +2350,16 @@ def make_handler(state, hub, relay=None):
                 return self._json(dict(STATS.report(), ok=True))
             if path == "/api/info":
                 return self._json(INFO)
+            if path == "/api/slides":
+                if not (self._cloud_admin() if relay is not None else self._is_admin()):
+                    return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
+                so, pp = slides_tools()
+                return self._json({"ok": True, "decks": slides_list(), "local": bool(so and pp), "pdf": bool(pp),
+                                   "viaCloud": bool(relay is None and SETTINGS.get("relay_url") and SETTINGS.get("relay_token"))})
+            m_ = re.fullmatch(r"/slides/([0-9a-f]{16})/(\d{3})\.jpg", path)
+            if m_:
+                return self._file(os.path.join(slides_dir(), m_.group(1), m_.group(2) + ".jpg"), "image/jpeg",
+                                  "public, max-age=31536000, immutable")
             if path == "/api/tls" and relay is None:
                 return self._json(TLS)
             if path == "/api/peers" and relay is None:
@@ -2300,6 +2502,20 @@ def make_handler(state, hub, relay=None):
                                    "defaultToken": SETTINGS["admin_token"] == "zwemclub" and not SETTINGS.get("trust_localhost", True)})
             self.send_error(404)
 
+        def _slides_post(self, path0):
+            n = int(self.headers.get("Content-Length", 0) or 0)
+            if n <= 0 or n > 60 * 1024 * 1024:
+                return self._json({"ok": False, "error": "leeg of groter dan 60 MB"}, 400)
+            body = self.rfile.read(n)
+            try:
+                if path0 == "/api/slides/delete":
+                    slides_delete(str(json.loads(body or b"{}").get("id") or ""))
+                    return self._json({"ok": True, "decks": slides_list()})
+                meta = slides_import(body, urllib.parse.unquote(self.headers.get("X-Filename", "") or ""))
+            except (ValueError, RuntimeError, OSError, subprocess.TimeoutExpired) as e:
+                return self._json({"ok": False, "error": str(e)}, 400)
+            return self._json({"ok": True, "deck": meta, "decks": slides_list()})
+
         def _tunnel_proxy(self, method):
             """Relay: /kastje/<naam>/<pad> -> verzoek naar dat kastje (enkel voor de beheerder van de cloudserver)."""
             if not self._cloud_admin():
@@ -2430,6 +2646,21 @@ def make_handler(state, hub, relay=None):
                     return self._json({"ok": False, "error": str(e)}, 400)
                 hub.send("info", new)
                 return self._json({"ok": True, "info": new})
+            if sub == "/slides/has":
+                return self._json({"ok": True, "has": bool(slides_get(urllib.parse.parse_qs(q).get("id", [""])[0]))})
+            if sub == "/slides/convert" and method == "POST":
+                try:
+                    meta = slides_import(body, urllib.parse.parse_qs(q).get("name", ["presentatie.pptx"])[0])
+                    data = slides_zip(meta["id"])
+                except (ValueError, RuntimeError, OSError, subprocess.TimeoutExpired) as e:
+                    return self._json({"ok": False, "error": str(e)}, 400)
+                return self._send(200, data, "application/zip")
+            if sub == "/slides/put" and method == "POST":
+                try:
+                    meta = slides_from_zip(body)
+                except Exception as e:
+                    return self._json({"ok": False, "error": f"ongeldig pakket: {e}"}, 400)
+                return self._json({"ok": True, "deck": meta})
             if sub == "/stats":
                 return self._json(dict(STATS.report() if STATS else {}, ok=True))
             if sub == "/cache/clear" and method == "POST":
@@ -2521,6 +2752,11 @@ def make_handler(state, hub, relay=None):
                         return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
                     code, data, ctype = cloud_agent_call("POST", "/update/github", b"{}", {"X-Who": "beheer cloudserver"}, timeout=240)
                     return self._send(code, data, ctype)
+                if path0 in ("/api/slides", "/api/slides/delete"):
+                    origin = self.headers.get("Origin") or ""
+                    if not self._cloud_admin() or (origin and urllib.parse.urlsplit(origin).netloc != (self.headers.get("Host") or "")):
+                        return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
+                    return self._slides_post(path0)
                 if path0 == "/api/info":
                     # beheer op de cloudserver zelf (zonder kastje); Origin moet deze site zijn
                     origin = self.headers.get("Origin") or ""
@@ -2597,6 +2833,10 @@ def make_handler(state, hub, relay=None):
                     PROG_STATUS["error"] = str(e)
                     return self._json({"ok": False, "error": str(e)})
                 return self._json({"ok": True, "stats": stats, "file": PROG_STATUS["file"]})
+            if path0 in ("/api/slides", "/api/slides/delete"):
+                if not self._is_admin():
+                    return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
+                return self._slides_post(path0)
             if path0 == "/api/info":
                 if not self._is_admin():
                     return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
@@ -2608,6 +2848,8 @@ def make_handler(state, hub, relay=None):
                 hub.send("info", new)
                 cloud = None
                 if SETTINGS.get("relay_url") and SETTINGS.get("relay_token"):
+                    if new.get("mode") == "presentatie":
+                        slides_push(new["deck"])                # eerst de dia's, dan pas het infoscherm
                     code, data, _ = cloud_call("POST", "info", json.dumps(new).encode(), timeout=15)
                     cloud = {"ok": code == 200, "error": None if code == 200 else (json.loads(data or b"{}").get("error") if data[:1] == b"{" else str(code))}
                 return self._json({"ok": True, "info": new, "cloud": cloud})
@@ -2673,7 +2915,7 @@ def make_handler(state, hub, relay=None):
             state.changed()
             return self._json({"ok": True})
 
-        def _file(self, fn, ctype):
+        def _file(self, fn, ctype, cache="no-cache"):
             try:
                 with open(fn, "rb") as f:
                     body = f.read()
@@ -2681,7 +2923,7 @@ def make_handler(state, hub, relay=None):
                 return self.send_error(404)
             self.send_response(200)
             self.send_header("Content-Type", ctype)
-            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Cache-Control", cache)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -3237,6 +3479,8 @@ def main():
         SETTINGS["jury_password"] = args.jury_password
     if args.relay:
         SETTINGS["relay_url"] = args.relay
+    global IS_RELAY
+    IS_RELAY = bool(args.relay_server)
     if args.relay_server:
         relay = RelayStore(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "relay_cache.json"))
         STATS = Stats(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "stats.json"))

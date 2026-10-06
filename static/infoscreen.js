@@ -37,6 +37,7 @@ var MODES={
   prijsuitreiking:{k:'Prijsuitreiking',t:'Applaus voor de winnaars!',ic:'🏅'},
   einde:{k:'Einde van de wedstrijd',t:'Bedankt en tot de volgende keer!',ic:'🏁'},
   bericht:{k:'Mededeling',t:'',ic:'📣'},
+  presentatie:{k:'Presentatie',t:'',ic:'🖼'},
   idle:{k:'Live uitslagen',t:'HZS Timing',ic:''}
 };
 var css=''+
@@ -69,6 +70,11 @@ var css=''+
 '#infoscreen .is-foot{position:absolute;left:0;right:0;bottom:3vh;text-align:center;z-index:3;font-size:clamp(13px,2.2vh,26px);color:#fff;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 6px rgba(0,0,0,.35)}'+
 '#infoscreen .is-close{position:absolute;right:4vw;top:calc(3.5vh + clamp(34px,8vh,96px) + 12px);z-index:4;background:rgba(0,0,0,.25);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer}'+
 '#infoscreen.standalone .is-close{display:none}'+
+'#infoscreen .is-pres{position:absolute;inset:0;z-index:5;background:#000;display:none}#infoscreen.pres .is-pres{display:block}'+
+'#infoscreen .is-pres img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .9s ease}'+
+'#infoscreen .is-pres img.show{opacity:1}'+
+'#infoscreen.pres .is-tick{z-index:6;bottom:0;padding:.6vh 0;background:rgba(0,0,0,.62);mix-blend-mode:normal;opacity:1}'+
+'#infoscreen.pres .is-foot{display:none}#infoscreen.pres .is-close{z-index:7}#infoscreen.pres.tk .is-pres{bottom:calc(clamp(16px,3.4vh,44px)*1.25 + 1.2vh)}'+
 '@media (orientation:portrait){#infoscreen .is-main{top:14vh;bottom:40vh}#infoscreen .is-cd b{font-size:clamp(24px,6vh,80px)}}'+
 '@media (prefers-reduced-motion:reduce){#infoscreen .is-wave,#infoscreen .is-bub,#infoscreen .is-ic{animation:none}#infoscreen .is-tick span{animation:none;padding-left:0}}';
 
@@ -83,7 +89,7 @@ function build(){
   el.innerHTML='<svg class="is-wv" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true"><path class="is-wave w2" d="'+wp(150,14)+'"/><path class="is-wave w1" d="'+wp(175,12)+'"/><path class="is-wave w3" d="'+wp(205,10)+'"/></svg>'+bubs+
     '<div class="is-top"><img class="is-logo" src="/img/hzs-wordmark.png" alt="HZS Timing"><div class="is-clock"></div></div>'+
     '<div class="is-main"><div class="is-ic"></div><div class="is-k"></div><div class="is-t"></div><div class="is-s"></div><div class="is-cd"></div><div class="is-cdl"></div></div>'+
-    '<div class="is-tick"><span></span></div><div class="is-foot"></div><button class="is-close" type="button">Live uitslagen bekijken</button>';
+    '<div class="is-pres"><img alt=""><img alt=""></div><div class="is-tick"><span></span></div><div class="is-foot"></div><button class="is-close" type="button">Live uitslagen bekijken</button>';
   document.body.appendChild(el);
   if(opts.standalone)el.classList.add('standalone');
   el.querySelector('.is-close').onclick=function(){dismissed=info.updatedAt||1;render()};
@@ -148,6 +154,7 @@ function render(){
   var full=info;eff=effective();
   var on=visible();el.classList.toggle('on',on);
   document.documentElement.classList.toggle('infoscreen-on',on);
+  presRun(on?eff:{});
   if(!on)return;
   var info=eff;
   var mode=(info&&info.mode&&info.mode!=='off')?info.mode:'idle',M=MODES[mode]||MODES.bericht;
@@ -166,11 +173,34 @@ function render(){
   q('.is-s').innerHTML=lines.map(function(l){return '<div>'+esc(l)+'</div>'}).join('');
   fitAll();
   var lines=String(info.ticker||'').split(/\n+/).map(function(x){return x.trim()}).filter(Boolean),tk=q('.is-tick span');
-  tk.innerHTML=lines.map(esc).join('<i>·</i>');q('.is-tick').style.display=lines.length?'':'none';
+  tk.innerHTML=lines.map(esc).join('<i>·</i>');q('.is-tick').style.display=lines.length?'':'none';el.classList.toggle('tk',lines.length>0);
   tk.style.setProperty('--td',Math.max(18,lines.join(' ').length*0.32)+'s');
   var ft=(info.footer||'').trim();q('.is-foot').textContent=ft==='-'?'':(ft||('Live uitslagen: '+location.host));
   q('.is-close').style.display=(opts.standalone||!info.allowClose)?'none':'';
   tick();
+}
+/* presentatie: dia's na elkaar, overvloeien (op een Pi 3 zonder animaties gewoon wisselen); volgende dia vooraf laden */
+var pres={key:'',n:0,t:null,cur:0};
+function slideUrl(id,n){return '/slides/'+id+'/'+('00'+(n+1)).slice(-3)+'.jpg'}
+function presStop(){clearTimeout(pres.t);pres.t=null;pres.key=''}
+function presRun(i){
+  var on=el.classList.contains('on')&&i.mode==='presentatie'&&i.deck&&i.deckCount>0;
+  el.classList.toggle('pres',!!on);
+  if(!on){presStop();return}
+  var key=i.deck+'|'+i.deckCount+'|'+i.slideSec;
+  if(key===pres.key)return;
+  presStop();pres.key=key;pres.n=-1;
+  var imgs=el.querySelectorAll('.is-pres img');
+  function next(){
+    if(pres.key!==key)return;
+    pres.n=(pres.n+1)%i.deckCount;
+    var nx=imgs[1-pres.cur],cur=imgs[pres.cur],n=pres.n;
+    nx.onload=function(){if(pres.key!==key)return;nx.classList.add('show');cur.classList.remove('show');pres.cur=1-pres.cur;
+      if(i.deckCount>1){var pre=new Image();pre.src=slideUrl(i.deck,(n+1)%i.deckCount);pres.t=setTimeout(next,Math.max(3,i.slideSec||10)*1000)}};
+    nx.onerror=function(){if(pres.key===key)pres.t=setTimeout(next,5000)};
+    nx.src=slideUrl(i.deck,n);
+  }
+  next();
 }
 /* tekst passend maken: zo groot als mag volgens de schermhoogte, kleiner tot de regel in de breedte past */
 function fit(el,max,min){if(!el)return max;var f=max;el.style.fontSize=f+'px';
