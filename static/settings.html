@@ -167,6 +167,7 @@ pre.logs{background:#04090f;color:#cfe3f3;border:1px solid var(--border);border-
   <div class="sp"></div>
   <span class="pill" id="pLive" title="Live timing"><span class="dot"></span><span>…</span></span>
   <span class="pill hide" id="pNet" title="Internet"><span class="dot"></span><span>…</span></span>
+  <a class="pill hide" id="pCloud" href="#doorsturen" title="Publieke server" style="text-decoration:none;color:inherit"><span class="dot"></span><span>Cloud</span></a>
   <button class="icon-btn" id="themeBtn" title="Thema wisselen">◐</button>
   <button class="icon-btn" id="lockBtn" title="Afmelden">🔒</button>
 </div>
@@ -542,6 +543,12 @@ async function refreshStatus(){
   if(role!=='server')setPill('pLive','', 'Live timing uit');
   else if(!stateNow)setPill('pLive','bad','Server ?');
   else setPill('pLive',stateNow.connected?'ok':'warn',stateNow.connected?(stateNow.simulated?'Simulatie':'SwimTime verbonden'):'Geen gegevens');
+  if(!relayMode){try{const rl=await (await fetch('/api/relay')).json(),t=rl.tunnel||{},pc=$('pCloud');
+    if(!rl.enabled&&!t.enabled)pc.classList.add('hide');
+    else{const pushOk=!rl.enabled||rl.ok,tunOk=!t.enabled||t.connected,host=(rl.url||'').replace(/^https?:\/\//,'').replace(/:443$/,'');
+      setPill('pCloud',pushOk&&tunOk?'ok':(pushOk||tunOk?'warn':'bad'),'Cloud');
+      pc.title=(rl.enabled?('Doorsturen naar '+host+': '+(rl.ok?'OK':'fout – '+(rl.error||'?'))):'Doorsturen uit')+
+        (t.enabled?(' · beheer op afstand: '+(t.connected?'verbonden':'niet verbonden'+(t.error?' – '+t.error:''))):'')}}catch(e){}}
   if(sys){try{sys=await api('/api/system/status');renderSys()}catch(e){}}
   renderOverview(ver);
 }

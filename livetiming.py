@@ -33,7 +33,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1868,6 +1868,9 @@ def https_server(handler, bind):
         print("HTTPS niet gestart:", e)
 
 
+TUNNEL_STATUS = {"connected": False, "lastOk": None, "error": None}
+
+
 def tunnel_client(port):
     """Lokale kant: verzoeken van de publieke server ophalen en lokaal uitvoeren (4 tegelijk, voor console + rest)."""
     def worker(n):
@@ -1895,6 +1898,7 @@ def tunnel_client(port):
                 data = r.read()
                 if r.status != 200:
                     raise OSError(f"tunnel: HTTP {r.status}")
+                TUNNEL_STATUS.update(connected=True, lastOk=time.time(), error=None)
                 req = json.loads(data or b"{}").get("req")
                 backoff = 2.0
                 if not req:
@@ -1906,6 +1910,7 @@ def tunnel_client(port):
             except (OSError, ValueError, http.client.HTTPException) as e:
                 if n == 0:
                     print("beheer op afstand:", e)
+                    TUNNEL_STATUS.update(connected=False, error=str(e))
                 conn = None
                 time.sleep(backoff)
                 backoff = min(15.0, backoff * 2)          # na een storing binnen 15 s opnieuw verbonden
@@ -2280,7 +2285,10 @@ def make_handler(state, hub, relay=None):
             if path in ("/callroom", "/callroom.html"):
                 return self._file(os.path.join(STATIC, "callroom.html"), "text/html; charset=utf-8")
             if path == "/api/relay":
-                return self._json(dict(PUSHER.status(), enabled=True) if PUSHER else {"enabled": False})
+                tun = dict(TUNNEL_STATUS, enabled=bool(SETTINGS.get("remote_admin")),
+                           ago=round(time.time() - TUNNEL_STATUS["lastOk"]) if TUNNEL_STATUS["lastOk"] else None)
+                return self._json(dict(PUSHER.status(), enabled=True, tunnel=tun) if PUSHER
+                                  else {"enabled": False, "tunnel": tun})
             if path == "/api/programma":
                 return self._json(dict(PROG_STATUS, heats=len(PROG_SCHEDULE), canEdit=self._is_admin()))
             if path == "/api/db":
