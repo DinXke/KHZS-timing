@@ -30,7 +30,7 @@
 'use strict';
 var MODES={
   geen:{k:'HZS Timing',t:'Er is nu geen wedstrijd bezig',ic:'🌙'},
-  volgende:{k:'Volgende wedstrijd',t:'',ic:'📅'},
+  volgende:{k:'Volgende wedstrijd',t:'',ic:''},   // geen kalender-emoji: Android tekent daar een vaste datum (17 juli) in
   welkom:{k:'Fijn dat je er bent',t:'Welkom!',ic:'👋'},
   inzwemmen:{k:'Inzwemmen',t:'Straks begint de wedstrijd',ic:'🏊'},
   pauze:{k:'Pauze',t:'We zijn zo terug',ic:'🥤🧇'},

@@ -408,7 +408,7 @@ function pages(){
    '<p class="muted" style="font-size:12.5px;margin-top:8px">De lopende tekst (hierboven) verschijnt als balk onderaan de dia\'s; laat ze leeg voor dia\'s over het hele scherm.</p></div>'+
   '<div class="card"><h2>Agenda</h2><p class="desc">Voor de modus <b>Automatisch</b>: de komende wedstrijden. Het scherm toont dan zelf "Volgende wedstrijd" (met aftellen) vanaf het aantal dagen hieronder, "Welkom" op de dag zelf tot de start, en anders "Geen wedstrijd" met de eerstvolgende. Zodra er live gegevens zijn, verdwijnt het.</p>'+
    '<div id="imSched"></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn" id="imAdd" type="button">＋ Wedstrijd toevoegen</button>'+
-   '<label style="display:flex;gap:8px;align-items:center">Volgende wedstrijd tonen vanaf <input type="number" id="imDays" min="0" max="90" value="7" style="width:70px"> dagen vooraf</label></div></div>'+
+   '<label style="display:flex;gap:8px;align-items:center">Volgende wedstrijd tonen vanaf <input type="number" id="imDays" min="0" max="90" value="7" style="width:70px"> dagen vooraf</label><span id="imSchedMsg" class="muted" style="font-size:13px"></span></div></div>'+
   '<div class="card"><h2>Voorbeeld</h2><div class="ipv" id="imPv"><iframe id="imFrame" title="Voorbeeld infoscherm" tabindex="-1"></iframe></div></div>';
  if(relayMode)P.kastjes='<div class="card"><h2>Deze cloudserver</h2><p class="desc">Zichzelf bijwerken naar de nieuwste release op GitHub (zelftest, terug naar de vorige als het niet werkt).</p><button class="btn pri" id="kjCloudGh" type="button">⬆ Bijwerken van GitHub</button></div>'+'<h1>Kastjes</h1><p class="lead">Lokale servers en schermkastjes met <b>beheer op afstand</b> aan. Je opent hun beheer hier via een tunnel over HTTPS; de beheerderscode van het kastje blijft nodig.</p><div class="card"><div id="kjBoxes" class="muted">…</div><div style="margin-top:12px"><button class="btn" id="kjBoxRefresh">↻ Vernieuwen</button></div></div>';
  if(relayMode)P.kijkers='<h1>Kijkers</h1><p class="lead">Bezoekers van deze publieke server.</p><div class="card"><div id="clStats" class="muted">…</div><div style="margin-top:12px"><button class="btn" id="kjRefresh">↻ Vernieuwen</button></div></div>';
@@ -1048,6 +1048,13 @@ function imDrawSched(){const el=$('imSched');if(!el)return;
     '<td><input type="time" data-i="'+i+'" data-k="start" value="'+esc(m.start||'')+'"></td>'+
     '<td><input type="text" data-i="'+i+'" data-k="place" value="'+esc(m.place||'')+'" placeholder="zwembad" style="width:100%"></td>'+
     '<td><button class="btn sm danger" type="button" data-del="'+i+'">✕</button></td></tr>').join('')+'</table>':'<p class="muted">Nog geen wedstrijden in de agenda.</p>'}
+/* agenda meteen bewaren (zonder op Tonen te klikken en zonder te wijzigen wat er nu getoond wordt) */
+let imSchedT=null;
+function imSchedSave(){clearTimeout(imSchedT);imSchedT=setTimeout(async()=>{if(relayMode&&!relayAdmin)return;
+  const b=Object.assign({},imCur,{schedule:imSchedule.filter(m=>m.date),daysBefore:parseInt($('imDays').value,10)||0});
+  delete b.duration;delete b.updatedAt;delete b.source;          // een lopend aftellen niet opnieuw laten starten
+  const el=$('imSchedMsg');try{const r=await api('/api/info',{json:b});imCur=r.info;if(el)el.innerHTML='<span style="color:var(--ok)">✓ Agenda bewaard</span>'+(r.cloud&&!r.cloud.ok?' · publieke server: '+esc(r.cloud.error||'niet bijgewerkt'):'')}
+  catch(e){if(el)el.innerHTML='<span style="color:var(--bad)">✗ Agenda niet bewaard: '+esc(e.message)+'</span>'}},1200)}
 function imBody(mode){return {mode:mode,meet:$('imMeet').value,date:$('imDate').value,place:$('imPlace').value,until:$('imDur').value?'':$('imUntil').value,
   duration:parseFloat($('imDur').value)||0,schedule:imSchedule.filter(m=>m.date),daysBefore:parseInt($('imDays').value,10)||0,title:$('imTitle').value,
   kicker:$('imKicker').value,footer:$('imFoot').value,text:$('imText').value,ticker:$('imTicker').value,autoHide:$('imAuto').checked,allowClose:$('imClose').checked,
@@ -1070,9 +1077,10 @@ async function loadInfo(){try{imCur=await (await fetch('/api/info')).json()}catc
 function wireInfo(){if(!$('imModes'))return;
   $('imModes').onclick=e=>{const b=e.target.closest('button[data-mode]');if(!b)return;if(b.dataset.mode==='off'){$('imOff').click();return}imSel=b.dataset.mode;imMarks();imPreview()};
   $('pg_info').addEventListener('input',imPreview);$('pg_info').addEventListener('change',imPreview);
-  $('imAdd').onclick=()=>{const d=new Date(Date.now()+14*864e5);imSchedule.push({name:'',date:d.toISOString().slice(0,10),start:'13:00',place:''});imDrawSched();imPreview()};
-  $('imSched').addEventListener('input',e=>{const t=e.target;if(t.dataset.i!=null){imSchedule[+t.dataset.i][t.dataset.k]=t.value}});
-  $('imSched').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(b){imSchedule.splice(+b.dataset.del,1);imDrawSched();imPreview()}});
+  $('imAdd').onclick=()=>{const d=new Date(Date.now()+14*864e5);imSchedule.push({name:'',date:d.toISOString().slice(0,10),start:'13:00',place:''});imDrawSched();imPreview();imSchedSave()};
+  $('imSched').addEventListener('input',e=>{const t=e.target;if(t.dataset.i!=null){imSchedule[+t.dataset.i][t.dataset.k]=t.value;imSchedSave()}});
+  $('imSched').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(b){imSchedule.splice(+b.dataset.del,1);imDrawSched();imPreview();imSchedSave()}});
+  $('imDays').addEventListener('input',imSchedSave);
   const send=async(mode,btn)=>act(btn,async()=>{if(relayMode&&!relayAdmin)throw new Error('meld je aan met het beheerwachtwoord van de cloudserver');
     const r=await api('/api/info',{json:imBody(mode)});imCur=r.info;imStatus(r.cloud);imMarks()},mode==='off'?'Infoscherm uit':'Infoscherm getoond');
   $('imShow').onclick=e=>send(imSel,e.target);$('imOff').onclick=e=>send('off',e.target);
