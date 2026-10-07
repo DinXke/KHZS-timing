@@ -216,7 +216,12 @@ window.InfoScreen={
     if(pv){try{info=JSON.parse(decodeURIComponent(pv[1]))}catch(e){}render();return}
     fetch('/api/info',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){info=d||{mode:'off'};render()}).catch(function(){if(opts.standalone)render()});
     if(opts.standalone)render();},
-  apply:function(d){info=d||{mode:'off'};render()},
+  apply:function(d){info=d||{mode:'off'};
+    // onbekende modus = deze pagina draait nog een oud script (na een update): één keer herladen
+    if(info.mode&&!MODES[info.mode]&&info.mode!=='off'&&info.mode!=='auto'){var k='lt_is_reload',t=0;
+      try{t=+sessionStorage.getItem(k)||0}catch(e){}
+      if(Date.now()-t>120000){try{sessionStorage.setItem(k,String(Date.now()))}catch(e){}location.reload();return}}
+    render()},
   setLive:function(b){b=!!b;if(b!==live){live=b;if(el)render()}},
   setConnected:function(b){b=!!b;if(b!==connected){connected=b;if(el)render()}}
 };

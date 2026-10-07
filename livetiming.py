@@ -33,7 +33,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.8"
+VERSION = "1.1.9"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -2921,6 +2921,9 @@ def make_handler(state, hub, relay=None):
                     body = f.read()
             except OSError:
                 return self.send_error(404)
+            if ctype.startswith("text/html"):
+                # versie in de scriptlink: Cloudflare laat browsers .js uren bewaren, zo komt een update meteen door
+                body = body.replace(b'src="/infoscreen.js"', f'src="/infoscreen.js?v={VERSION}"'.encode())
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", cache)
