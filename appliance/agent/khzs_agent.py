@@ -1637,6 +1637,28 @@ class KioskCtl(Portal):
 KIOSK = KioskCtl()
 
 
+def hdmi_watch():
+    """Scherm later ingestoken (of gewisseld): Chromium start zonder scherm niet goed op en blijft dan zonder beeld.
+    Bij 'disconnected' -> 'connected' het HDMI-scherm herstarten, dan kiest het ook de juiste resolutie."""
+    import glob
+    last = None
+    while True:
+        try:
+            st = "connected" if any(open(f).read().strip() == "connected"
+                                    for f in glob.glob("/sys/class/drm/card*-HDMI-A-*/status")) else "disconnected"
+            if last == "disconnected" and st == "connected" and load_conf()["kiosk"].get("enabled", True):
+                log("HDMI-scherm ingestoken: scherm herstarten")
+                time.sleep(3)                                   # scherm eerst laten opstarten (EDID)
+                run(["systemctl", "kill", "-s", "KILL", "khzs-kiosk.service"])
+                run(["systemctl", "restart", "khzs-kiosk.service"])
+            elif last == "connected" and st == "disconnected":
+                log("HDMI-scherm losgekoppeld")
+            last = st
+        except Exception as e:
+            log(f"hdmi: {e}")
+        time.sleep(5)
+
+
 def display_watch():
     """HDMI-scherm zelfherstellend: foutpagina van Chromium -> opnieuw laden; rol scherm: bron weg -> reservebron
     (als ingesteld), bron terug -> terug naar de bron. Chromium blijft anders op een foutpagina staan."""
@@ -2871,7 +2893,7 @@ def main():
         except OSError:
             pass
         system_check()
-    for t in (netwatch, auto_updater, PORTAL.idle_reaper, healthy, display_watch, shares_watch, console_reaper, kiosk_label):
+    for t in (netwatch, auto_updater, PORTAL.idle_reaper, healthy, display_watch, hdmi_watch, shares_watch, console_reaper, kiosk_label):
         threading.Thread(target=t, daemon=True).start()
     srv = ThreadingHTTPServer(LISTEN, H)
     srv.daemon_threads = True
