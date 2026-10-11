@@ -68,6 +68,49 @@ def _tdt(raw):
     return datetime(1899, 12, 30) + timedelta(days=days) + timedelta(seconds=round(abs(v - days) * 86400))
 
 
+def _fields(b):
+    """Veldenlijst uit de kop van een .gbin-tabel: [(naam, type, bits)]. De volgorde verschilt per Meet Manager-versie."""
+    out = []
+    for x in b[2:_header_end(b)].decode("latin1").split("	"):
+        f = x.split(";")
+        if len(f) == 3:
+            out.append((f[0].upper(), f[1].upper(), int(f[2]) if f[2].isdigit() else 0))
+    return out
+
+
+def _walk(b, p, fields, frm, to):
+    """Positie van veld 'to' als p het begin van veld 'frm' is (zelfde record, zonder merkbytes); None als het niet kan."""
+    names = [f[0] for f in fields]
+    if frm not in names or to not in names:
+        return None
+    i, j = names.index(frm), names.index(to)
+    if j < i:
+        return None
+    for _, t, bits in fields[i:j]:
+        if t == "I":
+            p += max(1, bits // 8)
+        elif t in ("D", "F"):
+            p += 8
+        elif t in ("S", "G"):
+            n = _i16(b, p)
+            if n is None or n < 0:
+                return None
+            p += 2 + n
+        elif t == "M":
+            n = _i32(b, p)
+            if n is None or not 0 <= n < 100000:
+                return None
+            p += 4 + n
+        else:
+            return None
+    return p
+
+
+def _between(fields, frm, to):
+    names = [f[0] for f in fields]
+    return [f for f in fields[names.index(frm) + 1:names.index(to)]] if frm in names and to in names else None
+
+
 def _skip_flag(b, p):
     """Sla een eventuele merkbyte (00/01) over vóór een int; geeft kandidaat-posities."""
     return [p, p + 1]
@@ -103,6 +146,7 @@ def parse(data):
     # ---- reeksen: elke tijd op 1/1/1800, gevolgd door FINALCODE(S) HEATNUMBER RACESTATUS REMARKS(memo) SORTCODE SWIMEVENTID
     heats = {}
     b = T["HEAT"]
+    HF = _fields(b)
     p = b.find(D1800, _header_end(b))
     while p >= 0:
         q = p - 5
@@ -110,7 +154,12 @@ def parse(data):
             t = _tdt(b[q:q + 8])
             if t.year == 1800:
                 end = q + 8
-                hnum, evid = _i16(b, end + 2), _i32(b, end + 14)
+                hnum, evid = _i16(b, end + 2), _i32(b, end + 14)          # indeling tot DDL 2026-04
+                hp, ep = _walk(b, q, HF, "DAYTIME", "HEATNUMBER"), _walk(b, q, HF, "DAYTIME", "SWIMEVENTID")
+                if hp is not None and ep is not None:                    # volgens de kop (DDL 2026-07: andere volgorde)
+                    hn2, ev2 = _i16(b, hp), _i32(b, ep)
+                    if hn2 and 0 < hn2 < 200 and ev2 and ev2 > 1000:
+                        hnum, evid = hn2, ev2
                 # het reeks-ID staat 13 of 14 bytes vóór de tijd
                 # eerst 13 (gewone record), dan 14 (met extra merkbyte); 14 bij een gewone record geeft ID<<8 → te groot
                 hid = next((_i32(b, q - k) for k in (13, 14) if _i32(b, q - k) and 1000 < _i32(b, q - k) < 10**7), None)
@@ -124,23 +173,32 @@ def parse(data):
     events = {}
     b = T["SWIMEVENT"]
     hdr = _header_end(b)
+    EF = _fields(b)
+    plain_num = (_between(EF, "DAYTIME", "EVENTNUMBER") or [None]) and all(f[1] == "D" for f in (_between(EF, "DAYTIME", "EVENTNUMBER") or [("x", "I", 0)]))
     for evid in {h["event"] for h in heats.values()}:
         for m in re.finditer(re.escape(struct.pack("<i", evid)), b[hdr:]):
             p = hdr + m.start()
-            mlen = _i32(b, p + 4)
-            if mlen is None or not 0 <= mlen < 4000:
-                continue
-            q = p + 8 + mlen
+            q = _walk(b, p, EF, "SWIMEVENTID", "DAYTIME")
+            if q is None or b[q + 5:q + 8] != D1800:
+                mlen = _i32(b, p + 4)                                 # oude indeling: COMMENT direct na het ID
+                if mlen is None or not 0 <= mlen < 4000:
+                    continue
+                q = p + 8 + mlen
             if b[q + 5:q + 8] != D1800 or b[q + 13:q + 16] != D1800:
                 continue
             day = _tdt(b[q:q + 8]).strftime("%H:%M")
-            nums = [_i16(b, q + 16 + k) for k in (4, 5, 6)]           # EVENTNUMBER (merkbyte-varianten)
-            evnum = next((n for n in (nums[2], nums[1], nums[0]) if n and 0 < n < 1000), None)
+            if plain_num:                                             # EVENTNUMBER meteen na DAYTIME/DURATION
+                np_ = _walk(b, q, EF, "DAYTIME", "EVENTNUMBER")
+                evnum = next((n for n in (_i16(b, np_), ) if n and 0 < n < 1000), None) if np_ is not None else None
+            else:
+                nums = [_i16(b, q + 16 + k) for k in (4, 5, 6)]       # EVENTNUMBER (merkbyte-varianten)
+                evnum = next((n for n in (nums[2], nums[1], nums[0]) if n and 0 < n < 1000), None)
+            sess = _i32(b, p + 4) if [f[0] for f in EF][1:2] == ["SWIMSESSIONID"] else None
             sm = None
             for mm in re.finditer(rb"(?s)(.{4})(.{4})\x01\x00[FT]", b[q:q + 2000]):
                 st = struct.unpack("<i", mm.group(2))[0]
                 if st in styles:
-                    sm = (struct.unpack("<i", mm.group(1))[0], st)
+                    sm = (sess if sess is not None else struct.unpack("<i", mm.group(1))[0], st)
                     break
             if evnum and sm:
                 events[evid] = {"number": evnum, "time": day, "session": sm[0], "style": sm[1]}
@@ -165,8 +223,13 @@ def parse(data):
     b = T["ATHLETE"]
     p = _header_end(b)
     clubs = {}
-    while p + 12 <= len(b):
-        f = _str_at(b, p + 8, 1, 40)
+    # afstand ID -> voornaam en club-ID -> voornaam volgens de kop (vanaf DDL 2026-07 staat de geboortedatum ertussen;
+    # die wordt NIET gelezen)
+    AF = _fields(b)
+    OFF = _walk(bytes(64), 0, AF, "ATHLETEID", "FIRSTNAME") or 8
+    COFF = _walk(bytes(64), 0, AF, "CLUBID", "FIRSTNAME") or 4
+    while p + OFF + 4 <= len(b):
+        f = _str_at(b, p + OFF, 1, 40)
         if f:
             fu = _str_at(b, f[1], 1, 10)
             if fu and _fold(f[0]).startswith(_fold(fu[0])):
@@ -175,7 +238,7 @@ def parse(data):
                 if ln and g in (0, 1, 2):
                     lu = _str_at(b, ln[1], 1, 20)
                     if lu and _fold(ln[0]).startswith(_fold(lu[0])):
-                        aid, cid = _i32(b, p), _i32(b, p + 4)
+                        aid, cid = _i32(b, p), _i32(b, p + OFF - COFF)
                         if cid not in clubs:
                             clubs[cid] = club_code(cid)
                         athletes[aid] = {"firstName": f[0], "lastName": ln[0], "club": clubs[cid], "gender": g}
@@ -189,6 +252,19 @@ def parse(data):
 
     ff_rx = re.compile(rb"\x01\x00[FT]")
 
+    # wat er na LANE komt verschilt per versie: LATEENTRY ('F'/'T') tot DDL 2026-04, daarna QTCITY (tekst, meestal leeg)
+    RF = _fields(T["SWIMRESULT"])
+    rnames = [f[0] for f in RF]
+    nxt = RF[rnames.index("LANE") + 1] if "LANE" in rnames and rnames.index("LANE") + 1 < len(RF) else ("LATEENTRY", "S", 1)
+
+    def after_lane_ok(b, p):
+        if nxt[0] == "LATEENTRY" or nxt[1] != "S":
+            return b[p:p + 2] == b"\x01\x00" and b[p + 2:p + 3] in (b"F", b"T")
+        for mk in (0, 1):                                  # tekstveld: lengte (eventueel na een merkbyte) en leesbaar
+            if (mk == 0 or b[p:p + 1] in (b"\x00", b"\x01")) and _str_at(b, p + mk, 0, max(1, nxt[2])) is not None:
+                return True
+        return False
+
     def find_entries(b, hdr):
         """FINALFIX 'F/T' · FINISHJUDGE(2) · [merk 00/01] · HEATID · INFOCODE(leeg) · [merk 00] · LANE · LATEENTRY 'F/T'."""
         for m in ff_rx.finditer(b, hdr):
@@ -200,7 +276,7 @@ def parse(data):
                     continue
                 for mk2 in (0, 1):
                     lp = hp + 6 + mk2
-                    if b[lp + 2:lp + 4] == b"\x01\x00" and b[lp + 4:lp + 5] in (b"F", b"T"):
+                    if after_lane_ok(b, lp + 2):
                         yield m.start(), hid, _i16(b, lp), _i32(b, m.start() - 4)
                         break
                 else:
@@ -213,7 +289,7 @@ def parse(data):
         for start, hid, lane, et in find_entries(b, hdr):
             # begin van het record: dichtstbijzijnde positie ervoor met een geldige eigenaar
             owner = None
-            for q in range(start - 8, max(hdr, start - back), -1):
+            for q in range(start - 8, max(hdr, start - back) - 1, -1):     # ook het eerste record (begint op hdr)
                 o = owner_ok(b, q)
                 if o is not None:
                     owner = o

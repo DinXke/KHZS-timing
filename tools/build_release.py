@@ -17,7 +17,7 @@ import time
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FILES = ["livetiming.py", "simulator.py", "README.md", "tools/mm_backup.py", "tools/gbin.py", "tools/lenex.py",
+FILES = ["livetiming.py", "simulator.py", "README.md", "tools/mm_backup.py", "tools/mm_mdb.py", "tools/mdb_tables.ps1", "tools/gbin.py", "tools/lenex.py",
          "tools/build_release.py", "tools/db_mdbtools.py", "cloud/cloud_agent.py"]
 DIRS = [("static", (".html", ".css", ".js", ".svg", ".png", ".ico", ".woff2")), ("static/vendor", (".js", ".css", ".txt")), ("static/img", (".png", ".svg")),
         ("appliance/agent", (".py",)), ("appliance/systemd", (".service",)), ("appliance/bin", ("khzs",)),

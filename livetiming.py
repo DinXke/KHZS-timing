@@ -29,11 +29,12 @@ import subprocess
 import sys
 import threading
 import time
+import zipfile
 import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.11"
+VERSION = "1.1.12"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1195,7 +1196,31 @@ def prog_import(data, filename):
     """Programma inlezen: Lenex (.lxf/.lef/.xml) of een Splash Meet Manager-backup (.smb)."""
     name = (filename or "").lower()
     sys.path.insert(0, os.path.join(BASE, "tools"))
-    if name.endswith(".smb") or (data[:2] == b"PK" and b".gbin" in data[:65536]):
+    mdb_name = None
+    if data[:2] == b"PK" and not name.endswith(".smb"):
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                mdb_name = next((n for n in z.namelist() if n.lower().endswith((".mdb", ".accdb"))), None)
+                if mdb_name:
+                    data = z.read(mdb_name)
+        except zipfile.BadZipFile:
+            pass
+    if mdb_name or name.endswith((".mdb", ".accdb")) or data[4:19] == b"Standard Jet DB":
+        # Meet Manager-wedstrijddatabank: lezen uit een tijdelijke kopie (nooit het origineel)
+        import tempfile
+        import mm_mdb
+        fd, tmp = tempfile.mkstemp(suffix=".mdb", prefix="khzs-mm-")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+            sched, stats = mm_mdb.parse_file(tmp)
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        stats = dict(stats, format="Meet Manager-databank")
+    elif name.endswith(".smb") or (data[:2] == b"PK" and b".gbin" in data[:65536]):
         import mm_backup
         sched, stats = mm_backup.parse(data)
         stats = dict(stats, format="Meet Manager-backup")

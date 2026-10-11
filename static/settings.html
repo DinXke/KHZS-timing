@@ -417,7 +417,7 @@ function pages(){
   fieldsCard('Verwerking','',['clear_grace_s','stale_after_s','history_max']);
  P.gegevens='<h1>Gegevens</h1><p class="lead">SwimTime-database (enkel lezen) en het programma van Meet Manager.</p>'+
   '<div class="card"><h2>Programma (Meet Manager)</h2><p class="desc">Meet Manager-backup (.smb) of Lenex-export (.lxf/.lef) met de startlijsten – voor de oproepkamer, ook voor reeksen die SwimTime nog niet kent. Wedstrijden over meerdere dagen en dagdelen worden herkend.</p><div id="progStat" class="muted">…</div>'+
-  '<div class="drop" id="progDrop" style="margin-top:12px">Sleep de backup (.smb) of het Lenex-bestand hierheen of <b>klik om te kiezen</b><input type="file" id="progFile" accept=".smb,.lxf,.lef,.xml,.zip" hidden></div>'+
+  '<div class="drop" id="progDrop" style="margin-top:12px">Sleep de Meet Manager-backup (.smb), de wedstrijddatabank (.mdb of een zip ervan) of het Lenex-bestand hierheen of <b>klik om te kiezen</b><input type="file" id="progFile" accept=".smb,.mdb,.accdb,.lxf,.lef,.xml,.zip" hidden></div>'+
   '<div style="margin-top:10px"><button class="btn danger sm" id="progClear">Programma wissen</button></div></div>'+
   fieldsCard('SwimTime-ontvangst (UDP/26)','De broadcast van SwimTime. Standaard op alle verbindingen van iedereen.',['udp_interface','udp_allow_from'],'<div id="udpStat" class="muted" style="margin-top:10px"></div>')+
   fieldsCard('SwimTime-database','Er wordt nooit in het origineel geschreven: enkel een kopie wordt gelezen.',['db_source_path','db_access_mode','db_smb_user','db_smb_password','db_smb_domain','db_auto_after_heat','db_after_heat_delay_s','db_live_interval_s'],
