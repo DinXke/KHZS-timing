@@ -5,15 +5,16 @@
 (function(){
 'use strict';
 var css=''+
-'#rvbtn.on{background:var(--accent,#38bdf8);color:var(--onacc,#06202f);font-weight:700}'+
+'.rvtoggle.on,#rvbtn.on{background:var(--accent,#38bdf8);color:var(--onacc,#06202f);font-weight:700}'+
 '@media (min-width:700px) and (min-height:500px){.rvon tr:not(.memrow):not(.empty):not(.free)>td{padding-bottom:.95em!important}}'+
 '.rvb{position:absolute;left:0;bottom:.1em;height:.8em;pointer-events:none;z-index:2;overflow:hidden}'+
 '.rvb .rvt{position:absolute;left:.35em;right:.35em;top:50%;height:.3em;margin-top:-.15em;border-radius:999px;'+
 'background:color-mix(in srgb,var(--accent,#38bdf8) 16%,transparent);box-shadow:-.35em 0 0 -.05em color-mix(in srgb,var(--accent,#38bdf8) 45%,transparent),.35em 0 0 -.05em color-mix(in srgb,var(--accent,#38bdf8) 45%,transparent)}'+
 '.rvb .rvd{position:absolute;top:50%;left:0;width:.7em;height:.7em;margin:-.35em 0 0 -.35em;border-radius:50%;background:var(--accent,#38bdf8);'+
-'box-shadow:0 0 0 .12em var(--card,#0e2233);will-change:left}'+
+'box-shadow:0 0 0 .12em rgba(0,0,0,.35);will-change:left}'+
 '.rvb .rvd.fin{background:var(--success,#22c55e)}.rvb .rvd.p1{background:var(--gold,#facc15)}.rvb .rvd.p2{background:var(--silver,#cbd5e1)}.rvb .rvd.p3{background:var(--bronze,#d97706)}'+
-'.rvb .rvx{position:absolute;top:50%;margin-top:-.6em;font-size:.68em;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;padding:0 .3em;border-radius:4px;background:var(--card,#0e2233);white-space:nowrap}'+
+'.rvb .rvx{position:absolute;top:50%;margin-top:-.6em;font-size:.68em;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;padding:0 .3em;border-radius:4px;background:transparent;text-shadow:0 0 3px var(--bg,#000),0 0 2px var(--bg,#000);white-space:nowrap}'+
+'tr.hasmem .rvb.card{bottom:.25em}'+
 '.rvb.card{left:.55em!important;right:.55em;width:auto!important;bottom:.1em;height:.8em;overflow:visible}'+
 '.rvb .rvx.v{color:var(--success,#22c55e)}.rvb .rvx.a{color:var(--danger,#ef4444)}'+
 '.rvb .rvd.hit{animation:rvHit .9s ease-out}@keyframes rvHit{0%{box-shadow:0 0 0 .12em var(--card,#0e2233),0 0 0 .12em var(--accent,#38bdf8)}100%{box-shadow:0 0 0 .12em var(--card,#0e2233),0 0 0 .9em transparent}}';
@@ -78,9 +79,15 @@ function pref(page){try{return localStorage.getItem('lt_race_'+page)}catch(e){re
 function enabled(v,S){var p=pref(v.o.page);if(p==='on')return true;if(p==='off')return false;return opt(S,'race_view_'+v.o.page,false)===true}
 function toggle(){views.forEach(function(v){var S=v.o.getState(),now=enabled(v,S),def=opt(S,'race_view_'+v.o.page,false)===true;
   try{if(!now===def)localStorage.removeItem('lt_race_'+v.o.page);else localStorage.setItem('lt_race_'+v.o.page,now?'off':'on')}catch(e){}});btnState();loop()}
-function btnState(){var b=document.getElementById('rvbtn');if(!b||!views[0])return;var on=enabled(views[0],views[0].o.getState());
-  b.setAttribute('aria-pressed',on?'true':'false');b.classList.toggle('on',on);b.title='Race-weergave '+(on?'uitzetten':'aanzetten')+' (toets R) – geschatte positie per baan'}
-document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#rvbtn'))toggle()});
+function btnState(){if(!views[0])return;var on=enabled(views[0],views[0].o.getState());
+  Array.prototype.forEach.call(document.querySelectorAll('#rvbtn,.rvtoggle'),function(b){
+    b.setAttribute('aria-pressed',on?'true':'false');b.classList.toggle('on',on);b.title='Race-weergave '+(on?'uitzetten':'aanzetten')+' (toets R) – geschatte positie per baan'})}
+document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#rvbtn,.rvtoggle'))toggle()});
+/* in de bovenbalk van de publieke pagina (de werkbalk met de Race-knop is daar verborgen) */
+setTimeout(function(){var tb=document.querySelector('body.pub .tbr, .tbr'),th=document.getElementById('themebtn');
+  if(document.body.classList.contains('pub')&&th&&!document.querySelector('.rvtoggle')){
+    var b=document.createElement('button');b.type='button';b.className='tbtn rvtoggle';b.innerHTML='<span aria-hidden="true">&#127946;</span><span class="rvtl"> Race</span>';
+    b.setAttribute('aria-label','Race-weergave');th.parentNode.insertBefore(b,th);btnState()}},500);
 document.addEventListener('keydown',function(e){if((e.key==='r'||e.key==='R')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test((e.target&&e.target.tagName)||''))toggle()});
 setInterval(btnState,1000);
 

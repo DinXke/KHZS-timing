@@ -17,7 +17,7 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,
 main{max-width:1600px;margin:0 auto;padding:12px 16px 24px}
 .banner{padding:10px 16px;font-weight:600;text-align:center}
 .banner[hidden]{display:none}
-#bnConn{background:var(--danger);color:#fff}
+#bnConn{background:#b91c1c;color:#fff}
 #bnData{background:var(--warning);color:var(--onwarn)}
 header .meet{color:var(--muted);font-size:14px}
 h1{font-size:clamp(18px,3.2vw,36px);margin:4px 0;line-height:1.2}
@@ -111,7 +111,7 @@ body.jury main{max-width:1900px}
 .jcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px}
 .jcard h3{margin:0 0 8px;font-size:clamp(15px,1.4vw,20px);line-height:1.25}
 .jcard h3 small{color:var(--muted);font-weight:400;font-size:.75em;margin-left:6px}
-.jbadge{display:inline-block;background:var(--danger);color:#fff;border-radius:999px;font-size:12px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.jbadge{display:inline-block;background:#b91c1c;color:#fff;border-radius:999px;font-size:12px;padding:1px 8px;margin-left:6px;vertical-align:middle}
 .issues{margin:0 0 10px;padding:0;list-style:none;font-size:clamp(13px,1.15vw,17px)}
 .issues li{padding:5px 8px;border-left:4px solid;border-radius:4px;margin-bottom:4px;background:var(--card2)}
 .issues .fout{border-color:var(--danger);color:var(--danger);font-weight:600}
@@ -223,7 +223,7 @@ body.pub .jbtn,body.pub .legend,body.pub .toolbar{display:none}
 .mems .chips{margin:2px 0 4px 2.2em}
 .memrow td{padding-top:0;text-align:left;white-space:normal}
 tr.hasmem td{border-bottom:0}
-@media (max-width:560px){.mem{grid-template-columns:1.4em minmax(5em,1fr) auto 4.2em 4.2em}}
+@media (max-width:560px){.mem{grid-template-columns:1.4em minmax(0,1fr) auto auto auto;gap:0 .4em}.mem .mn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 
 /* ===== leesbaarheid en schaling ===== */
 html{font-size:clamp(16px,calc(.55vw + .6vh),40px)}
@@ -408,7 +408,8 @@ body.phone .tblink .tbl,body.phone .tblink .tbi{display:none}body.phone .tblink 
 body.phone #crbtn{font-weight:700;color:var(--amber);border-color:var(--amber)}
 @media (max-width:379px){body.phone .tblink .tbs{display:none}body.phone .tblink .tbx{display:inline}}
 body.phone .topbar{gap:6px;padding:3px 8px}body.phone .tbr{gap:5px}body.phone .tbt{display:none}
-body.phone .tbtn{padding:0 9px;font-size:13px;min-height:40px}body.phone .seg button{padding:0 8px;font-size:13px;min-height:38px}body.phone .mini{font-size:20px}
+body.phone .tbtn{padding:0 8px;font-size:13px;min-height:40px}body.phone .seg button{padding:0 7px;font-size:13px;min-height:38px}
+@media (max-width:400px){body.phone .tbtn{padding:0 6px}body.phone .seg button{padding:0 5px}body.phone .mini{font-size:18px}body.phone .mini.ready{font-size:13px}}body.phone .mini{font-size:20px}
 body.phone #themebtn{min-width:40px}
 /* liggende gsm: kaarten in twee kolommen */
 @media (max-height:499px) and (min-width:560px){body.phone tbody{display:grid!important;grid-template-columns:1fr 1fr;gap:0 .45em}body.phone tbody tr.memrow{grid-column:1/-1}}
@@ -425,6 +426,12 @@ body.phone.noclub td.name small{display:none}
 /* 6. jurypagina op smaller scherm: knoppen in de bovenbalk mogen naar een tweede regel */
 @media (max-width:999px){body.jv:not(.pub) .tbr{flex-wrap:wrap;justify-content:flex-end;row-gap:4px}body.jv:not(.pub) .tblink .tbl{display:none}}
 @media (max-width:379px){body.phone #themebtn{display:none}body.phone .seg button{padding:3px 5px}}
+/* 21. jury op de gsm: tussentijden en redenen in twee kolommen, geen letter-per-letter-afbreking */
+@media (max-width:699px){body.jv .spg,.chips{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sc .rsn,.chip .why{overflow-wrap:normal;hyphens:auto}}
+/* 24. race-knop in de bovenbalk: op de gsm enkel het icoon */
+body.phone .rvtoggle .rvtl{display:none}
+/* 25. minder beweging als het toestel dat vraagt */
+@media (prefers-reduced-motion:reduce){#clock.ready,.mini.ready{animation:none!important}}
 </style>
 </head>
 <body>
@@ -892,6 +899,7 @@ function tableScroll(w){
   (function step(now){
     if(!kiosk()){w._ts=false;return}
     var dt=now-last;last=now;
+    if(window.__ltTouch&&Date.now()-window.__ltTouch<15000){pos=w.scrollTop;wait=2500;requestAnimationFrame(step);return}   // aangeraakt: niet zelf scrollen
     var max=w.scrollHeight-w.clientHeight;
     if(max<=1){pos=0;if(w.scrollTop)w.scrollTop=0;wait=2500;dir=1}
     else if(wait>0)wait-=dt;
@@ -1145,6 +1153,7 @@ function demoRun(){
 requestAnimationFrame(frame);
 document.title=isJury?'Jury – Live timing':'Live uitslagen';
 if(demo){document.title+=' (demo)';demoRun()}else live();
+document.addEventListener('touchstart',function(){window.__ltTouch=Date.now()},{passive:true});
 window.__ltRace={page:isJury?'jury':'publiek',getState:function(){return S},getClock:function(){return clk},refit:function(){try{fitPhone(true)}catch(e){}}};   // voor race.js
 })();
 </script>
