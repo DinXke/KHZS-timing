@@ -108,7 +108,7 @@ function update(v){
   var cache={};
   function curve(bd){if(!cache[bd])cache[bd]=cum(learned(n,stroke,legs,D,laps,bd)||weights(n,stroke,legs,bd));return cache[bd]}
   var st=clk.status,t=null;
-  if(st==='running'&&clk.rt!=null)t=(clk.rt+Math.min(300,performance.now()-clk.at)*10)/10000;
+  if(st==='running'&&clk.rt!=null)t=(clk.rt+Math.min(30000,performance.now()-clk.at)*10)/10000;
   else if(clk.rt!=null&&st!=='ready')t=clk.rt/10000;
   var lanes=S.lanes.filter(function(l){return nm(l)&&!/^(DNS|DSQ|NS)$/i.test(l.status||'')});
   // tempo zonder gegevens: mediaan van de bekende inschrijftijden, anders een vaste schatting

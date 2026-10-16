@@ -785,7 +785,7 @@ function allFinished(){
 function frame(){
   var el=$('clock'),st=clk.status,txt,cls,fin=allFinished();
   if(fin!=null&&st!=='ready'){txt=fmt(fin);cls='stopped'}
-  else if(st==='running'&&clk.rt!=null){txt=fmtClock(clk.rt+Math.min(300,performance.now()-clk.at)*10);cls='running'}
+  else if(st==='running'&&clk.rt!=null){txt=fmtClock(clk.rt+Math.min(30000,performance.now()-clk.at)*10);cls='running'}
   else if(st==='ready'){txt='Klaar voor start';cls='ready'}
   else{txt=(S&&S.showing==='previous')?'—':((S&&S.heat&&S.heat.startTime)||'--.-');cls='idle'}
   if(el.textContent!==txt)el.textContent=txt;

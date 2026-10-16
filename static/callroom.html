@@ -484,7 +484,7 @@ function frame(){
   var el=$('mini'),st=clk.status,txt,cls,fin=allFinished();
   document.body.classList.toggle('running',st==='running');
   if(fin!=null&&st!=='ready'){txt=fmt(fin);cls='stopped'}
-  else if(st==='running'&&clk.rt!=null){txt=fmtClock(clk.rt+Math.min(300,performance.now()-clk.at)*10);cls='running'}
+  else if(st==='running'&&clk.rt!=null){txt=fmtClock(clk.rt+Math.min(30000,performance.now()-clk.at)*10);cls='running'}
   else if(st==='ready'){txt='Klaar voor start';cls='ready'}
   else{txt='--.-';cls='idle'}
   if(el.textContent!==txt)el.textContent=txt;

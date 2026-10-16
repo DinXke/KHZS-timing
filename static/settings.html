@@ -616,7 +616,7 @@ async function loadData(){
     $('progStat').innerHTML=d.file?('<b>'+esc(d.file)+'</b> · '+(d.stats&&d.stats.format?esc(d.stats.format)+' · ':'')+(d.stats&&d.stats.events?d.stats.events+' wedstrijden · ':'')+d.heats+' reeksen'+(d.stats&&d.stats.entries?' · '+d.stats.entries+' inschrijvingen':'')+' · geladen '+esc(d.loadedAt||'')):(d.error?'<span style="color:var(--bad)">'+esc(d.error)+'</span>':'Nog geen programma geladen.')}catch(e){}
   try{const d=await (await fetch('/api/relay',{headers:hdr()})).json();
     $('relayStat').innerHTML=!d.enabled?'<div class="banner info"><span class="sp">Doorsturen staat uit.</span></div>':
-     '<div class="banner '+(d.ok?'info':'bad')+'"><span class="sp">'+(d.ok?'✓ Verbonden met ':'✗ Fout bij ')+'<b>'+esc(d.url)+'</b>'+(d.ok?'':' – '+esc(d.error||''))+(d.lastOk?' · laatst OK '+new Date(d.lastOk*1000).toLocaleTimeString('nl-BE'):'')+' · '+d.sent+' berichten</span></div>'}catch(e){}
+     '<div class="banner '+(d.ok?'info':'bad')+'"><span class="sp">'+(d.ok?'✓ Verbonden met ':'✗ Fout bij ')+'<b>'+esc(d.url)+'</b>'+(d.ok?'':' – '+esc(d.error||''))+(d.mode==='websocket'?' · live verbinding (websocket)':(d.mode?' · via HTTPS':''))+(d.lastOk?' · laatst OK '+new Date(d.lastOk*1000).toLocaleTimeString('nl-BE'):'')+' · '+d.sent+' berichten</span></div>'}catch(e){}
 }
 function dropZone(zone,input,cb){zone.onclick=()=>input.click();input.onchange=()=>{if(input.files[0])cb(input.files[0]);input.value=''};
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('over')};zone.ondragleave=()=>zone.classList.remove('over');

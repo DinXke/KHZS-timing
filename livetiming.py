@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.18"
+VERSION = "1.1.19"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1496,6 +1496,52 @@ def db_status_json():
         "live": float(SETTINGS["db_interval_s"] or 0) > 0}
 
 
+WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+
+def ws_xor(data, mask):
+    n = len(data)
+    if not n:
+        return b""
+    m = (mask * (n // 4 + 1))[:n]
+    return (int.from_bytes(data, "big") ^ int.from_bytes(m, "big")).to_bytes(n, "big")
+
+
+def ws_frame(op, payload, masked):
+    n = len(payload)
+    hdr = bytes([0x80 | op])
+    mb = 0x80 if masked else 0
+    if n < 126:
+        hdr += bytes([mb | n])
+    elif n < 65536:
+        hdr += bytes([mb | 126]) + struct.pack(">H", n)
+    else:
+        hdr += bytes([mb | 127]) + struct.pack(">Q", n)
+    if masked:
+        mask = os.urandom(4)
+        return hdr + mask + ws_xor(payload, mask)
+    return hdr + payload
+
+
+def ws_read(rf):
+    """Eén WebSocket-frame lezen: (opcode, gegevens) of None bij einde."""
+    h = rf.read(2)
+    if len(h) < 2:
+        return None
+    op, ln, masked = h[0] & 0x0F, h[1] & 0x7F, h[1] & 0x80
+    if ln == 126:
+        ln = struct.unpack(">H", rf.read(2))[0]
+    elif ln == 127:
+        ln = struct.unpack(">Q", rf.read(8))[0]
+    if ln > 16 * 1024 * 1024:
+        return None
+    mask = rf.read(4) if masked else b""
+    data = rf.read(ln)
+    if len(data) < ln:
+        return None
+    return op, (ws_xor(data, mask) if masked else data)
+
+
 class RelayPusher:
     """Zend-modus: stuurt de verwerkte stand met HTTPS-POST naar de publieke server (enkel uitgaand)."""
     def __init__(self, url, token):
@@ -1507,6 +1553,7 @@ class RelayPusher:
         self.latest, self.lock, self.ev = {}, threading.Lock(), threading.Event()
         self.ok, self.error, self.last_ok, self.sent = False, None, None, 0
         self.stopped = False
+        self.mode, self.ws_retry_at = "http", 0.0       # websocket: berichten vertrekken meteen, zonder op antwoord te wachten
         threading.Thread(target=self._run, daemon=True).start()
 
     def send(self, kind, data):
@@ -1516,11 +1563,104 @@ class RelayPusher:
 
     def status(self):
         return {"url": f"{'https' if self.https else 'http'}://{self.host}:{self.port}", "ok": self.ok,
-                "error": self.error, "lastOk": self.last_ok, "sent": self.sent}
+                "error": self.error, "lastOk": self.last_ok, "sent": self.sent, "mode": self.mode}
+
+    def _ws_connect(self):
+        import ssl
+        raw = socket.create_connection((self.host, self.port), timeout=10)
+        sock = ssl.create_default_context().wrap_socket(raw, server_hostname=self.host) if self.https else raw
+        key = base64.b64encode(os.urandom(16)).decode()
+        req = (f"GET {self.path}/ws HTTP/1.1\r\nHost: {self.host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+               f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nX-Ingest-Token: {self.token}\r\n"
+               f"User-Agent: KHZS-livetiming/{VERSION}\r\n\r\n")
+        sock.sendall(req.encode())
+        buf = b""
+        while b"\r\n\r\n" not in buf and len(buf) < 16384:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            buf += chunk
+        head = buf.split(b"\r\n\r\n", 1)[0].decode("latin1")
+        want = base64.b64encode(hashlib.sha1((key + WS_GUID).encode()).digest()).decode()
+        if " 101 " not in head.split("\r\n", 1)[0] or want not in head:
+            sock.close()
+            raise OSError("websocket niet aanvaard: " + head.split("\r\n", 1)[0][:60])
+        sock.settimeout(None)
+        return sock
+
+    def _run_ws(self):
+        """Blijvende WebSocket naar de publieke server; True als hij een tijd gewerkt heeft (dan opnieuw proberen)."""
+        try:
+            sock = self._ws_connect()
+        except (OSError, ValueError) as e:
+            self.ws_retry_at = time.time() + 300           # oude publieke server of proxy zonder websocket: later opnieuw
+            if self.mode == "websocket":
+                print("websocket naar de publieke server:", e)
+            self.mode = "http"
+            return False
+        self.mode = "websocket"
+        dead = threading.Event()
+
+        def reader():                                       # antwoorden van de server (pong/close) leegmaken
+            rf = sock.makefile("rb")
+            try:
+                while True:
+                    f = ws_read(rf)
+                    if f is None or f[0] == 8:
+                        break
+            except (OSError, ValueError):
+                pass
+            dead.set()
+        threading.Thread(target=reader, daemon=True).start()
+        last_send = time.time()
+        sent_any = False
+        try:
+            while not self.stopped and not dead.is_set():
+                self.ev.wait(15)
+                self.ev.clear()
+                with self.lock:
+                    batch, self.latest = self.latest, {}
+                if batch:
+                    body = json.dumps({"items": [{"t": k, "d": v} for k, v in batch.items()]},
+                                      ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                    try:
+                        sock.sendall(ws_frame(1, body, True))
+                    except OSError:
+                        with self.lock:
+                            for k, v in batch.items():
+                                self.latest.setdefault(k, v)
+                        raise
+                    self.ok, self.error, self.last_ok, self.sent = True, None, time.time(), self.sent + 1
+                    last_send, sent_any = time.time(), True
+                elif time.time() - last_send > 20:
+                    sock.sendall(ws_frame(9, b"k", True))        # ping: verbinding (en proxy) levend houden
+                    last_send = time.time()
+        except OSError as e:
+            self.ok, self.error = False, f"websocket: {e}"
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
+        return sent_any
 
     def _run(self):
         conn, backoff = None, 1.0
         while not self.stopped:
+            if time.time() >= self.ws_retry_at:
+                if conn is not None:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+                    conn = None
+                if self._run_ws():
+                    continue                                # liep goed: meteen opnieuw verbinden
+                if self.mode == "http" and time.time() < self.ws_retry_at:
+                    pass                                    # terugvallen op HTTPS-POST
+                else:
+                    time.sleep(2)
+                    continue
             self.ev.wait(5)
             self.ev.clear()
             if self.stopped:
@@ -2641,6 +2781,8 @@ def make_handler(state, hub, relay=None):
             self.wfile.write(data)
 
         def do_GET(self):
+            if relay is not None and self.path.split("?")[0] == "/ingest/ws":
+                return self._ws_ingest()
             path = self.path.split("?")[0]
             if self._captive(path):
                 return
@@ -2853,6 +2995,54 @@ def make_handler(state, hub, relay=None):
             except (ValueError, RuntimeError, OSError, subprocess.TimeoutExpired) as e:
                 return self._json({"ok": False, "error": str(e)}, 400)
             return self._json({"ok": True, "deck": meta, "decks": slides_list()})
+
+        def _ingest_items(self, items):
+            for it in items or []:
+                kind, data = it.get("t"), it.get("d")
+                if kind in ("state", "history", "clock", "callroom", "db"):
+                    relay.ingest(kind, data)
+                    if kind in ("state", "history", "clock"):
+                        hub.send(kind, relay.state_json() if kind == "state" else data)
+
+        def _ws_ingest(self):
+            """Kastje/laptop -> publieke server over één blijvende WebSocket (geen wachttijd per bericht)."""
+            tok = SETTINGS.get("relay_token") or ""
+            if not tok or not hmac.compare_digest(self.headers.get("X-Ingest-Token", ""), tok):
+                with ADMIN_FAIL_LOCK:
+                    time.sleep(1.5)
+                return self.send_error(403, "ongeldig token")
+            key = self.headers.get("Sec-WebSocket-Key") or ""
+            if (self.headers.get("Upgrade") or "").lower() != "websocket" or not key:
+                return self.send_error(400, "websocket verwacht")
+            self.send_response(101, "Switching Protocols")
+            self.send_header("Upgrade", "websocket")
+            self.send_header("Connection", "Upgrade")
+            self.send_header("Sec-WebSocket-Accept", base64.b64encode(hashlib.sha1((key + WS_GUID).encode()).digest()).decode())
+            self.end_headers()
+            self.wfile.flush()
+            self.close_connection = True
+            self.connection.settimeout(90)
+            print("zender verbonden via websocket", self.headers.get("Cf-Connecting-Ip") or self.client_address[0])
+            try:
+                while True:
+                    f = ws_read(self.rfile)
+                    if f is None:
+                        break
+                    op, data = f
+                    if op == 8:
+                        self.wfile.write(ws_frame(8, b"", False))
+                        break
+                    if op == 9:
+                        self.wfile.write(ws_frame(10, data, False))
+                        self.wfile.flush()
+                    elif op in (1, 2):
+                        try:
+                            self._ingest_items(json.loads(data).get("items"))
+                        except (ValueError, AttributeError):
+                            pass
+            except (OSError, struct.error):
+                pass
+            print("zender websocket gesloten")
 
         def _tunnel_proxy(self, method):
             """Relay: /kastje/<naam>/<pad> -> verzoek naar dat kastje (enkel voor de beheerder van de cloudserver)."""
@@ -3159,12 +3349,7 @@ def make_handler(state, hub, relay=None):
                         items = payload.get("items") or []
                     except (ValueError, UnicodeDecodeError, AttributeError):
                         return self.send_error(400, "ongeldige JSON")
-                    for it in items:
-                        kind, data = it.get("t"), it.get("d")
-                        if kind in ("state", "history", "clock", "callroom", "db"):
-                            relay.ingest(kind, data)
-                            if kind in ("state", "history", "clock"):
-                                hub.send(kind, relay.state_json() if kind == "state" else data)
+                    self._ingest_items(items)
                     return self._json({"ok": True, "n": len(items)})
                 if path0 == "/login":
                     n = int(self.headers.get("Content-Length", 0))
