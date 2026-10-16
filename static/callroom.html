@@ -89,6 +89,23 @@ footer{font-size:max(11px,.7rem)}
 .card.nextbig h3{font-size:1.2em}
 @media (min-width:1000px){main{grid-template-rows:minmax(0,1fr)}}
 @media (max-width:999px){.ucols,.ucol{display:block}.card{margin-bottom:10px;overflow-x:auto}}
+@media (max-width:699px){
+ #now table,#now tbody{display:block}#now thead{display:none}
+ #now tbody tr{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto 2em;grid-template-areas:"lane nm fin rank" "lane club fin rank" "rt sps sps sps";
+  gap:.1rem .45rem;align-items:center;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.4rem .5rem 1.15em;margin:0 0 .4rem;position:relative}
+ #now td.rank .rvb.card{bottom:.2em}
+ #now tbody tr.free{display:none}
+ #now td{display:block;border:0;padding:0;white-space:normal;width:auto;min-width:0}
+ #now td.lane{grid-area:lane;font-size:1.15em}
+ #now td.nm{grid-area:nm;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #now td.club{grid-area:club;font-size:.75em;color:var(--muted)}
+ #now td.rt{grid-area:rt;font-size:.75em;text-align:center}
+ #now td.sps{grid-area:sps;min-width:0}
+ #now td.fin{grid-area:fin}
+ #now td.rank{grid-area:rank;text-align:right}
+ #now .spg{grid-template-columns:repeat(4,minmax(0,1fr));gap:2px .3em}
+ #now{overflow-x:visible}
+}
 #splash{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:200;pointer-events:none;visibility:hidden;opacity:0;background:linear-gradient(180deg,var(--bg) 0%,var(--card2) 100%);transition:opacity .45s ease,visibility 0s linear .45s;overflow:hidden;--swh:clamp(90px,17vh,240px);--sww:calc(var(--swh)*2.2)}
 #splash.on{visibility:visible;opacity:1;transition:opacity .3s ease}
 #splash>svg{position:absolute;inset:0;width:100%;height:100%}
@@ -415,7 +432,7 @@ function liveTable(s){
   ls.forEach(function(l){
     if(!name(l)&&(!l.splits||!l.splits.length)&&l.final==null){h+='<tr class="free"><td class="lane">'+l.lane+'</td><td colspan="'+(D.length?6:5)+'">—</td></tr>';return}
     var top=l.final!=null&&l.rank>=1&&l.rank<=3;
-    h+='<tr><td class="lane">'+l.lane+'</td><td class="nm">'+esc(name(l))+'</td><td>'+esc(l.club||'')+'</td><td class="r" style="color:var(--muted)">'+fmtRT(l.reaction)+'</td>';
+    h+='<tr><td class="lane">'+l.lane+'</td><td class="nm">'+esc(name(l))+'</td><td class="club">'+esc(l.club||'')+'</td><td class="r rt" style="color:var(--muted)">'+fmtRT(l.reaction)+'</td>';
     if(D.length)h+='<td class="sps"><div class="spg">'+D.map(function(d){return sbox(l,d,dist>0&&d===dist)}).join('')+'</div></td>';
     h+='<td class="fin'+(top?' p'+l.rank:'')+'">'+(l.final!=null?fmt(l.final):'')+'</td><td class="rank'+(top?' p'+l.rank:'')+'">'+(l.rank!=null?l.rank:'')+'</td></tr>';
   });

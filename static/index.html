@@ -823,9 +823,10 @@ function fitPhone(force){
   if(!on){b.classList.remove('nosp','nomem');document.getElementById('cur').style.removeProperty('--mf');phKey='';return}
   var w=$('tablewrap'),cur=$('cur');if(!w||!cur)return;
   var chips=w.querySelectorAll('.sc').length,rows=w.querySelectorAll('tbody tr').length;
-  var key=innerWidth+'x'+innerHeight+'|'+rows+'|'+chips+'|'+($('title')?$('title').textContent:'')+'|'+(!$('nextbar').hidden);
+  var H=stableH();
+  var key=innerWidth+'x'+H+'|'+rows+'|'+chips+'|'+($('title')?$('title').textContent:'')+'|'+(!$('nextbar').hidden);
   if(!force&&key===phKey)return;phKey=key;
-  var sb=$('simban'),limit=window.innerHeight-6-(sb&&!sb.hidden?sb.offsetHeight:0);
+  var sb=$('simban'),limit=H-6-(sb&&!sb.hidden?sb.offsetHeight:0);
   function bottom(){var r=w.getBoundingClientRect();return r.bottom+window.scrollY}
   function fits(){return bottom()<=limit&&document.documentElement.scrollWidth<=window.innerWidth+1}
   function fitFont(min,max){var f=max;cur.style.setProperty('--mf',f+'px');while(!fits()&&f>min){f-=0.5;cur.style.setProperty('--mf',f+'px')}return fits()}
@@ -837,8 +838,13 @@ function fitPhone(force){
   b.classList.add('nosp');
   fitFont(11,max);                        // enkel baan, naam, eindtijd, plaats
 }
-window.addEventListener('resize',function(){setTimeout(function(){fitPhone(true)},120)});
-window.addEventListener('orientationchange',function(){setTimeout(function(){fitPhone(true)},300)});
+/* schermhoogte zonder het verspringen van de adresbalk: per breedte de kleinste hoogte (enkel echte wijzigingen tellen) */
+var stH={w:0,h:0};
+function stableH(){var w=window.innerWidth,h=window.innerHeight;
+  if(w!==stH.w||Math.abs(h-stH.h)>160){stH.w=w;stH.h=h}else if(h<stH.h)stH.h=h;     // kleinste: past ook met adresbalk
+  return stH.h}
+window.addEventListener('resize',function(){var o=stH.w+'x'+stH.h;stableH();if(stH.w+'x'+stH.h!==o)setTimeout(function(){fitPhone(true)},120)});
+window.addEventListener('orientationchange',function(){setTimeout(function(){stH.w=0;fitPhone(true)},300)});
 function kiosk(){return (isJury||pubSplit)&&jury&&window.matchMedia('(min-width:1000px)').matches}
 function fitBox(box,key,start,min,max){
   var f=start;
