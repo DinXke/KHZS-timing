@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.25"
+VERSION = "1.1.26"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -3542,7 +3542,7 @@ def make_handler(state, hub, relay=None):
                     pal = ((relay.state_json().get("settings") or {}).get("palette")) or pal
                 body = body.replace(b"</head>", f'<link rel="stylesheet" href="/palette.css?v={VERSION}"></head>'.encode(), 1)
                 if pal == "hzs":
-                    body = re.sub(rb"<html", b'<html data-palette="hzs"', body, count=1)
+                    body = re.sub(rb"<html(?=[\s>])", b'<html data-palette="hzs"', body, count=1)
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", cache)

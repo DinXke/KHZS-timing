@@ -1,18 +1,38 @@
-/* HZS-clubkleuren: paars en blauw uit het logo en de clubsite. Actief met <html data-palette="hzs"> (instelling "Kleuren").
-   Overschrijft enkel de gedeelde kleurvariabelen; licht/donker/auto blijft werken. */
+/* HZS-clubkleuren, zoals de clubsite: neutrale achtergrond en kaarten, PAARS voor de huisstijl (bovenbalk),
+   BLAUW van het logo als accent (klok, race-stip, markeringen). Actief met <html data-palette="hzs">.
+   Overschrijft enkel gedeelde kleurvariabelen; licht/donker/auto blijft werken. */
 html[data-palette="hzs"]{
-  --bg:#110d29;--bg2:#150f31;--card:#1b1543;--card2:#221a52;--border:#3b3184;--text:#eeecfb;--muted:#aca7d6;
-  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#0b0a20;--hzs-purple:#4a38a6;--hzs-blue:#5aaef0}
+  --bg:#0c0b13;--bg2:#100f1a;--card:#161521;--card2:#1c1b29;--border:#2d2a41;--text:#ecebf3;--muted:#a5a3b9;
+  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#07101b;
+  --hzs-purple:#3f2f86;--hzs-purple-l:#6a57d1;--hzs-blue:#5aaef0;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}
 @media (prefers-color-scheme:light){html[data-palette="hzs"]:not([data-theme="dark"]){
-  --bg:#f1f0f8;--bg2:#e9e7f4;--card:#fff;--card2:#f5f4fb;--border:#cfcbe8;--text:#1b1540;--muted:#575180;
-  --accent:#3f2f86;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;--hzs-purple:#3f2f86;--hzs-blue:#2f8fdc}}
+  --bg:#f3f3f6;--bg2:#ebebf0;--card:#fff;--card2:#f7f7fa;--border:#dcdbe5;--text:#191630;--muted:#575470;
+  --accent:#1f6fb5;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;
+  --hzs-purple:#3f2f86;--hzs-purple-l:#3f2f86;--hzs-blue:#2f8fdc;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}}
 html[data-palette="hzs"][data-theme="light"]{
-  --bg:#f1f0f8;--bg2:#e9e7f4;--card:#fff;--card2:#f5f4fb;--border:#cfcbe8;--text:#1b1540;--muted:#575180;
-  --accent:#3f2f86;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;--hzs-purple:#3f2f86;--hzs-blue:#2f8fdc}
+  --bg:#f3f3f6;--bg2:#ebebf0;--card:#fff;--card2:#f7f7fa;--border:#dcdbe5;--text:#191630;--muted:#575470;
+  --accent:#1f6fb5;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;
+  --hzs-purple:#3f2f86;--hzs-purple-l:#3f2f86;--hzs-blue:#2f8fdc;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}
 html[data-palette="hzs"][data-theme="dark"]{
-  --bg:#110d29;--bg2:#150f31;--card:#1b1543;--card2:#221a52;--border:#3b3184;--text:#eeecfb;--muted:#aca7d6;
-  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#0b0a20;--hzs-purple:#4a38a6;--hzs-blue:#5aaef0}
+  --bg:#0c0b13;--bg2:#100f1a;--card:#161521;--card2:#1c1b29;--border:#2d2a41;--text:#ecebf3;--muted:#a5a3b9;
+  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#07101b;
+  --hzs-purple:#3f2f86;--hzs-purple-l:#6a57d1;--hzs-blue:#5aaef0;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}
+
+/* bovenbalk in clubpaars (live timing, jury, oproepkamer, beheer) */
+html[data-palette="hzs"] .topbar,html[data-palette="hzs"] .top{background:var(--hzs-bar);color:var(--hzs-bar-text);border-bottom-color:transparent}
+html[data-palette="hzs"] .topbar .tbt span,html[data-palette="hzs"] .top .brand span{color:var(--hzs-bar-accent)}
+html[data-palette="hzs"] .top .sub{color:rgba(255,255,255,.75)}
+html[data-palette="hzs"] .topbar .tbtn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.28)}
+html[data-palette="hzs"] .topbar .tbtn:hover{background:rgba(255,255,255,.2)}
+html[data-palette="hzs"] .topbar .seg{border-color:rgba(255,255,255,.28)}
+html[data-palette="hzs"] .topbar .seg button{background:transparent;color:#fff}
+html[data-palette="hzs"] .topbar .seg button[aria-pressed=true]{background:#fff;color:var(--hzs-purple)}
+html[data-palette="hzs"] .topbar .mini.running{color:var(--hzs-bar-accent)}
+html[data-palette="hzs"] .topbar .mini.idle{color:rgba(255,255,255,.7)}
+html[data-palette="hzs"] .topbar .mini.stopped{color:#7ef0b8}
+html[data-palette="hzs"] .topbar #clubbtn.on{background:var(--warning,#fbbf24);color:#111;border-color:var(--warning,#fbbf24)}
+
 /* golven (splash tussen de reeksen en infoscherm): blauw en paars door elkaar */
-html[data-palette="hzs"] #splash .w2,html[data-palette="hzs"] #infoscreen .is-wave.w2{fill:var(--hzs-purple)}
+html[data-palette="hzs"] #splash .w2,html[data-palette="hzs"] #infoscreen .is-wave.w2{fill:var(--hzs-purple-l)}
 html[data-palette="hzs"] #splash .w1,html[data-palette="hzs"] #infoscreen .is-wave.w1{fill:var(--hzs-blue)}
 html[data-palette="hzs"] #splash .w3,html[data-palette="hzs"] #infoscreen .is-wave.w3{fill:var(--hzs-blue)}
