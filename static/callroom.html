@@ -425,7 +425,7 @@ function renderNow(){
   var b=$('now');
   if(!S){b.innerHTML='<div class="msg">Wachten op gegevens…</div>';return}
   var mh=CR&&CR.manual;
-  if(mh&&(S.showing==='previous'||!S.event)){
+  if(mh&&(S.showing==='previous'||!S.event||hk2(S.event,S.heat)!==mh.event.number+'/'+mh.heat.number)){
     var rows=(mh.lanes||[]).slice().sort(function(a,b){return a.lane-b.lane}).map(function(l){
       return '<tr><td class="lane">'+l.lane+'</td><td class="nm">'+esc(name(l))+'</td><td>'+esc(l.club||'')+'</td><td class="entry'+(l.entryTime==null?' nt':'')+'">'+(l.entryTime!=null?fmt(l.entryTime):'NT')+'</td></tr>'}).join('');
     b.innerHTML='<h3><span class="tag">Nu</span>'+esc(title(mh.event,mh.heat))+'</h3>'+(rows?'<table><thead><tr><th>Baan</th><th>Naam</th><th>Club</th><th class="r">Inschrijftijd</th></tr></thead><tbody>'+rows+'</tbody></table>':'');
@@ -437,15 +437,22 @@ function renderNow(){
   fitEl(b);
 }
 var prevSig='';
+function hk2(e,h){var m=String((h&&h.name)||'').match(/(\d+)\s*$/);return String((e&&e.number)||'')+'/'+(m?m[1]:String((h&&h.number)||''))}
 function prevHeat(){
-  if(S&&S.showing==='previous')return {event:S.event,heat:S.heat,lanes:S.lanes};
-  return H[0]||null;
+  var c=[];if(S&&S.showing==='previous')c.push({event:S.event,heat:S.heat,lanes:S.lanes});c=c.concat(H||[]);
+  if(CR&&CR.prevKnown){                     // nieuwere server: enkel de reeks die in het programma echt voorafgaat
+    if(!CR.prev)return false;               // eerste reeks van de dag: geen vorige reeks
+    var k=CR.prev.event+'/'+CR.prev.heat;
+    return c.find(function(x){return x&&hk2(x.event,x.heat)===k})||null;
+  }
+  return c[0]||null;
 }
 function renderPrev(){
   var b=$('prev');
   if(!showPrev()){b.hidden=true;prevSig='';return}
-  b.hidden=false;
   var hp=prevHeat(),sig=JSON.stringify(hp)+kiosk();
+  if(hp===false){if(!b.hidden){b.hidden=true;prevSig='';$('now')._f=0;setTimeout(function(){$('now')._f=0;fitEl($('now'))},0)}return}
+  if(b.hidden){b.hidden=false;$('now')._f=0;setTimeout(function(){$('now')._f=0;fitEl($('now'))},0)}
   if(sig===prevSig)return;prevSig=sig;
   if(!hp){b.innerHTML='<h3><span class="tag">Vorige reeks</span></h3><div class="msg">Nog geen afgelopen reeks.</div>';return}
   var ls=(hp.lanes||[]).filter(function(l){return name(l)}).sort(function(a,b){var ra=a.rank==null?1e9:a.rank,rb=b.rank==null?1e9:b.rank;return ra-rb||a.lane-b.lane});
@@ -488,7 +495,7 @@ function frame(){
 function pollCR(cb){
   if(demo){if(cb)cb();return}
   fetch('/api/callroom').then(function(r){return r.json()}).then(function(d){var mk=JSON.stringify(d&&d.manual&&[d.manual.event,d.manual.heat]);
-    CR=d;renderHead();renderUp();if(mk!==pollCR._m){pollCR._m=mk;renderNow()}if(cb)cb()}).catch(function(){if(cb)cb()});
+    CR=d;renderHead();renderUp();renderPrev();if(mk!==pollCR._m){pollCR._m=mk;renderNow()}if(cb)cb()}).catch(function(){if(cb)cb()});
 }
 /* tussenscherm: de reeks die nu naar de oproepkamer mag */
 function callHeat(){

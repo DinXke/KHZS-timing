@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.14"
+VERSION = "1.1.15"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1342,8 +1342,21 @@ def callroom_json(state_now):
     # +1: de eerste reeks na de live reeks staat al aan de startblok, de oproepkamer zijn de n reeksen daarna
     upcoming = [h for h in sched[pos + 1:] if not h["finished"]][:n + 1]
     live = sched[pos] if pos is not None and 0 <= pos < len(sched) else None
+    # vorige reeks = de reeks die in het programma vlak vóór de reeks in het water komt, op dezelfde dag;
+    # bij de eerste reeks van de dag is er geen (oude uitslagen of simulatiegegevens tonen heeft geen zin)
+    if man is not None:
+        pidx = pos - 1                                    # manueel: pos zwemt nu
+    elif live is not None and (ev, ht) == (live["event"]["number"], live["heat"]["number"]):
+        pidx = pos if state_now.get("showing") == "previous" else pos - 1
+    else:
+        pidx = pos if pos is not None else -1             # geen live reeks: pos is de laatst afgewerkte
+    prev = None
+    if pidx is not None and 0 <= pidx < len(sched):
+        nxt = sched[pidx + 1] if pidx + 1 < len(sched) else None
+        if nxt is None or (sched[pidx].get("date") or "") == (nxt.get("date") or ""):
+            prev = {"event": sched[pidx]["event"]["number"], "heat": sched[pidx]["heat"]["number"]}
     return {"upcoming": upcoming, "count": n, "matched": pos is not None and 0 <= pos < len(sched), "simulated": sim,
-            "manual": man,
+            "manual": man, "prev": prev, "prevKnown": True,
             "liveLabel": (live or {}).get("dayLabel", ""),
             "live": {"event": ev, "heat": ht},          # voor welke live reeks deze lijst berekend is
             "db": {"loadedAt": "simulator" if sim else (PROG_STATUS["loadedAt"] if PROG_SCHEDULE else DB_STATUS["loadedAt"]),
