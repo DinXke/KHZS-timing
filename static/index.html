@@ -294,7 +294,7 @@ footer{font-size:max(12px,.75rem)}
  body.jv.jury .legend{font-size:max(11px,.7rem)}
  body.jv.jury footer{font-size:max(11px,.7rem)}
 }
-@media (max-width:699px){
+@media (max-width:699px),(max-height:499px) and (max-width:1100px){
  .tablewrap{overflow:visible;background:none;border:0}
  table,tbody{display:block}
  thead{display:none}
@@ -345,7 +345,8 @@ footer{font-size:max(12px,.75rem)}
 #splash .bub{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;animation:spbub var(--bd,2s) ease-in infinite}
 @keyframes spbub{0%{transform:translateY(0);opacity:0}25%{opacity:.7}100%{transform:translateY(-420px);opacity:0}}
 #splash .spn{position:absolute;left:4vw;right:4vw;bottom:5%;height:30%;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#fff;opacity:0;font-weight:700;font-size:clamp(14px,2.2vw,2.3rem);line-height:1.35;letter-spacing:.02em;mix-blend-mode:soft-light;pointer-events:none}
-#splash.on .spn{animation:spfade .8s .3s ease both;opacity:.45}
+#splash.on .spn{animation:spfade .8s .3s ease both;opacity:.7}
+#splash .spn{mix-blend-mode:normal!important;text-shadow:0 1px 4px rgba(0,0,0,.45)}
 #splash .spn[hidden]{display:none}
 #splash .spn .spnt{display:inline-block}
 #splash .spn .spnt span{display:inline-block;margin:0 .9em}
@@ -407,7 +408,22 @@ body.phone .tblink .tbl,body.phone .tblink .tbi{display:none}body.phone .tblink 
 body.phone #crbtn{font-weight:700;color:var(--amber);border-color:var(--amber)}
 @media (max-width:379px){body.phone .tblink .tbs{display:none}body.phone .tblink .tbx{display:inline}}
 body.phone .topbar{gap:6px;padding:3px 8px}body.phone .tbr{gap:5px}body.phone .tbt{display:none}
-body.phone .tbtn{padding:3px 7px;font-size:12px}body.phone .seg button{padding:3px 7px;font-size:12px}body.phone .mini{font-size:20px}
+body.phone .tbtn{padding:0 9px;font-size:13px;min-height:40px}body.phone .seg button{padding:0 8px;font-size:13px;min-height:38px}body.phone .mini{font-size:20px}
+body.phone #themebtn{min-width:40px}
+/* liggende gsm: kaarten in twee kolommen */
+@media (max-height:499px) and (min-width:560px){body.phone tbody{display:grid!important;grid-template-columns:1fr 1fr;gap:0 .45em}body.phone tbody tr.memrow{grid-column:1/-1}}
+/* 4. volgende reeks op de gsm: enkel de kop, geen namenlijst (de huidige uitslag gaat voor) */
+body.phone .nx2{display:none}
+body.phone .nx1{font-size:max(12px,.9em);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 2. leesbare minimumgroottes in de kaarten */
+body.phone .sd,body.phone sup.r,body.phone .mlab{font-size:max(10px,.7em)}
+body.phone td.name small{font-size:max(10px,.8em)}
+body.phone #cur h1{font-size:max(13px,1.02em);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.phone.noclub td.name small{display:none}
+/* 5. tablet staand: club weg, naam afkappen, zodat eindtijd en plaats in beeld blijven */
+@media (min-width:700px) and (max-width:999px){body:not(.jv) .col-club,body.pub .col-club{display:none}body:not(.jv) td.name small,body.pub td.name small{display:block}td.name{max-width:30vw;overflow:hidden;text-overflow:ellipsis}.spg{font-size:.95rem}}
+/* 6. jurypagina op smaller scherm: knoppen in de bovenbalk mogen naar een tweede regel */
+@media (max-width:999px){body.jv:not(.pub) .tbr{flex-wrap:wrap;justify-content:flex-end;row-gap:4px}body.jv:not(.pub) .tblink .tbl{display:none}}
 @media (max-width:379px){body.phone #themebtn{display:none}body.phone .seg button{padding:3px 5px}}
 </style>
 </head>
@@ -820,7 +836,7 @@ var phKey='';var phSim=null;
 function fitPhone(force){
   var b=document.body,on=phone();
   b.classList.toggle('phone',on);
-  if(!on){b.classList.remove('nosp','nomem');document.getElementById('cur').style.removeProperty('--mf');phKey='';return}
+  if(!on){b.classList.remove('nosp','nomem','noclub');document.getElementById('cur').style.removeProperty('--mf');phKey='';return}
   var w=$('tablewrap'),cur=$('cur');if(!w||!cur)return;
   var chips=w.querySelectorAll('.sc').length,rows=w.querySelectorAll('tbody tr').length;
   var H=stableH();
@@ -831,12 +847,14 @@ function fitPhone(force){
   function fits(){return bottom()<=limit&&document.documentElement.scrollWidth<=window.innerWidth+1}
   function fitFont(min,max){var f=max;cur.style.setProperty('--mf',f+'px');while(!fits()&&f>min){f-=0.5;cur.style.setProperty('--mf',f+'px')}return fits()}
   var max=Math.min(30,Math.max(16,window.innerWidth/18));
-  b.classList.remove('nosp','nomem');
-  if(fitFont(12.5,max))return;            // alles tonen (met tussentijden)
+  b.classList.remove('nosp','nomem','noclub');
+  if(fitFont(13,max))return;              // alles tonen (met tussentijden)
   b.classList.add('nomem');
-  if(fitFont(12.5,max))return;            // aflossingsleden weg
+  if(fitFont(13,max))return;              // aflossingsleden weg
+  b.classList.add('noclub');
+  if(fitFont(12,max))return;              // clubnaam onder de naam weg
   b.classList.add('nosp');
-  fitFont(8.5,max);                       // enkel baan, naam, eindtijd, plaats: zo klein als nodig, alle banen op één scherm
+  fitFont(11,max);                        // enkel baan, naam, eindtijd, plaats; nooit kleiner dan 11 px – dan maar scrollen
 }
 /* schermhoogte zonder het verspringen van de adresbalk: per breedte de kleinste hoogte (enkel echte wijzigingen tellen) */
 var stH={w:0,h:0};

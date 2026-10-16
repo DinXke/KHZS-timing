@@ -40,8 +40,8 @@ td.r,th.r{text-align:right}
 td.nm{font-weight:600;max-width:20em;overflow:hidden;text-overflow:ellipsis}
 td.entry{text-align:right;font-weight:700;font-size:1.1em}
 td.entry.nt{color:var(--muted);font-weight:500}
-tr.free td{color:var(--muted);opacity:.5;font-size:.8em}
-tr.dim td{opacity:.45}
+tr.free td{color:var(--muted);opacity:.8;font-size:.8em}
+tr.dim td{color:var(--muted)}tr.dim td.nm{text-decoration:line-through}
 .st{font-size:.65em;color:var(--danger);font-weight:700;border:1px solid var(--danger);border-radius:4px;padding:0 .3em;margin-left:.5em}
 .sps{white-space:normal}
 .spg{display:grid;grid-template-columns:repeat(auto-fill,minmax(4.2em,1fr));gap:2px .5em;min-width:8.8em}
@@ -105,6 +105,10 @@ footer{font-size:max(11px,.7rem)}
  #now td.rank{grid-area:rank;text-align:right}
  #now td.entry{grid-area:fin}
  #now.nosp td.sps,#now.nosp td.rt{display:none}
+ #now.noclub td.club{display:none}
+ #now.noclub tbody tr{grid-template-areas:"lane nm nm fin rank" "rt sps sps sps sps"}
+ #now.noclub.nosp tbody tr{grid-template-areas:"lane nm nm fin rank"}
+ .tbtn{min-height:40px}
  #now.nosp tbody tr{grid-template-areas:"lane nm club fin rank"}
  #now h3{margin-bottom:.3em}
  #now .spg{grid-template-columns:repeat(4,minmax(0,1fr));gap:2px .3em}
@@ -139,7 +143,8 @@ footer{font-size:max(11px,.7rem)}
 #splash .bub{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;animation:spbub var(--bd,2s) ease-in infinite}
 @keyframes spbub{0%{transform:translateY(0);opacity:0}25%{opacity:.7}100%{transform:translateY(-420px);opacity:0}}
 #splash .spn{position:absolute;left:4vw;right:4vw;bottom:5%;height:30%;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#fff;opacity:0;font-weight:700;font-size:clamp(14px,2.2vw,2.3rem);line-height:1.35;letter-spacing:.02em;mix-blend-mode:soft-light;pointer-events:none}
-#splash.on .spn{animation:spfade .8s .3s ease both;opacity:.45}
+#splash.on .spn{animation:spfade .8s .3s ease both;opacity:1}
+#splash .spn{mix-blend-mode:normal!important;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.55)}
 #splash .spn[hidden]{display:none}
 #splash .spn .spnt{display:inline-block}
 #splash .spn .spnt span{display:inline-block;margin:0 .9em}
@@ -301,9 +306,11 @@ function fitPhoneNow(el){
   var top=el.getBoundingClientRect().top+window.scrollY,SH=stableH();
   var H=(top<SH/2?SH-top-8:SH-14),mx=Math.min(20,Math.max(13,window.innerWidth/21)),f;   // bovenaan: in het eerste scherm
   function go(min){f=mx;el.style.setProperty('--cf',f+'px');while(el.scrollHeight>H&&f>min){f-=0.5;el.style.setProperty('--cf',f+'px')}return el.scrollHeight<=H}
-  el.classList.remove('nosp');
-  if(go(11))return;
-  el.classList.add('nosp');go(8);
+  el.classList.remove('nosp','noclub');
+  if(go(12))return;
+  el.classList.add('noclub');
+  if(go(11.5))return;
+  el.classList.add('nosp');go(11);                                   // nooit kleiner dan 11 px – dan maar scrollen
 }
 window.addEventListener('resize',function(){var o=stH.w+'x'+stH.h;stableH();if(stH.w+'x'+stH.h!==o&&!kiosk())fitEl($('now'))});
 function fitEl(el){if(!kiosk()){if(el&&el.id==='now'){if(window.innerWidth<700)fitPhoneNow(el);else{el.style.removeProperty('--cf');el.classList.remove('nosp')}}return}fitBox(el,'--cf',el._f||26*sc()/16,7,26*sc()/16);persistScroll(el)}

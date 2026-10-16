@@ -8,6 +8,7 @@ var css=''+
 '.myclub,tr.myclub>td{background:color-mix(in srgb,var(--warning,#fbbf24) 17%,transparent)!important}'+
 'tr.myclub>td:first-child,.myclub:not(tr){box-shadow:inset .25em 0 0 var(--warning,#fbbf24)}'+
 'tr.myclub[style*="grid"],tbody tr.myclub{box-shadow:inset .25em 0 0 var(--warning,#fbbf24)}'+
+'@media (max-width:699px),(max-height:499px) and (max-width:1100px){tbody tr.myclub>td{background:transparent!important}tr.myclub>td:first-child{box-shadow:none}}'+
 '#clubbtn.on{background:var(--warning,#fbbf24);color:var(--onwarn,#111);border-color:var(--warning,#fbbf24)}'+
 '#clubpop{position:fixed;z-index:400;min-width:12em;max-width:min(92vw,22em);max-height:min(70vh,30em);overflow:auto;background:var(--card,#0e2233);color:var(--text,#e8f1f8);'+
 'border:1px solid var(--border,#23445e);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:.35em;font:inherit;font-size:15px}'+

@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.26"
+VERSION = "1.1.27"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -114,7 +114,8 @@ DEFAULT_SETTINGS = {
     "race_view_jury": False,       # … op de jurypagina
     "race_view_callroom": False,   # … in de oproepkamer
     "race_pool_length": 25,        # badlengte voor de race-weergave (25 of 50 m)
-    "sim_source": "willekeurig",   # willekeurig | programma (het ingeladen programma: echte reeksen, namen, inschrijftijden)
+    "sim_source_chosen": False,    # intern: sim_source bewust gekozen in het beheer (anders geldt de standaard)
+    "sim_source": "programma",     # programma (standaard: het ingeladen programma: echte reeksen, namen, inschrijftijden) | willekeurig (het ingeladen programma: echte reeksen, namen, inschrijftijden)
     "sim_meet_name": "SIMULATIE – Testwedstrijd",
     "sim_autostart": False,        # simulator meteen starten als de server start (demo-kastje)
     "sim_stop_on_real": True,      # echte SwimTime-gegevens stoppen de simulator meteen
@@ -133,6 +134,8 @@ def load_settings(path):
             SETTINGS.update({k: v for k, v in json.load(f).items() if k in DEFAULT_SETTINGS})
     except (OSError, ValueError):
         pass
+    if not SETTINGS.get("sim_source_chosen"):           # oude standaard 'willekeurig' -> het ingeladen programma
+        SETTINGS["sim_source"] = DEFAULT_SETTINGS["sim_source"]
     save_settings()
 
 
@@ -164,6 +167,8 @@ def update_settings(new):
             errors.append(f"ongeldige waarde voor {k}")
             continue
         SETTINGS[k] = v
+        if k == "sim_source":
+            SETTINGS["sim_source_chosen"] = True
     if not errors:
         save_settings()
     return errors
@@ -3830,7 +3835,7 @@ class SimHost:
         o["per_event"] = max(1, min(80, int(o["per_event"])))
         o["lanes"] = max(4, min(10, int(o["lanes"])))
         o["speed"] = max(0.25, min(64.0, float(o["speed"])))
-        o["source"] = "programma" if o.get("source") == "programma" else "willekeurig"
+        o["source"] = "willekeurig" if o.get("source") == "willekeurig" else "programma"
         return o
 
     STATE_FILE = None
@@ -3864,9 +3869,10 @@ class SimHost:
             ns = argparse.Namespace(host="ingebouwd", port=0, udp=None, allow_broadcast=False, direct=self._deliver, **o)
             if o["source"] == "programma":
                 prog = [dict(h, finished=False) for h in merged_schedule()]
-                if not prog:
-                    return False, "geen programma ingeladen (Gegevens › Programma) – kies 'willekeurig' of laad eerst een programma"
-                ns.program = json.loads(json.dumps(prog))
+                if prog:
+                    ns.program = json.loads(json.dumps(prog))
+                else:
+                    print("simulator: geen programma ingeladen – verzonnen zwemmers")
             eng = simulator.Engine(ns)
             eng.tx.send(eng.program_msg())
             for fn in (eng.heartbeat, eng.loop):
