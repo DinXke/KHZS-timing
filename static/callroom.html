@@ -214,13 +214,13 @@ a.tblink{text-decoration:none;display:inline-flex;align-items:center}
  #now,#prev{overflow-x:auto}
 }
 @media (max-width:699px){
- /* smartphone: Nu in het water bovenaan, dan de startblok, dan de oproepkamer */
+ /* smartphone: eerst de startblok en de volgende reeksen (het belangrijkste), Nu in het water onderaan */
  main{display:contents}
  body>*{order:5}
  body>.topbar{order:0}
- #right{order:1;margin:6px 8px 0}
- #blk{order:2}
- #up{order:3;margin:10px 8px 6px}
+ #blk{order:1}
+ #up{order:2;margin:10px 8px 0}
+ #right{order:3;margin:10px 8px 6px}
  .topbar{padding:4px 8px;gap:6px}
  .tbt{font-size:13px}
  .mini{font-size:22px}
