@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.15"
+VERSION = "1.1.16"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1180,8 +1180,16 @@ def label_schedule(sched):
     """Per reeks een label 'za · voormiddag' (wedstrijden van een halve dag tot meerdere dagen met meerdere dagdelen)."""
     days = sorted({h.get("date") or "" for h in sched})
     multi_day = len([d for d in days if d]) > 1
+    # dagdeel per sessie (starttijd van haar eerste reeks): een voormiddagsessie die na 12 uur uitloopt blijft voormiddag
+    first = {}
     for h in sched:
-        part = day_part((h.get("heat") or {}).get("startTime"))
+        k = (h.get("date") or "", str(h.get("session") or ""))
+        t = (h.get("heat") or {}).get("startTime") or ""
+        if t and (k not in first or t < first[k]):
+            first[k] = t
+    for h in sched:
+        k = (h.get("date") or "", str(h.get("session") or ""))
+        part = day_part(first.get(k) if k[1] else None) or day_part((h.get("heat") or {}).get("startTime"))
         d = h.get("date") or ""
         try:
             wd = DAYS_NL[datetime.strptime(d, "%Y-%m-%d").weekday()] if d else ""
@@ -1342,8 +1350,8 @@ def callroom_json(state_now):
     # +1: de eerste reeks na de live reeks staat al aan de startblok, de oproepkamer zijn de n reeksen daarna
     upcoming = [h for h in sched[pos + 1:] if not h["finished"]][:n + 1]
     live = sched[pos] if pos is not None and 0 <= pos < len(sched) else None
-    # vorige reeks = de reeks die in het programma vlak vóór de reeks in het water komt, op dezelfde dag;
-    # bij de eerste reeks van de dag is er geen (oude uitslagen of simulatiegegevens tonen heeft geen zin)
+    # vorige reeks = de reeks die in het programma vlak vóór de reeks in het water komt, in dezelfde sessie;
+    # bij de eerste reeks van een sessie is er geen (oude uitslagen of simulatiegegevens tonen heeft geen zin)
     if man is not None:
         pidx = pos - 1                                    # manueel: pos zwemt nu
     elif live is not None and (ev, ht) == (live["event"]["number"], live["heat"]["number"]):
@@ -1353,7 +1361,9 @@ def callroom_json(state_now):
     prev = None
     if pidx is not None and 0 <= pidx < len(sched):
         nxt = sched[pidx + 1] if pidx + 1 < len(sched) else None
-        if nxt is None or (sched[pidx].get("date") or "") == (nxt.get("date") or ""):
+        same = lambda a, b: ((a.get("date") or "") == (b.get("date") or "")
+                             and str(a.get("session") or "") == str(b.get("session") or ""))
+        if nxt is None or same(sched[pidx], nxt):         # per sessie: na een sessiewissel geen vorige reeks
             prev = {"event": sched[pidx]["event"]["number"], "heat": sched[pidx]["heat"]["number"]}
     return {"upcoming": upcoming, "count": n, "matched": pos is not None and 0 <= pos < len(sched), "simulated": sim,
             "manual": man, "prev": prev, "prevKnown": True,
