@@ -48,7 +48,7 @@ CT = {
 }
 IP = "10.10.30.133"
 FILES = ["livetiming.py", "README.md", "static/index.html", "static/callroom.html", "static/settings.html",
-         "static/info.html", "static/infoscreen.js", "static/race.js", "static/img/hzs-wordmark.png", "static/img/hzs-wordmark-wit.png"]
+         "static/info.html", "static/infoscreen.js", "static/race.js", "static/club.js", "static/palette.css", "static/display.html", "static/img/hzs-wordmark.png", "static/img/hzs-wordmark-wit.png"]
 
 UNIT = """[Unit]
 Description=KHZS live timing relay

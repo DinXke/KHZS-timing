@@ -288,6 +288,7 @@ const F={
  sim_extra_touch_chance:{l:'Kans op een extra tik',h:'Per zwemmer: het paneel registreert te vroeg, de echte tik corrigeert.',n:1,step:.01,min:0,max:1},
  sim_manual_chance:{l:'Kans op een manuele eindtijd',n:1,step:.01,min:0,max:1},
  sim_dns_chance:{l:'Kans op niet gestart',n:1,step:.01,min:0,max:1},
+ palette:{l:'Kleuren',h:'HZS-clubkleuren (paars en blauw) of de standaardkleuren. Geldt voor alle pagina’s, de tussenschermen en het infoscherm, ook op de publieke server; licht/donker blijft per toestel.',sel:[['hzs','HZS-clubkleuren'],['standaard','Standaard (blauw)']]},
  race_view_publiek:{l:'Op de publieke pagina',b:1},
  race_view_jury:{l:'Op de jurypagina',b:1},
  race_view_callroom:{l:'In de oproepkamer',b:1},
@@ -384,6 +385,7 @@ function pages(){
   fieldsCard('Publiek en jury','',['show_clock','hold_previous_until_start','public_all_splits','public_split_layout','show_reaction','show_manual','show_suspect','show_peer','jury_split_left_pct','overview_heats'])+
   fieldsCard('Tussenscherm','Kort geanimeerd scherm met wedstrijd, reeks en de namen in het water.',['splash_enabled','splash_seconds','splash_jury','splash_callroom'])+
   fieldsCard('Zwembad','Alle pagina\'s passen zich aan het aantal banen in de startlijst aan (tot 10, ook 0–9).',['pool_lanes']);
+ P.weergave+=fieldsCard('Kleuren','',['palette']);
  P.weergave+=fieldsCard('Race-weergave (geschat)','Per baan een stip die heen en weer gaat: geschat uit de inschrijftijd (bij wisselslag per slag) en bijgestuurd met elke tussentijd van SwimTime. Op elke muur met een tussentijd klopt hij; ertussen is het een schatting. Geldt ook voor de schermen (HDMI) die deze pagina tonen.',['race_view_publiek','race_view_jury','race_view_callroom','race_pool_length']);
  P.oproepkamer='<h1>Oproepkamer</h1><p class="lead">Live → aan de startblok (groene balk) → oproepkamer.</p>'+
   '<div class="card"><h2>Welke reeks zwemt nu?</h2><p class="desc">Normaal volgt de oproepkamer SwimTime. Voor de start, na een pauze of als SwimTime nog niet loopt, kies je hier zelf de reeks die <b>nu in het water</b> is: de volgende staat dan aan de startblok en de reeksen daarna in de oproepkamer. Of kies <b>Niemand in het water</b>: dan staat de gekozen reeks aan de startblok. Een reeks die in SwimTime <b>loopt</b> (klok klaar of lopend) gaat altijd voor: zodra SwimTime een reeks klaarzet of start, neemt die het vanzelf over.</p>'+

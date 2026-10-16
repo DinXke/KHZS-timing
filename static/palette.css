@@ -1,0 +1,18 @@
+/* HZS-clubkleuren: paars en blauw uit het logo en de clubsite. Actief met <html data-palette="hzs"> (instelling "Kleuren").
+   Overschrijft enkel de gedeelde kleurvariabelen; licht/donker/auto blijft werken. */
+html[data-palette="hzs"]{
+  --bg:#110d29;--bg2:#150f31;--card:#1b1543;--card2:#221a52;--border:#3b3184;--text:#eeecfb;--muted:#aca7d6;
+  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#0b0a20;--hzs-purple:#4a38a6;--hzs-blue:#5aaef0}
+@media (prefers-color-scheme:light){html[data-palette="hzs"]:not([data-theme="dark"]){
+  --bg:#f1f0f8;--bg2:#e9e7f4;--card:#fff;--card2:#f5f4fb;--border:#cfcbe8;--text:#1b1540;--muted:#575180;
+  --accent:#3f2f86;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;--hzs-purple:#3f2f86;--hzs-blue:#2f8fdc}}
+html[data-palette="hzs"][data-theme="light"]{
+  --bg:#f1f0f8;--bg2:#e9e7f4;--card:#fff;--card2:#f5f4fb;--border:#cfcbe8;--text:#1b1540;--muted:#575180;
+  --accent:#3f2f86;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;--hzs-purple:#3f2f86;--hzs-blue:#2f8fdc}
+html[data-palette="hzs"][data-theme="dark"]{
+  --bg:#110d29;--bg2:#150f31;--card:#1b1543;--card2:#221a52;--border:#3b3184;--text:#eeecfb;--muted:#aca7d6;
+  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#0b0a20;--hzs-purple:#4a38a6;--hzs-blue:#5aaef0}
+/* golven (splash tussen de reeksen en infoscherm): blauw en paars door elkaar */
+html[data-palette="hzs"] #splash .w2,html[data-palette="hzs"] #infoscreen .is-wave.w2{fill:var(--hzs-purple)}
+html[data-palette="hzs"] #splash .w1,html[data-palette="hzs"] #infoscreen .is-wave.w1{fill:var(--hzs-blue)}
+html[data-palette="hzs"] #splash .w3,html[data-palette="hzs"] #infoscreen .is-wave.w3{fill:var(--hzs-blue)}

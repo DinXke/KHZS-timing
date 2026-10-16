@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.24"
+VERSION = "1.1.25"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -109,6 +109,7 @@ DEFAULT_SETTINGS = {
     "sim_extra_touch_chance": 0.15,  # kans per zwemmer op een extra tik tijdens de race
     "sim_dns_chance": 0.03,        # kans dat een zwemmer niet start
     "sim_seed": 0,                 # 0 = telkens een ander programma
+    "palette": "hzs",              # kleuren van alle pagina's: hzs (clubkleuren paars/blauw) | standaard
     "race_view_publiek": False,    # race-weergave (geschatte positie per baan) op de publieke pagina
     "race_view_jury": False,       # … op de jurypagina
     "race_view_callroom": False,   # … in de oproepkamer
@@ -121,7 +122,7 @@ DEFAULT_SETTINGS = {
 SETTINGS = dict(DEFAULT_SETTINGS)
 SECRET_KEYS = ("admin_token", "relay_token", "jury_password", "db_smb_password", "cloud_admin_password")
 SETTINGS_FILE = os.path.join(DATA, "settings.json")
-PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s", "race_view_publiek", "race_view_jury", "race_view_callroom", "race_pool_length")
+PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s", "race_view_publiek", "race_view_jury", "race_view_callroom", "race_pool_length", "palette")
 
 
 def load_settings(path):
@@ -2840,6 +2841,27 @@ def make_handler(state, hub, relay=None):
                 return self._file(os.path.join(STATIC, "infoscreen.js"), "application/javascript")
             if path == "/api/race-profiles":
                 return self._json({"ok": True, "base100": RACE_BASE100, "profiles": race_profiles()})
+            if path == "/club.js":
+                return self._file(os.path.join(STATIC, "club.js"), "application/javascript")
+            if path == "/palette.css":
+                return self._file(os.path.join(STATIC, "palette.css"), "text/css")
+            if path == "/api/clubs":
+                found = set()
+                try:
+                    if relay is not None:
+                        src = list((relay.callroom or {}).get("upcoming") or [])
+                        st, hist = relay.state_json(), relay.history or []
+                    else:
+                        src = list(SIM_SCHEDULE if STATE_SOURCE.get("sim") else merged_schedule())
+                        st, hist = state.state_json(now_fn()), state.history_json()
+                    for h in src + [st] + list(hist):
+                        for l in (h or {}).get("lanes") or []:
+                            c = str(l.get("club") or "").strip()
+                            if c and len(c) <= 20:
+                                found.add(c)
+                except Exception:
+                    pass
+                return self._json({"ok": True, "clubs": sorted(found, key=str.upper)})
             if path == "/race.js":
                 return self._file(os.path.join(STATIC, "race.js"), "application/javascript")
             if path.startswith("/img/") and re.fullmatch(r"/img/[a-z0-9-]+\.(png|svg)", path):
@@ -3514,6 +3536,13 @@ def make_handler(state, hub, relay=None):
                 # versie in de scriptlink: Cloudflare laat browsers .js uren bewaren, zo komt een update meteen door
                 body = body.replace(b'src="/infoscreen.js"', f'src="/infoscreen.js?v={VERSION}"'.encode())
                 body = body.replace(b'src="/race.js"', f'src="/race.js?v={VERSION}"'.encode())
+                body = body.replace(b'src="/club.js"', f'src="/club.js?v={VERSION}"'.encode())
+                pal = SETTINGS.get("palette", "hzs")
+                if relay is not None:                     # publieke server: het palet van de lokale server volgen
+                    pal = ((relay.state_json().get("settings") or {}).get("palette")) or pal
+                body = body.replace(b"</head>", f'<link rel="stylesheet" href="/palette.css?v={VERSION}"></head>'.encode(), 1)
+                if pal == "hzs":
+                    body = re.sub(rb"<html", b'<html data-palette="hzs"', body, count=1)
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", cache)
