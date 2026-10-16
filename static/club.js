@@ -71,7 +71,7 @@ function init(){
 }
 /* ---- kleurenpalet volgen (instelling van de server, ook live gewijzigd) */
 function palette(){var g=window.__ltRace&&window.__ltRace.getState,S=g&&g(),p=S&&S.settings&&S.settings.palette;
-  if(p){var h=document.documentElement,v=p==='hzs'?'hzs':'';if((h.getAttribute('data-palette')||'')!==v){if(v)h.setAttribute('data-palette',v);else h.removeAttribute('data-palette')}}}
+  if(p){var h=document.documentElement,v=/^(scorebord|omega|zwembad)$/.test(p)?p:'';if((h.getAttribute('data-palette')||'')!==v){if(v)h.setAttribute('data-palette',v);else h.removeAttribute('data-palette')}}}
 setInterval(palette,2000);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 window.ClubHL={set:set,refresh:mark};

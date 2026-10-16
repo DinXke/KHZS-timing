@@ -1,38 +1,35 @@
-/* HZS-clubkleuren, zoals de clubsite: neutrale achtergrond en kaarten, PAARS voor de huisstijl (bovenbalk),
-   BLAUW van het logo als accent (klok, race-stip, markeringen). Actief met <html data-palette="hzs">.
-   Overschrijft enkel gedeelde kleurvariabelen; licht/donker/auto blijft werken. */
-html[data-palette="hzs"]{
-  --bg:#0c0b13;--bg2:#100f1a;--card:#161521;--card2:#1c1b29;--border:#2d2a41;--text:#ecebf3;--muted:#a5a3b9;
-  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#07101b;
-  --hzs-purple:#3f2f86;--hzs-purple-l:#6a57d1;--hzs-blue:#5aaef0;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}
-@media (prefers-color-scheme:light){html[data-palette="hzs"]:not([data-theme="dark"]){
-  --bg:#f3f3f6;--bg2:#ebebf0;--card:#fff;--card2:#f7f7fa;--border:#dcdbe5;--text:#191630;--muted:#575470;
-  --accent:#1f6fb5;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;
-  --hzs-purple:#3f2f86;--hzs-purple-l:#3f2f86;--hzs-blue:#2f8fdc;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}}
-html[data-palette="hzs"][data-theme="light"]{
-  --bg:#f3f3f6;--bg2:#ebebf0;--card:#fff;--card2:#f7f7fa;--border:#dcdbe5;--text:#191630;--muted:#575470;
-  --accent:#1f6fb5;--accent2:#2f8fdc;--flash:#2f8fdc;--onacc:#fff;
-  --hzs-purple:#3f2f86;--hzs-purple-l:#3f2f86;--hzs-blue:#2f8fdc;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}
-html[data-palette="hzs"][data-theme="dark"]{
-  --bg:#0c0b13;--bg2:#100f1a;--card:#161521;--card2:#1c1b29;--border:#2d2a41;--text:#ecebf3;--muted:#a5a3b9;
-  --accent:#5aaef0;--accent2:#3f97e0;--flash:#5aaef0;--onacc:#07101b;
-  --hzs-purple:#3f2f86;--hzs-purple-l:#6a57d1;--hzs-blue:#5aaef0;--hzs-bar:#3f2f86;--hzs-bar-text:#fff;--hzs-bar-accent:#9fd3ff}
-
-/* bovenbalk in clubpaars (live timing, jury, oproepkamer, beheer) */
-html[data-palette="hzs"] .topbar,html[data-palette="hzs"] .top{background:var(--hzs-bar);color:var(--hzs-bar-text);border-bottom-color:transparent}
-html[data-palette="hzs"] .topbar .tbt span,html[data-palette="hzs"] .top .brand span{color:var(--hzs-bar-accent)}
-html[data-palette="hzs"] .top .sub{color:rgba(255,255,255,.75)}
-html[data-palette="hzs"] .topbar .tbtn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.28)}
-html[data-palette="hzs"] .topbar .tbtn:hover{background:rgba(255,255,255,.2)}
-html[data-palette="hzs"] .topbar .seg{border-color:rgba(255,255,255,.28)}
-html[data-palette="hzs"] .topbar .seg button{background:transparent;color:#fff}
-html[data-palette="hzs"] .topbar .seg button[aria-pressed=true]{background:#fff;color:var(--hzs-purple)}
-html[data-palette="hzs"] .topbar .mini.running{color:var(--hzs-bar-accent)}
-html[data-palette="hzs"] .topbar .mini.idle{color:rgba(255,255,255,.7)}
-html[data-palette="hzs"] .topbar .mini.stopped{color:#7ef0b8}
-html[data-palette="hzs"] .topbar #clubbtn.on{background:var(--warning,#fbbf24);color:#111;border-color:var(--warning,#fbbf24)}
-
-/* golven (splash tussen de reeksen en infoscherm): blauw en paars door elkaar */
-html[data-palette="hzs"] #splash .w2,html[data-palette="hzs"] #infoscreen .is-wave.w2{fill:var(--hzs-purple-l)}
-html[data-palette="hzs"] #splash .w1,html[data-palette="hzs"] #infoscreen .is-wave.w1{fill:var(--hzs-blue)}
-html[data-palette="hzs"] #splash .w3,html[data-palette="hzs"] #infoscreen .is-wave.w3{fill:var(--hzs-blue)}
+/* Kleurthema's (Beheer > Weergave > Kleuren): <html data-palette="scorebord|omega|zwembad">; zonder attribuut = klassiek.
+   Licht/donker/auto per toestel blijft werken. Waarden en contrast (alles >= 4,5:1) uit het thema-onderzoek van 2026-10-17. */
+html[data-palette="scorebord"]{color-scheme:dark;--bg:#0c0c0e;--bg2:#141417;--card:#1c1c20;--card2:#25252a;--border:#34343b;--text:#f4f4f5;--muted:#a1a1aa;--accent:#5aaef0;--accent2:#2f8fdc;--onacc:#0a1a2a;--flash:#5aaef0;--danger:#dc2626;--success:#22c55e;--warning:#f59e0b;--amber:#fbbf24;--gold:#f2c94c;--silver:#d4d4d8;--bronze:#e39a62;--onwarn:#1c1300;--onok:#04220f;--ok:#22c55e;--warn:#f59e0b;--bad:#dc2626;--bar-bg:#000000;--bar-text:#ffffff;--bar-line:#5aaef0;--bar-accent:#7cc0f5;--wave1:#1e6fbf;--wave2:#0f2a44;--wave3:#5aaef0}
+@media (prefers-color-scheme:light){html[data-palette="scorebord"]:not([data-theme="dark"]){color-scheme:light;--bg:#f4f4f5;--bg2:#e4e4e7;--card:#ffffff;--card2:#fafafa;--border:#d4d4d8;--text:#18181b;--muted:#52525b;--accent:#1e6fbf;--accent2:#2f8fdc;--onacc:#ffffff;--flash:#fff3a3;--danger:#c81e1e;--success:#157a3c;--warning:#b45309;--amber:#a15c07;--gold:#8a6400;--silver:#5b6470;--bronze:#9c5221;--onwarn:#ffffff;--onok:#ffffff;--ok:#157a3c;--warn:#b45309;--bad:#c81e1e;--bar-bg:#18181b;--bar-text:#fafafa;--bar-line:#2f8fdc;--bar-accent:#7cc0f5;--wave1:#2f8fdc;--wave2:#5aaef0;--wave3:#c7e2f8}}
+html[data-palette="scorebord"][data-theme="light"]{color-scheme:light;--bg:#f4f4f5;--bg2:#e4e4e7;--card:#ffffff;--card2:#fafafa;--border:#d4d4d8;--text:#18181b;--muted:#52525b;--accent:#1e6fbf;--accent2:#2f8fdc;--onacc:#ffffff;--flash:#fff3a3;--danger:#c81e1e;--success:#157a3c;--warning:#b45309;--amber:#a15c07;--gold:#8a6400;--silver:#5b6470;--bronze:#9c5221;--onwarn:#ffffff;--onok:#ffffff;--ok:#157a3c;--warn:#b45309;--bad:#c81e1e;--bar-bg:#18181b;--bar-text:#fafafa;--bar-line:#2f8fdc;--bar-accent:#7cc0f5;--wave1:#2f8fdc;--wave2:#5aaef0;--wave3:#c7e2f8}
+html[data-palette="scorebord"][data-theme="dark"]{color-scheme:dark;--bg:#0c0c0e;--bg2:#141417;--card:#1c1c20;--card2:#25252a;--border:#34343b;--text:#f4f4f5;--muted:#a1a1aa;--accent:#5aaef0;--accent2:#2f8fdc;--onacc:#0a1a2a;--flash:#5aaef0;--danger:#dc2626;--success:#22c55e;--warning:#f59e0b;--amber:#fbbf24;--gold:#f2c94c;--silver:#d4d4d8;--bronze:#e39a62;--onwarn:#1c1300;--onok:#04220f;--ok:#22c55e;--warn:#f59e0b;--bad:#dc2626;--bar-bg:#000000;--bar-text:#ffffff;--bar-line:#5aaef0;--bar-accent:#7cc0f5;--wave1:#1e6fbf;--wave2:#0f2a44;--wave3:#5aaef0}
+html[data-palette="omega"]{color-scheme:dark;--bg:#050d1f;--bg2:#0a1630;--card:#0f1e3d;--card2:#15284d;--border:#233a66;--text:#eef3fb;--muted:#9fb0cf;--accent:#4fc3f7;--accent2:#2f8fdc;--onacc:#03142b;--flash:#4fc3f7;--danger:#dc2626;--success:#34d399;--warning:#fbbf24;--amber:#fbbf24;--gold:#f6c945;--silver:#d0d7e2;--bronze:#e29a64;--onwarn:#241500;--onok:#022c1c;--ok:#34d399;--warn:#fbbf24;--bad:#dc2626;--bar-bg:#020818;--bar-text:#ffffff;--bar-line:#08a7e2;--bar-accent:#7fd3f5;--wave1:#0057b8;--wave2:#0a2a5c;--wave3:#08a7e2}
+@media (prefers-color-scheme:light){html[data-palette="omega"]:not([data-theme="dark"]){color-scheme:light;--bg:#eef2f8;--bg2:#dfe6f1;--card:#ffffff;--card2:#f5f8fc;--border:#c8d3e3;--text:#0a1f44;--muted:#4b5b78;--accent:#0057b8;--accent2:#08a7e2;--onacc:#ffffff;--flash:#fff1a8;--danger:#c8102e;--success:#0f7a3d;--warning:#b45309;--amber:#a15c07;--gold:#8a6400;--silver:#586274;--bronze:#995023;--onwarn:#ffffff;--onok:#ffffff;--ok:#0f7a3d;--warn:#b45309;--bad:#c8102e;--bar-bg:#0a1f44;--bar-text:#ffffff;--bar-line:#08a7e2;--bar-accent:#7fd3f5;--wave1:#0057b8;--wave2:#08a7e2;--wave3:#7fd3f5}}
+html[data-palette="omega"][data-theme="light"]{color-scheme:light;--bg:#eef2f8;--bg2:#dfe6f1;--card:#ffffff;--card2:#f5f8fc;--border:#c8d3e3;--text:#0a1f44;--muted:#4b5b78;--accent:#0057b8;--accent2:#08a7e2;--onacc:#ffffff;--flash:#fff1a8;--danger:#c8102e;--success:#0f7a3d;--warning:#b45309;--amber:#a15c07;--gold:#8a6400;--silver:#586274;--bronze:#995023;--onwarn:#ffffff;--onok:#ffffff;--ok:#0f7a3d;--warn:#b45309;--bad:#c8102e;--bar-bg:#0a1f44;--bar-text:#ffffff;--bar-line:#08a7e2;--bar-accent:#7fd3f5;--wave1:#0057b8;--wave2:#08a7e2;--wave3:#7fd3f5}
+html[data-palette="omega"][data-theme="dark"]{color-scheme:dark;--bg:#050d1f;--bg2:#0a1630;--card:#0f1e3d;--card2:#15284d;--border:#233a66;--text:#eef3fb;--muted:#9fb0cf;--accent:#4fc3f7;--accent2:#2f8fdc;--onacc:#03142b;--flash:#4fc3f7;--danger:#dc2626;--success:#34d399;--warning:#fbbf24;--amber:#fbbf24;--gold:#f6c945;--silver:#d0d7e2;--bronze:#e29a64;--onwarn:#241500;--onok:#022c1c;--ok:#34d399;--warn:#fbbf24;--bad:#dc2626;--bar-bg:#020818;--bar-text:#ffffff;--bar-line:#08a7e2;--bar-accent:#7fd3f5;--wave1:#0057b8;--wave2:#0a2a5c;--wave3:#08a7e2}
+html[data-palette="zwembad"]{color-scheme:dark;--bg:#061a22;--bg2:#0a2430;--card:#0e2c3a;--card2:#133848;--border:#22495a;--text:#e6f4f8;--muted:#93b3be;--accent:#22d3ee;--accent2:#5aaef0;--onacc:#04232c;--flash:#22d3ee;--danger:#dc2626;--success:#22c55e;--warning:#f59e0b;--amber:#fbbf24;--gold:#f5c84c;--silver:#cbd5e1;--bronze:#e0915a;--onwarn:#2a1700;--onok:#052e16;--ok:#22c55e;--warn:#f59e0b;--bad:#dc2626;--bar-bg:#04141b;--bar-text:#e6f4f8;--bar-line:#22d3ee;--bar-accent:#7fd8e6;--wave1:#0e7490;--wave2:#0e4f63;--wave3:#22d3ee}
+@media (prefers-color-scheme:light){html[data-palette="zwembad"]:not([data-theme="dark"]){color-scheme:light;--bg:#eef6f8;--bg2:#e1eef2;--card:#ffffff;--card2:#f3f9fb;--border:#c9dde3;--text:#0b2530;--muted:#4a6670;--accent:#0e7490;--accent2:#1d74c4;--onacc:#ffffff;--flash:#fff4b8;--danger:#c62828;--success:#15803d;--warning:#b45309;--amber:#a16207;--gold:#8a6400;--silver:#5d6b75;--bronze:#9a5224;--onwarn:#ffffff;--onok:#ffffff;--ok:#15803d;--warn:#b45309;--bad:#c62828;--bar-bg:#0b3a4a;--bar-text:#ffffff;--bar-line:#22b5c8;--bar-accent:#7fd8e6;--wave1:#0e7490;--wave2:#22b5c8;--wave3:#7fd8e6}}
+html[data-palette="zwembad"][data-theme="light"]{color-scheme:light;--bg:#eef6f8;--bg2:#e1eef2;--card:#ffffff;--card2:#f3f9fb;--border:#c9dde3;--text:#0b2530;--muted:#4a6670;--accent:#0e7490;--accent2:#1d74c4;--onacc:#ffffff;--flash:#fff4b8;--danger:#c62828;--success:#15803d;--warning:#b45309;--amber:#a16207;--gold:#8a6400;--silver:#5d6b75;--bronze:#9a5224;--onwarn:#ffffff;--onok:#ffffff;--ok:#15803d;--warn:#b45309;--bad:#c62828;--bar-bg:#0b3a4a;--bar-text:#ffffff;--bar-line:#22b5c8;--bar-accent:#7fd8e6;--wave1:#0e7490;--wave2:#22b5c8;--wave3:#7fd8e6}
+html[data-palette="zwembad"][data-theme="dark"]{color-scheme:dark;--bg:#061a22;--bg2:#0a2430;--card:#0e2c3a;--card2:#133848;--border:#22495a;--text:#e6f4f8;--muted:#93b3be;--accent:#22d3ee;--accent2:#5aaef0;--onacc:#04232c;--flash:#22d3ee;--danger:#dc2626;--success:#22c55e;--warning:#f59e0b;--amber:#fbbf24;--gold:#f5c84c;--silver:#cbd5e1;--bronze:#e0915a;--onwarn:#2a1700;--onok:#052e16;--ok:#22c55e;--warn:#f59e0b;--bad:#dc2626;--bar-bg:#04141b;--bar-text:#e6f4f8;--bar-line:#22d3ee;--bar-accent:#7fd8e6;--wave1:#0e7490;--wave2:#0e4f63;--wave3:#22d3ee}
+/* bovenbalk: donkere balk met een lijntje in het accent (zoals een scorebord) */
+html[data-palette] .topbar,html[data-palette] .top{background:var(--bar-bg);color:var(--bar-text);border-bottom:3px solid var(--bar-line)}
+html[data-palette] .topbar .tbt span,html[data-palette] .top .brand span{color:var(--bar-accent)}
+html[data-palette] .top .sub{color:color-mix(in srgb,var(--bar-text) 75%,transparent)}
+html[data-palette] .topbar .tbtn{background:rgba(255,255,255,.1);color:var(--bar-text);border-color:rgba(255,255,255,.25)}
+html[data-palette] .topbar .tbtn:hover{background:rgba(255,255,255,.18)}
+html[data-palette] .topbar .seg{border-color:rgba(255,255,255,.25)}
+html[data-palette] .topbar .seg button{background:transparent;color:var(--bar-text)}
+html[data-palette] .topbar .seg button[aria-pressed=true]{background:var(--bar-text);color:var(--bar-bg)}
+html[data-palette] .topbar .mini.running{color:var(--bar-accent)}
+html[data-palette] .topbar .mini.idle{color:color-mix(in srgb,var(--bar-text) 70%,transparent)}
+html[data-palette] .topbar .mini.stopped{color:#6ee7a8}
+html[data-palette] .topbar #clubbtn.on{background:var(--warning,#fbbf24);color:#111;border-color:var(--warning,#fbbf24)}
+/* golven (tussenschermen en infoscherm) */
+html[data-palette] #splash .w1,html[data-palette] #infoscreen .is-wave.w1{fill:var(--wave1)}
+html[data-palette] #splash .w2,html[data-palette] #infoscreen .is-wave.w2{fill:var(--wave2)}
+html[data-palette] #splash .w3,html[data-palette] #infoscreen .is-wave.w3{fill:var(--wave3)}
+/* in de donkere bovenbalk altijd helder geel (ook in licht thema, waar --amber/--warning donker zijn) */
+html[data-palette] .topbar #crbtn{color:#fbbf24;border-color:#fbbf24}
+html[data-palette] .topbar .mini.ready{color:#fbbf24}
+html[data-palette] .topbar #clubbtn.on{background:#fbbf24;color:#111;border-color:#fbbf24}

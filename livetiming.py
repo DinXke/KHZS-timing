@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.29"
+VERSION = "1.1.30"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -109,7 +109,7 @@ DEFAULT_SETTINGS = {
     "sim_extra_touch_chance": 0.15,  # kans per zwemmer op een extra tik tijdens de race
     "sim_dns_chance": 0.03,        # kans dat een zwemmer niet start
     "sim_seed": 0,                 # 0 = telkens een ander programma
-    "palette": "hzs",              # kleuren van alle pagina's: hzs (clubkleuren paars/blauw) | standaard
+    "palette": "scorebord",        # kleurthema: scorebord (antraciet/wit + logoblauw) | omega (donkerblauw) | zwembad (aqua) | standaard
     "race_view_publiek": False,    # race-weergave (geschatte positie per baan) op de publieke pagina
     "race_view_jury": False,       # … op de jurypagina
     "race_view_callroom": False,   # … in de oproepkamer
@@ -121,6 +121,7 @@ DEFAULT_SETTINGS = {
     "sim_stop_on_real": True,      # echte SwimTime-gegevens stoppen de simulator meteen
 }
 SETTINGS = dict(DEFAULT_SETTINGS)
+PALETTES = ("scorebord", "omega", "zwembad")
 SECRET_KEYS = ("admin_token", "relay_token", "jury_password", "db_smb_password", "cloud_admin_password")
 SETTINGS_FILE = os.path.join(DATA, "settings.json")
 PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s", "race_view_publiek", "race_view_jury", "race_view_callroom", "race_pool_length", "palette")
@@ -134,6 +135,8 @@ def load_settings(path):
             SETTINGS.update({k: v for k, v in json.load(f).items() if k in DEFAULT_SETTINGS})
     except (OSError, ValueError):
         pass
+    if SETTINGS.get("palette") not in PALETTES + ("standaard",):    # oud paars HZS-thema -> scorebord
+        SETTINGS["palette"] = DEFAULT_SETTINGS["palette"]
     if not SETTINGS.get("sim_source_chosen"):           # oude standaard 'willekeurig' -> het ingeladen programma
         SETTINGS["sim_source"] = DEFAULT_SETTINGS["sim_source"]
     save_settings()
@@ -3566,12 +3569,12 @@ def make_handler(state, hub, relay=None):
                 body = body.replace(b'src="/infoscreen.js"', f'src="/infoscreen.js?v={VERSION}"'.encode())
                 body = body.replace(b'src="/race.js"', f'src="/race.js?v={VERSION}"'.encode())
                 body = body.replace(b'src="/club.js"', f'src="/club.js?v={VERSION}"'.encode())
-                pal = SETTINGS.get("palette", "hzs")
+                pal = SETTINGS.get("palette", "scorebord")
                 if relay is not None:                     # publieke server: het palet van de lokale server volgen
                     pal = ((relay.state_json().get("settings") or {}).get("palette")) or pal
                 body = body.replace(b"</head>", f'<link rel="stylesheet" href="/palette.css?v={VERSION}"></head>'.encode(), 1)
-                if pal == "hzs":
-                    body = re.sub(rb"<html(?=[\s>])", b'<html data-palette="hzs"', body, count=1)
+                if pal in PALETTES:
+                    body = re.sub(rb"<html(?=[\s>])", f'<html data-palette="{pal}"'.encode(), body, count=1)
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", cache)
