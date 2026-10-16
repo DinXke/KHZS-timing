@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.13"
+VERSION = "1.1.14"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -2145,6 +2145,37 @@ def release_store(blob):
     print(f"pakket {info['version']} bewaard voor de kastjes")
     return info
 
+GH_REPO = "DinXke/KHZS-timing"
+
+
+def _vt(v):
+    return tuple(int(x) if x.isdigit() else 0 for x in re.split(r"[.\-+]", str(v or "0")))
+
+
+def release_autofetch():
+    """Cloudserver: het updatepakket voor de kastjes zelf van GitHub halen (nieuwste release), bij de start en elke
+    6 uur – enkel als het nieuwer is dan wat er al klaarstaat (een pakket vanuit een lokaal beheer blijft dus gelden)."""
+    import urllib.request
+    while True:
+        wait = 6 * 3600
+        try:
+            hdr = {"User-Agent": f"khzs-livetiming/{VERSION}", "Accept": "application/vnd.github+json"}
+            rel = json.loads(urllib.request.urlopen(urllib.request.Request(
+                f"https://api.github.com/repos/{GH_REPO}/releases/latest", headers=hdr), timeout=30).read())
+            asset = next((a for a in rel.get("assets") or []
+                          if re.fullmatch(r"khzs-timing-[0-9][0-9.]*\.zip", a.get("name") or "")), None)
+            have = (release_info() or {}).get("version")
+            if asset and _vt(str(rel.get("tag_name") or "").lstrip("v")) > _vt(have):
+                blob = urllib.request.urlopen(urllib.request.Request(asset["browser_download_url"],
+                                                                     headers={"User-Agent": hdr["User-Agent"]}), timeout=180).read()
+                if not release_store(blob):
+                    print("pakket van GitHub: geen geldig pakket")
+        except Exception as e:                       # geen internet / GitHub traag: later opnieuw
+            print("pakket voor de kastjes van GitHub:", e)
+            wait = 1800
+        time.sleep(wait)
+
+
 TUNNEL_INJECT = """<script>/* via beheer op afstand: alle adressen van dit kastje beginnen met __BASE__ */
 (function(){var B='__BASE__';window.LT_BASE=B;
 function fx(u){return (typeof u==='string'&&u.charAt(0)==='/'&&u.charAt(1)!=='/'&&u.indexOf(B+'/')!==0)?B+u:u}
@@ -3711,6 +3742,7 @@ def main():
     global IS_RELAY
     IS_RELAY = bool(args.relay_server)
     if args.relay_server:
+        threading.Thread(target=release_autofetch, daemon=True).start()
         relay = RelayStore(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "relay_cache.json"))
         STATS = Stats(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "stats.json"))
         info_load(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "info.json"))
