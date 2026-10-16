@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.16"
+VERSION = "1.1.17"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1311,7 +1311,9 @@ def cr_manual_set(d, why=""):
             os.replace(tmp, CR_MANUAL_FILE)
         except OSError:
             pass
-    print("oproepkamer: " + (f"manueel – reeks {d['event']}/{d['heat']} zwemt nu" if d else "automatisch (SwimTime)")
+    print("oproepkamer: " + ((f"manueel – niemand in het water, reeks {d['event']}/{d['heat']} aan de startblok"
+                              if d.get("mode") == "startblok" else f"manueel – reeks {d['event']}/{d['heat']} zwemt nu")
+                             if d else "automatisch (SwimTime)")
           + (f" ({why})" if why else ""))
 
 
@@ -1320,6 +1322,13 @@ def live_key(state_now):
     m = re.search(r"(\d+)\s*$", (state_now.get("heat") or {}).get("name") or "")
     ht = m.group(1) if m else str((state_now.get("heat") or {}).get("number") or "")
     return ev, ht
+
+
+def live_running(state_now):
+    """Loopt er echt een reeks in SwimTime? (klok loopt of staat klaar, verse gegevens) – die gaat altijd voor."""
+    ago = state_now.get("lastPacketAgo")
+    return (state_now.get("showing") == "current" and ago is not None and ago < 30
+            and ((state_now.get("clock") or {}).get("status") in ("running", "ready")))
 
 
 def callroom_json(state_now):
@@ -1335,24 +1344,33 @@ def callroom_json(state_now):
     if CR_MANUAL.get("event") and not sim:
         if ev and [ev, ht] != list(CR_MANUAL.get("liveAt") or ["", ""]):
             cr_manual_set(None, "SwimTime startte een nieuwe reeks")      # live gegevens nemen het weer over
+        elif ev and live_running(state_now):
+            cr_manual_set(None, "er loopt een reeks in SwimTime")         # een lopende reeks gaat altijd voor
         else:
             mpos = next((i for i, h in enumerate(sched) if h["event"]["number"] == str(CR_MANUAL["event"])
                          and h["heat"]["number"] == str(CR_MANUAL["heat"])), None)
             if mpos is not None:
-                pos = mpos
+                empty = CR_MANUAL.get("mode") == "startblok"     # niemand in het water, deze reeks aan de startblok
+                pos = mpos - 1 if empty else mpos
                 man = {"event": sched[mpos]["event"], "heat": sched[mpos]["heat"], "date": sched[mpos].get("date", ""),
-                       "lanes": sched[mpos].get("lanes") or [], "lanesKnown": sched[mpos].get("lanesKnown", False),
-                       "relay": sched[mpos].get("relay", False), "setAt": CR_MANUAL.get("setAt")}
+                       "lanes": [] if empty else (sched[mpos].get("lanes") or []),
+                       "lanesKnown": False if empty else sched[mpos].get("lanesKnown", False),
+                       "relay": sched[mpos].get("relay", False), "setAt": CR_MANUAL.get("setAt"), "empty": empty}
     if pos is None:
         today = datetime.now().strftime("%Y-%m-%d")
         pos = next((i - 1 for i, h in enumerate(sched) if not h["finished"] and h["date"] >= today), len(sched))
     # volgende, nog niet afgewerkte reeksen; ook zonder startlijst (lanes leeg / lanesKnown false)
     # +1: de eerste reeks na de live reeks staat al aan de startblok, de oproepkamer zijn de n reeksen daarna
-    upcoming = [h for h in sched[pos + 1:] if not h["finished"]][:n + 1]
+    if man is not None:      # manueel: de gekozen volgorde geldt (oude uitslagen met dezelfde nummers tellen niet)
+        upcoming = [dict(h, finished=False) for h in sched[pos + 1:]][:n + 1]
+    else:
+        upcoming = [h for h in sched[pos + 1:] if not h["finished"]][:n + 1]
     live = sched[pos] if pos is not None and 0 <= pos < len(sched) else None
     # vorige reeks = de reeks die in het programma vlak vóór de reeks in het water komt, in dezelfde sessie;
     # bij de eerste reeks van een sessie is er geen (oude uitslagen of simulatiegegevens tonen heeft geen zin)
-    if man is not None:
+    if man is not None and man.get("empty"):
+        pidx = None                                       # niemand in het water: geen vorige reeks tonen
+    elif man is not None:
         pidx = pos - 1                                    # manueel: pos zwemt nu
     elif live is not None and (ev, ht) == (live["event"]["number"], live["heat"]["number"]):
         pidx = pos if state_now.get("showing") == "previous" else pos - 1
@@ -1365,7 +1383,7 @@ def callroom_json(state_now):
                              and str(a.get("session") or "") == str(b.get("session") or ""))
         if nxt is None or same(sched[pidx], nxt):         # per sessie: na een sessiewissel geen vorige reeks
             prev = {"event": sched[pidx]["event"]["number"], "heat": sched[pidx]["heat"]["number"]}
-    return {"upcoming": upcoming, "count": n, "matched": pos is not None and 0 <= pos < len(sched), "simulated": sim,
+    return {"upcoming": upcoming, "count": n, "matched": man is not None or (pos is not None and 0 <= pos < len(sched)), "simulated": sim,
             "manual": man, "prev": prev, "prevKnown": True,
             "liveLabel": (live or {}).get("dayLabel", ""),
             "live": {"event": ev, "heat": ht},          # voor welke live reeks deze lijst berekend is
@@ -2696,7 +2714,8 @@ def make_handler(state, hub, relay=None):
                 cj = callroom_json(st)
                 sched = SIM_SCHEDULE if STATE_SOURCE.get("sim") else merged_schedule()
                 return self._json({"ok": True, "manual": cj.get("manual") and {"event": cj["manual"]["event"]["number"],
-                                                                            "heat": cj["manual"]["heat"]["number"]},
+                                                                            "heat": cj["manual"]["heat"]["number"],
+                                                                            "empty": bool(cj["manual"].get("empty"))},
                                    "live": dict(zip(("event", "heat"), live_key(st))), "simulated": bool(STATE_SOURCE.get("sim")),
                                    "heats": [{"event": h["event"]["number"], "heat": h["heat"]["number"],
                                               "discipline": h["event"].get("discipline", ""), "time": h["heat"].get("startTime", ""),
@@ -3101,11 +3120,15 @@ def make_handler(state, hub, relay=None):
                 except (ValueError, UnicodeDecodeError):
                     return self._json({"ok": False, "error": "ongeldige JSON"}, 400)
                 st = public_view("state", state.state_json(now_fn()))
+                if d.get("event") and d.get("heat") and live_running(st):
+                    e_, h_ = live_key(st)
+                    return self._json({"ok": False, "error": f"in SwimTime loopt nu Event {e_} · Serie {h_} – een lopende reeks gaat altijd voor"}, 409)
                 if d.get("event") and d.get("heat"):
                     sched = merged_schedule()
                     if not any(h["event"]["number"] == str(d["event"]) and h["heat"]["number"] == str(d["heat"]) for h in sched):
                         return self._json({"ok": False, "error": "reeks niet gevonden in het programma"}, 400)
                     cr_manual_set({"event": str(d["event"]), "heat": str(d["heat"]), "liveAt": list(live_key(st)),
+                                   "mode": "startblok" if d.get("mode") == "startblok" else "water",
                                    "setAt": int(time.time())}, "beheer")
                 else:
                     cr_manual_set(None, "beheer")

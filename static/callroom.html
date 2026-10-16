@@ -269,7 +269,7 @@ function fitEl(el){if(!kiosk())return;fitBox(el,'--cf',el._f||26*sc()/16,7,26*sc
 /* aankomende reeksen */
 var upSig='';
 function upcomingList(){
-  var cur=(S&&S.showing!=='previous'&&S.event&&S.heat)?heatKey(S):null;
+  var cur=(!(CR&&CR.manual)&&S&&S.showing!=='previous'&&S.event&&S.heat)?heatKey(S):null;   // manueel: de server bepaalt de lijst
   return ((CR&&CR.upcoming)||[]).filter(function(h){
     if(h.finished)return false;
     if(cur&&h.event&&h.heat&&(h.event.number+'/'+h.heat.number)===cur)return false;
@@ -425,6 +425,7 @@ function renderNow(){
   var b=$('now');
   if(!S){b.innerHTML='<div class="msg">Wachten op gegevens…</div>';return}
   var mh=CR&&CR.manual;
+  if(mh&&mh.empty){b.innerHTML='<h3><span class="tag">Nu</span>Nog niemand in het water</h3><div class="msg">Straks start '+esc(title(mh.event,mh.heat))+(mh.heat&&mh.heat.startTime?' · gepland '+esc(mh.heat.startTime):'')+'</div>';fitEl(b);return}
   if(mh&&(S.showing==='previous'||!S.event||hk2(S.event,S.heat)!==mh.event.number+'/'+mh.heat.number)){
     var rows=(mh.lanes||[]).slice().sort(function(a,b){return a.lane-b.lane}).map(function(l){
       return '<tr><td class="lane">'+l.lane+'</td><td class="nm">'+esc(name(l))+'</td><td>'+esc(l.club||'')+'</td><td class="entry'+(l.entryTime==null?' nt':'')+'">'+(l.entryTime!=null?fmt(l.entryTime):'NT')+'</td></tr>'}).join('');
@@ -494,7 +495,7 @@ function frame(){
 /* data */
 function pollCR(cb){
   if(demo){if(cb)cb();return}
-  fetch('/api/callroom').then(function(r){return r.json()}).then(function(d){var mk=JSON.stringify(d&&d.manual&&[d.manual.event,d.manual.heat]);
+  fetch('/api/callroom').then(function(r){return r.json()}).then(function(d){var mk=JSON.stringify(d&&d.manual&&[d.manual.event,d.manual.heat,d.manual.empty]);
     CR=d;renderHead();renderUp();renderPrev();if(mk!==pollCR._m){pollCR._m=mk;renderNow()}if(cb)cb()}).catch(function(){if(cb)cb()});
 }
 /* tussenscherm: de reeks die nu naar de oproepkamer mag */

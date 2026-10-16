@@ -380,11 +380,11 @@ function pages(){
   fieldsCard('Tussenscherm','Kort geanimeerd scherm met wedstrijd, reeks en de namen in het water.',['splash_enabled','splash_seconds','splash_jury','splash_callroom'])+
   fieldsCard('Zwembad','Alle pagina\'s passen zich aan het aantal banen in de startlijst aan (tot 10, ook 0–9).',['pool_lanes']);
  P.oproepkamer='<h1>Oproepkamer</h1><p class="lead">Live → aan de startblok (groene balk) → oproepkamer.</p>'+
-  '<div class="card"><h2>Welke reeks zwemt nu?</h2><p class="desc">Normaal volgt de oproepkamer SwimTime. Voor de start, na een pauze of als SwimTime nog niet loopt, kies je hier zelf de reeks die <b>nu in het water</b> is: de volgende staat dan aan de startblok en de reeksen daarna in de oproepkamer. Zodra SwimTime een nieuwe reeks start, neemt die het vanzelf weer over.</p>'+
+  '<div class="card"><h2>Welke reeks zwemt nu?</h2><p class="desc">Normaal volgt de oproepkamer SwimTime. Voor de start, na een pauze of als SwimTime nog niet loopt, kies je hier zelf de reeks die <b>nu in het water</b> is: de volgende staat dan aan de startblok en de reeksen daarna in de oproepkamer. Of kies <b>Niemand in het water</b>: dan staat de gekozen reeks aan de startblok. Een reeks die in SwimTime <b>loopt</b> (klok klaar of lopend) gaat altijd voor: zodra SwimTime een reeks klaarzet of start, neemt die het vanzelf over.</p>'+
   '<div id="crmStat" class="muted" style="margin-bottom:10px">…</div>'+
   '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" type="button" id="crmPrev" title="Vorige reeks">◀</button>'+
   '<select id="crmSel" style="flex:1 1 320px;min-width:0"></select><button class="btn" type="button" id="crmNext" title="Volgende reeks">▶</button>'+
-  '<button class="btn pri" type="button" id="crmSet">Deze reeks zwemt nu</button><button class="btn" type="button" id="crmAuto">↺ Automatisch (SwimTime)</button></div>'+
+  '<button class="btn pri" type="button" id="crmSet">Deze reeks zwemt nu</button><button class="btn" type="button" id="crmBlk" title="Bv. voor de start of na een pauze">Niemand in het water – deze reeks aan de startblok</button><button class="btn" type="button" id="crmAuto">↺ Automatisch (SwimTime)</button></div>'+
   '<p class="muted" style="font-size:12.5px;margin-top:8px">◀ en ▶ schuiven meteen één reeks op of terug – handig om tijdens een pauze bij te houden welke reeks zwemt.</p></div>'+
   fieldsCard('Indeling','',['callroom_heats','callroom_split_left_pct','callroom_next_big','callroom_next_scale','callroom_show_previous'])+
   fieldsCard('"Naar de oproepkamer"','Tussenscherm bij elke nieuwe reeks.',['callroom_splash_seconds','callroom_splash_heat']);
@@ -1094,13 +1094,13 @@ async function loadCrm(){if(!$('crmSel'))return;try{const r=await api('/api/call
   $('crmSel').innerHTML=crmHeats.length?crmHeats.map((h,i)=>{const day=h.day||h.date||'';const g=day!==lastDay?(lastDay=day,true):false;
     return '<option value="'+i+'"'+(key(h)===key(cur)?' selected':'')+'>'+(day&&g?esc(day)+' · ':'')+(h.time?h.time+' · ':'')+'Event '+esc(h.event)+' '+esc(h.discipline)+' · Serie '+esc(h.heat)+(h.finished?' ✓':'')+'</option>'}).join(''):'<option>Geen programma geladen (Gegevens)</option>';
   const hit=crmHeats.find(h=>key(h)===key(cur));
-  $('crmStat').innerHTML=r.simulated?'De simulator loopt: die bepaalt de reeksen.':(r.manual?'<span style="color:var(--warn)">● Manueel</span>: nu in het water <b>'+esc(hit?('Event '+hit.event+' '+hit.discipline+' · Serie '+hit.heat):key(cur))+'</b> – tot SwimTime een nieuwe reeks start.':
+  $('crmStat').innerHTML=r.simulated?'De simulator loopt: die bepaalt de reeksen.':(r.manual&&r.manual.empty?'<span style="color:var(--warn)">● Manueel</span>: <b>niemand in het water</b>, aan de startblok <b>'+esc(hit?('Event '+hit.event+' '+hit.discipline+' · Serie '+hit.heat):key(cur))+'</b> – tot SwimTime een reeks start.':r.manual?'<span style="color:var(--warn)">● Manueel</span>: nu in het water <b>'+esc(hit?('Event '+hit.event+' '+hit.discipline+' · Serie '+hit.heat):key(cur))+'</b> – tot SwimTime een nieuwe reeks start.':
     '<span style="color:var(--ok)">● Automatisch</span> volgens SwimTime'+(r.live&&r.live.event?' – nu Event '+esc(r.live.event)+' · Serie '+esc(r.live.heat):' – nog geen reeks van SwimTime ontvangen')+'.')}catch(e){$('crmStat').textContent=e.message}}
 function wireCrm(){if(!$('crmSel'))return;
   const step=d=>{const s=$('crmSel');const i=Math.max(0,Math.min(crmHeats.length-1,(parseInt(s.value,10)||0)+d));s.value=String(i)};
-  const set=async btn=>{const h=crmHeats[parseInt($('crmSel').value,10)];if(!h)return;await act(btn,()=>api('/api/callroom/manual',{json:{event:h.event,heat:h.heat}}),'Event '+h.event+' · Serie '+h.heat+' zwemt nu');loadCrm()};
+  const set=async(btn,mode)=>{const h=crmHeats[parseInt($('crmSel').value,10)];if(!h)return;await act(btn,()=>api('/api/callroom/manual',{json:{event:h.event,heat:h.heat,mode:mode||'water'}}),'Event '+h.event+' · Serie '+h.heat+(mode==='startblok'?' aan de startblok':' zwemt nu'));loadCrm()};
   $('crmPrev').onclick=e=>{step(-1);set(e.target)};$('crmNext').onclick=e=>{step(1);set(e.target)};
-  $('crmSet').onclick=e=>set(e.target);
+  $('crmSet').onclick=e=>set(e.target);$('crmBlk').onclick=e=>set(e.target,'startblok');
   $('crmAuto').onclick=async e=>{await act(e.target,()=>api('/api/callroom/manual',{json:{}}),'Oproepkamer volgt SwimTime');loadCrm()}}
 function wireInfo(){if(!$('imModes'))return;
   $('imModes').onclick=e=>{const b=e.target.closest('button[data-mode]');if(!b)return;if(b.dataset.mode==='off'){$('imOff').click();return}imSel=b.dataset.mode;imMarks();imPreview()};
