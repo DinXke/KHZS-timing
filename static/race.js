@@ -14,6 +14,7 @@ var css=''+
 'box-shadow:0 0 0 .12em var(--card,#0e2233);will-change:left}'+
 '.rvb .rvd.fin{background:var(--success,#22c55e)}.rvb .rvd.p1{background:var(--gold,#facc15)}.rvb .rvd.p2{background:var(--silver,#cbd5e1)}.rvb .rvd.p3{background:var(--bronze,#d97706)}'+
 '.rvb .rvx{position:absolute;top:50%;margin-top:-.6em;font-size:.68em;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;padding:0 .3em;border-radius:4px;background:var(--card,#0e2233);white-space:nowrap}'+
+'.rvb.card{left:.55em!important;right:.55em;width:auto!important;bottom:.12em;height:.55em}'+
 '.rvb .rvx.v{color:var(--success,#22c55e)}.rvb .rvx.a{color:var(--danger,#ef4444)}'+
 '.rvb .rvd.hit{animation:rvHit .9s ease-out}@keyframes rvHit{0%{box-shadow:0 0 0 .12em var(--card,#0e2233),0 0 0 .12em var(--accent,#38bdf8)}100%{box-shadow:0 0 0 .12em var(--card,#0e2233),0 0 0 .9em transparent}}';
 
@@ -141,19 +142,22 @@ function update(v){
   Array.prototype.forEach.call(v.host.querySelectorAll('tr'),function(tr){
     if(tr.classList.contains('empty')||tr.classList.contains('memrow'))return;
     var td=tr.querySelector('td.lane');if(!td)return;var ln=parseInt(td.textContent,10);if(!isNaN(ln))rowOf[ln]=td});
-  var seen={};
+  var seen={},added=false;
   res.forEach(function(r){
     var td=rowOf[r.l.lane];if(!td)return;seen[r.l.lane]=1;
+    var tr=td.parentNode,card=getComputedStyle(tr).display==='grid';   // smartphone: elke baan is een kaart
+    if(card){if(getComputedStyle(tr).position==='static')tr.style.position='relative';td=tr.querySelector('td.rank')||td}   // over de onderrand van de kaart: geen extra hoogte
     var b=v.bars[r.l.lane];
     if(!b||!b.el.isConnected||b.el.parentNode!==td){
       if(b&&b.el.isConnected)b.el.remove();
-      if(getComputedStyle(td).position==='static')td.style.position='relative';
-      var el=document.createElement('div');el.className='rvb';el.title='Geschatte positie (inschrijftijd en tussentijden)';
+      if(!card&&getComputedStyle(td).position==='static')td.style.position='relative';
+      if(card)td.style.position='static';
+      var el=document.createElement('div');el.className='rvb'+(card?' card':'');el.title='Geschatte positie (inschrijftijd en tussentijden)';
       el.innerHTML='<div class="rvt"></div><div class="rvd"></div><div class="rvx"></div>';td.appendChild(el);
       b=v.bars[r.l.lane]={el:el,d:el.querySelector('.rvd'),x:el.querySelector('.rvx'),ns:b?b.ns:null,w:0};
     }
-    var tr=td.parentNode,w=tr.getBoundingClientRect().width,off=td.getBoundingClientRect().left-tr.getBoundingClientRect().left;
-    if(Math.abs(w-b.w)>0.5){b.w=w;b.el.style.width=w+'px';b.el.style.left=(-off)+'px'}
+    if(!card){var w=tr.getBoundingClientRect().width-2,off=td.getBoundingClientRect().left-tr.getBoundingClientRect().left;
+      if(Math.abs(w-b.w)>0.5){b.w=w;b.el.style.width=w+'px';b.el.style.left=(-off+1)+'px'}}
     var k=Math.min(n-1,Math.floor(r.x)),f=r.x-k;if(r.x>=n){k=n-1;f=1}
     var pos=(k%2===0)?f:1-f;                                     // heen en terug per baanlengte
     var left='calc(.35em + (100% - .7em) * '+pos.toFixed(4)+')';if(b.d.style.left!==left)b.d.style.left=left;
@@ -166,6 +170,7 @@ function update(v){
     var dt=r.delta==null?'':(r.delta<=0?'−':'+')+Math.abs(r.delta).toFixed(1).replace('.',',');
     if(b.x.textContent!==dt){b.x.textContent=dt;b.x.className='rvx'+(r.delta==null?'':(r.delta<=0?' v':' a'));b.x.title='t.o.v. de inschrijftijd'}
   });
+  if(added&&v.o.refit&&Date.now()-(v.refitAt||0)>1000){v.refitAt=Date.now();setTimeout(v.o.refit,0)}                  // kaarten werden hoger: opnieuw passend schalen
   Object.keys(v.bars).forEach(function(k){if(!seen[k]){var b=v.bars[k];if(b.el.isConnected)b.el.remove();delete v.bars[k]}});
 }
 function clearBars(v){Object.keys(v.bars).forEach(function(k){var b=v.bars[k];if(b.el.isConnected)b.el.remove()});v.bars={}}

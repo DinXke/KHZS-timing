@@ -312,7 +312,7 @@ footer{font-size:max(12px,.75rem)}
  td.col-rt{grid-area:rt;display:block;text-align:center}
  td.sps{grid-area:sps;min-width:0}
  td.fin{grid-area:fin}
- td.rank{grid-area:rank}
+ td.rank{grid-area:rank;width:auto;min-width:0;text-align:right}
  .spg{grid-template-columns:repeat(4,minmax(0,1fr));font-size:.95rem;gap:.15rem .3rem}
 }
 
@@ -663,6 +663,7 @@ function renderTable(){
     var mh=memHtml(l);if(mh){curMem+=l.members.length;h+='<tr class="memrow"><td></td><td colspan="'+(4+(rt?1:0)+(sp?1:0))+'">'+mh+'</td></tr>'}
   });
   w.innerHTML=h+'</tbody></table>';
+  if(window.RaceView)try{RaceView.refresh()}catch(e){}       // race-balkjes meteen terug, vóór het passend schalen
   if(kiosk())fitTable();
   fitPhone();
 }
@@ -1120,7 +1121,7 @@ function demoRun(){
 requestAnimationFrame(frame);
 document.title=isJury?'Jury – Live timing':'Live uitslagen';
 if(demo){document.title+=' (demo)';demoRun()}else live();
-window.__ltRace={page:isJury?'jury':'publiek',getState:function(){return S},getClock:function(){return clk}};   // voor race.js
+window.__ltRace={page:isJury?'jury':'publiek',getState:function(){return S},getClock:function(){return clk},refit:function(){try{fitPhone(true)}catch(e){}}};   // voor race.js
 })();
 </script>
 <script src="/infoscreen.js"></script>
