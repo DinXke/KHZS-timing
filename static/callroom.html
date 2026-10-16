@@ -214,6 +214,13 @@ a.tblink{text-decoration:none;display:inline-flex;align-items:center}
  #now,#prev{overflow-x:auto}
 }
 @media (max-width:699px){
+ /* smartphone: Nu in het water bovenaan, dan de startblok, dan de oproepkamer */
+ main{display:contents}
+ body>*{order:5}
+ body>.topbar{order:0}
+ #right{order:1;margin:6px 8px 0}
+ #blk{order:2}
+ #up{order:3;margin:10px 8px 6px}
  .topbar{padding:4px 8px;gap:6px}
  .tbt{font-size:13px}
  .mini{font-size:22px}
@@ -291,7 +298,8 @@ function stableH(){var w=window.innerWidth,h=window.innerHeight;
   if(w!==stH.w||Math.abs(h-stH.h)>160){stH.w=w;stH.h=h}else if(h<stH.h)stH.h=h;     // adresbalk van de gsm telt niet
   return stH.h}
 function fitPhoneNow(el){
-  var H=stableH()-14,mx=Math.min(20,Math.max(13,window.innerWidth/21)),f;
+  var top=el.getBoundingClientRect().top+window.scrollY,SH=stableH();
+  var H=(top<SH/2?SH-top-8:SH-14),mx=Math.min(20,Math.max(13,window.innerWidth/21)),f;   // bovenaan: in het eerste scherm
   function go(min){f=mx;el.style.setProperty('--cf',f+'px');while(el.scrollHeight>H&&f>min){f-=0.5;el.style.setProperty('--cf',f+'px')}return el.scrollHeight<=H}
   el.classList.remove('nosp');
   if(go(11))return;
