@@ -44,7 +44,7 @@ tr.free td{color:var(--muted);opacity:.5;font-size:.8em}
 tr.dim td{opacity:.45}
 .st{font-size:.65em;color:var(--danger);font-weight:700;border:1px solid var(--danger);border-radius:4px;padding:0 .3em;margin-left:.5em}
 .sps{white-space:normal}
-.spg{display:grid;grid-template-columns:repeat(4,minmax(4.2em,1fr));gap:2px .5em}
+.spg{display:grid;grid-template-columns:repeat(auto-fill,minmax(4.2em,1fr));gap:2px .5em;min-width:8.8em}
 .sc{display:flex;flex-direction:column;line-height:1.1}
 .sd{font-size:.5em;color:var(--muted);font-weight:600}
 .stm{font-weight:600;white-space:nowrap}
@@ -210,7 +210,7 @@ a.tblink{text-decoration:none;display:inline-flex;align-items:center}
 <body>
 <div id="bnConn" class="banner" role="alert" hidden>Verbinding met de server verbroken – opnieuw verbinden…</div>
 <div id="bnData" class="banner" role="alert" hidden></div>
-<div class="topbar"><span class="tbt" id="tbt"><span>Oproepkamer</span></span><span class="tbr"><a class="tbtn tblink" href="/" title="Live uitslagen"><span aria-hidden="true">&#9201;</span><span class="tbl"> Live uitslagen</span></a><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
+<div class="topbar"><span class="tbt" id="tbt"><span>Oproepkamer</span></span><span class="tbr"><a class="tbtn tblink" href="/" title="Live uitslagen"><span aria-hidden="true">&#9201;</span><span class="tbl"> Live uitslagen</span></a><button type="button" class="tbtn" id="rvbtn" aria-pressed="false">&#127946; Race</button><button type="button" class="tbtn" id="themebtn"></button><span class="mini idle" id="mini">--.-</span></span></div>
 <section id="blk" aria-label="Aan de startblok" hidden><div class="bl1" id="bl1"></div><div class="bl2" id="bl2"></div></section>
 <main>
  <section id="up" aria-label="Aankomende reeksen"></section>
@@ -661,9 +661,12 @@ var idleT,wake=function(){document.body.classList.remove('idle');clearTimeout(id
 requestAnimationFrame(frame);
 renderUp();renderNow();renderPrev();
 if(demo){document.title+=' (demo)';demoRun()}else live();
+window.__ltRace={page:'callroom',getState:function(){return S},getClock:function(){return clk}};   // voor race.js
 })();
 </script>
 <script src="/infoscreen.js"></script>
+<script src="/race.js"></script>
+<script>if(window.RaceView)window.__ltRace&&RaceView.mount(document.getElementById('now'),window.__ltRace)</script>
 <script>if(window.InfoScreen)InfoScreen.init({page:'callroom'})</script>
 </body>
 </html>

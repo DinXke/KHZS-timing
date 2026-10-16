@@ -433,6 +433,7 @@ body.phone .tbtn{padding:3px 7px;font-size:12px}body.phone .seg button{padding:3
     <button data-sort="rank" aria-pressed="false">Per plaats</button>
   </div>
   <button type="button" class="jbtn" id="jbtn" aria-pressed="false">Jurymodus</button>
+  <button type="button" class="jbtn" id="rvbtn" aria-pressed="false">Race</button>
 </div>
 <div class="tablewrap" id="tablewrap"><div class="nodata">Wachten op gegevens…</div></div>
 <div class="legend"><span><span class="mlab">M</span>= manueel opgehoogd (geen paneeltijd)</span><span><span class="slab">!</span>fout doorgegeven door SwimTime</span><span><span class="corr" style="margin:0 4px 0 0">&#9998;</span>gecorrigeerd</span></div>
@@ -1119,9 +1120,12 @@ function demoRun(){
 requestAnimationFrame(frame);
 document.title=isJury?'Jury – Live timing':'Live uitslagen';
 if(demo){document.title+=' (demo)';demoRun()}else live();
+window.__ltRace={page:isJury?'jury':'publiek',getState:function(){return S},getClock:function(){return clk}};   // voor race.js
 })();
 </script>
 <script src="/infoscreen.js"></script>
+<script src="/race.js"></script>
+<script>if(window.RaceView)window.__ltRace&&RaceView.mount(document.getElementById('tablewrap'),window.__ltRace)</script>
 <script>if(!/\/jury/.test(location.pathname)&&window.InfoScreen)InfoScreen.init({page:'publiek'})</script>
 </body>
 </html>

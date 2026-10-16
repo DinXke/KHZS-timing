@@ -288,6 +288,11 @@ const F={
  sim_extra_touch_chance:{l:'Kans op een extra tik',h:'Per zwemmer: het paneel registreert te vroeg, de echte tik corrigeert.',n:1,step:.01,min:0,max:1},
  sim_manual_chance:{l:'Kans op een manuele eindtijd',n:1,step:.01,min:0,max:1},
  sim_dns_chance:{l:'Kans op niet gestart',n:1,step:.01,min:0,max:1},
+ race_view_publiek:{l:'Op de publieke pagina',b:1},
+ race_view_jury:{l:'Op de jurypagina',b:1},
+ race_view_callroom:{l:'In de oproepkamer',b:1},
+ race_pool_length:{l:'Badlengte',h:'Bepaalt hoe vaak de stip keert.',sel:[[25,'25 m'],[50,'50 m']]},
+ sim_source:{l:'Programma',h:'Willekeurig: verzonnen zwemmers. Ingeladen programma: de echte reeksen, banen, namen en inschrijftijden uit Gegevens › Programma; de gezwommen tijden schommelen rond de inschrijftijd. Aantal wedstrijden, deelnemers en banen gelden dan niet.',sel:[['willekeurig','Willekeurig'],['programma','Ingeladen programma']]},
  sim_seed:{l:'Vast programma',h:'0 = telkens een ander programma; een ander getal = altijd hetzelfde programma.',n:1,int:1,min:0},
  sim_meet_name:{l:'Naam van de wedstrijd',txt:1,wide:1},
  sim_autostart:{l:'Automatisch starten',h:'De simulator start mee met de server (demo-kastje). Echte SwimTime-gegevens stoppen hem.',b:1},
@@ -379,6 +384,7 @@ function pages(){
   fieldsCard('Publiek en jury','',['show_clock','hold_previous_until_start','public_all_splits','public_split_layout','show_reaction','show_manual','show_suspect','show_peer','jury_split_left_pct','overview_heats'])+
   fieldsCard('Tussenscherm','Kort geanimeerd scherm met wedstrijd, reeks en de namen in het water.',['splash_enabled','splash_seconds','splash_jury','splash_callroom'])+
   fieldsCard('Zwembad','Alle pagina\'s passen zich aan het aantal banen in de startlijst aan (tot 10, ook 0–9).',['pool_lanes']);
+ P.weergave+=fieldsCard('Race-weergave (geschat)','Per baan een stip die heen en weer gaat: geschat uit de inschrijftijd (bij wisselslag per slag) en bijgestuurd met elke tussentijd van SwimTime. Op elke muur met een tussentijd klopt hij; ertussen is het een schatting. Geldt ook voor de schermen (HDMI) die deze pagina tonen.',['race_view_publiek','race_view_jury','race_view_callroom','race_pool_length']);
  P.oproepkamer='<h1>Oproepkamer</h1><p class="lead">Live → aan de startblok (groene balk) → oproepkamer.</p>'+
   '<div class="card"><h2>Welke reeks zwemt nu?</h2><p class="desc">Normaal volgt de oproepkamer SwimTime. Voor de start, na een pauze of als SwimTime nog niet loopt, kies je hier zelf de reeks die <b>nu in het water</b> is: de volgende staat dan aan de startblok en de reeksen daarna in de oproepkamer. Of kies <b>Niemand in het water</b>: dan staat de gekozen reeks aan de startblok. Een reeks die in SwimTime <b>loopt</b> (klok klaar of lopend) gaat altijd voor: zodra SwimTime een reeks klaarzet of start, neemt die het vanzelf over.</p>'+
   '<div id="crmStat" class="muted" style="margin-bottom:10px">…</div>'+
@@ -443,7 +449,7 @@ function pages(){
   '<a class="btn" id="simOpen" href="/simulator" target="_blank">Apart venster ↗</a><a class="btn" href="/jury" target="_blank">Jury ↗</a><a class="btn" href="/callroom" target="_blank">Oproepkamer ↗</a></div>'+
   '<p class="desc" style="margin-top:12px">Starten gebruikt de waarden hieronder (ook als ze nog niet opgeslagen zijn). Gegevens van de simulatie zijn gemarkeerd als SIMULATIE en verdwijnen zodra er echte gegevens zijn.</p></div>'+
   '<div class="card simframe"><iframe id="simFrame" title="Bedieningsvenster van de simulator"></iframe></div>'+
-  fieldsCard('Programma','',['sim_meet_name','sim_events','sim_per_event','sim_lanes','sim_seed'])+
+  fieldsCard('Programma','',['sim_source','sim_meet_name','sim_events','sim_per_event','sim_lanes','sim_seed'])+
   fieldsCard('Verloop','',['sim_speed','sim_manual','sim_loop','sim_pause','sim_result_time'])+
   fieldsCard('Realisme','Wat er in een echte wedstrijd ook gebeurt.',['sim_extra_touch_chance','sim_manual_chance','sim_dns_chance'])+
   fieldsCard('Veiligheid en demo','',['sim_stop_on_real','sim_autostart']);

@@ -18,6 +18,7 @@ import ipaddress
 import json
 import os
 import random
+import re
 import socket
 import sys
 import threading
@@ -302,6 +303,102 @@ class Sender:
 
 
 # ------------------------------------------------------------------ simulator-engine
+STROKE_RX = re.compile(r"(?i)(vrije\s*slag|rugslag|schoolslag|vlinderslag|wisselslag)")
+STROKE_NORM = {"vrijeslag": "Vrije slag", "rugslag": "Rugslag", "schoolslag": "Schoolslag", "vlinderslag": "Vlinderslag",
+               "wisselslag": "Wisselslag"}
+
+
+class Entrant:
+    """Zwemmer uit het ingeladen programma: enkel naam en club (geen geboortedatum of andere gegevens)."""
+    def __init__(self, first, last, club, idx):
+        self.first, self.last, self.club, self.gender = first, last, club, ""
+        self.code, self.birthday = f"P{idx:05d}", "0"
+
+
+def parse_prog_disc(disc):
+    """'200m Wisselslag gemengd' / '4x50m Vrije slag dames' -> (aantal zwemmers, afstand per zwemmer, slag)."""
+    m = re.search(r"(?:(\d+)\s*[x×]\s*)?(\d+)\s*m", disc or "")
+    legs, dist = (int(m.group(1) or 1), int(m.group(2))) if m else (1, 50)
+    st = STROKE_RX.search(disc or "")
+    stroke = STROKE_NORM.get(re.sub(r"\s+", "", st.group(1).lower()), "Vrije slag") if st else "Vrije slag"
+    return legs, dist, stroke
+
+
+def entry_pace(total, legs, dist, stroke):
+    """Inschrijftijd (s) verdelen over de 50m-stukken: per slag een eigen tempo, eerste stuk sneller (start/wissel)."""
+    n_leg = max(1, dist // 50)
+    w = []
+    for leg in range(legs):
+        for i in range(n_leg):
+            if stroke == "Wisselslag":
+                st = (["Rugslag", "Schoolslag", "Vlinderslag", "Vrije slag"][leg % 4] if legs > 1
+                      else IM_ORDER[min(3, i * 4 // n_leg)])
+            else:
+                st = stroke
+            f = PACE[st] * (0.93 if i == 0 and leg == 0 else (0.97 if i == 0 else 1.0 + 0.01 * i))
+            w.append(f)
+    tot = sum(w)
+    return [total * x / tot for x in w]
+
+
+class ScheduleProgram:
+    """Programma voor de simulator uit het ingeladen programma (Meet Manager / Lenex / SwimTime-databank):
+    echte reeksen, banen, namen en inschrijftijden; de gezwommen tijden schommelen rond de inschrijftijd."""
+
+    def __init__(self, rnd, sched):
+        self.rnd = rnd
+        self.events = []
+        today = date.today()
+        by_ev, order = {}, []
+        for h in sched:
+            k = str((h.get("event") or {}).get("number") or "")
+            if k not in by_ev:
+                by_ev[k] = []
+                order.append(k)
+            by_ev[k].append(h)
+        idx = 0
+        lane_set = set()
+        for k in order:
+            hs = by_ev[k]
+            disc = (hs[0].get("event") or {}).get("discipline") or ""
+            legs, dist, stroke = parse_prog_disc(disc)
+            n50 = max(1, legs * dist // 50)
+            known = [l["entryTime"] / 10000.0 for h in hs for l in (h.get("lanes") or []) if l.get("entryTime")]
+            typical = (sorted(known)[len(known) // 2] if known
+                       else PACE.get(stroke, 33) * n50 * DIST_FACTOR.get(dist, 1.2) * 1.25)
+            heats = []
+            for h in hs:
+                hh = h.get("heat") or {}
+                try:
+                    hm = datetime.strptime(hh.get("startTime") or "", "%H:%M").time()
+                    st_dt = datetime.combine(today, hm)
+                except ValueError:
+                    st_dt = datetime.now()
+                lanemap = {}
+                for l in h.get("lanes") or []:
+                    ln = int(l.get("lane"))
+                    lane_set.add(ln)
+                    entry = (l.get("entryTime") or 0) / 10000.0 or typical * rnd.uniform(1.0, 1.08)
+                    swim = entry * rnd.uniform(0.97, 1.035)            # zo zwemt hij vandaag
+                    pace = entry_pace(swim, legs, dist, stroke)
+                    if l.get("team") or (legs > 1 and not (l.get("firstName") or l.get("lastName"))):
+                        lanemap[ln] = {"team": l.get("team") or l.get("club") or "Ploeg", "club": l.get("club") or "",
+                                       "members": [], "pace": pace, "entry": entry}
+                    else:
+                        idx += 1
+                        lanemap[ln] = {"swimmer": Entrant(l.get("firstName") or "", l.get("lastName") or "",
+                                                          l.get("club") or "", idx), "pace": pace, "entry": entry}
+                heats.append({"number": int(hh.get("number") or len(heats) + 1), "name": hh.get("name") or f"Serie {hh.get('number')}",
+                              "lanes": lanemap, "start": st_dt})
+            if heats:
+                self.events.append({"number": int(k) if k.isdigit() else len(self.events) + 1, "discipline": disc,
+                                    "legs": legs, "dist": dist, "stroke": stroke, "heats": heats, "start": heats[0]["start"]})
+        self.first_lane = 0 if 0 in lane_set else 1
+        self.lane_count = max(6, min(10, (max(lane_set) if lane_set else 8) - self.first_lane + 1))
+
+    schedule_json = Program.schedule_json
+
+
 class LaneRun:
     def __init__(self, ln, entry):
         self.ln, self.entry = ln, entry
@@ -329,7 +426,13 @@ class Engine:
         self.first_lane = 0 if args.lanes >= 10 else 1           # 10 banen = 0–9
         self.lane_nums = lane_numbers(args.lanes, self.first_lane)
         self.loop_prog = bool(getattr(args, "loop", True))   # na de laatste reeks opnieuw beginnen
-        self.prog = Program(self.rnd, args.events, args.lanes, args.per_event, start, self.first_lane)
+        self.sched = getattr(args, "program", None) or None
+        if self.sched:
+            self.prog = ScheduleProgram(self.rnd, self.sched)
+            self.first_lane = self.prog.first_lane
+            self.lane_nums = lane_numbers(self.prog.lane_count, self.first_lane)
+        else:
+            self.prog = Program(self.rnd, args.events, args.lanes, args.per_event, start, self.first_lane)
         self.order = [(ev, h) for ev in self.prog.events for h in ev["heats"]]
         self.lock = threading.RLock()
         self.tx = Sender(args)
@@ -553,7 +656,10 @@ class Engine:
         with self.lock:
             self.rnd = random.Random(self.a.seed) if self.a.seed else random.Random()
             start = datetime.now().replace(second=0, microsecond=0) + timedelta(minutes=2)
-            self.prog = Program(self.rnd, self.a.events, self.a.lanes, self.a.per_event, start, self.first_lane)
+            if self.sched:
+                self.prog = ScheduleProgram(self.rnd, self.sched)
+            else:
+                self.prog = Program(self.rnd, self.a.events, self.a.lanes, self.a.per_event, start, self.first_lane)
             self.order = [(ev, h) for ev in self.prog.events for h in ev["heats"]]
             self.idx, self.state, self.lanes, self.pending, self.rt = -1, "idle", {}, [], 0.0
             self.layout, self.wait_left = None, 3.0

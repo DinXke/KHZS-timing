@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.17"
+VERSION = "1.1.18"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -109,6 +109,11 @@ DEFAULT_SETTINGS = {
     "sim_extra_touch_chance": 0.15,  # kans per zwemmer op een extra tik tijdens de race
     "sim_dns_chance": 0.03,        # kans dat een zwemmer niet start
     "sim_seed": 0,                 # 0 = telkens een ander programma
+    "race_view_publiek": False,    # race-weergave (geschatte positie per baan) op de publieke pagina
+    "race_view_jury": False,       # … op de jurypagina
+    "race_view_callroom": False,   # … in de oproepkamer
+    "race_pool_length": 25,        # badlengte voor de race-weergave (25 of 50 m)
+    "sim_source": "willekeurig",   # willekeurig | programma (het ingeladen programma: echte reeksen, namen, inschrijftijden)
     "sim_meet_name": "SIMULATIE – Testwedstrijd",
     "sim_autostart": False,        # simulator meteen starten als de server start (demo-kastje)
     "sim_stop_on_real": True,      # echte SwimTime-gegevens stoppen de simulator meteen
@@ -116,7 +121,7 @@ DEFAULT_SETTINGS = {
 SETTINGS = dict(DEFAULT_SETTINGS)
 SECRET_KEYS = ("admin_token", "relay_token", "jury_password", "db_smb_password", "cloud_admin_password")
 SETTINGS_FILE = os.path.join(DATA, "settings.json")
-PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s")
+PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s", "race_view_publiek", "race_view_jury", "race_view_callroom", "race_pool_length")
 
 
 def load_settings(path):
@@ -1267,6 +1272,8 @@ def merged_schedule():
     done = set()
     if STATE is not None:
         for it in STATE.history:
+            if it.get("simulated"):
+                continue                                  # simulatie: telt niet voor het echte programma
             m = re.search(r"(\d+)\s*$", (it.get("heat") or {}).get("name") or "")
             done.add((str((it.get("event") or {}).get("number") or ""), m.group(1) if m else str((it.get("heat") or {}).get("number"))))
     out = []
@@ -1322,6 +1329,92 @@ def live_key(state_now):
     m = re.search(r"(\d+)\s*$", (state_now.get("heat") or {}).get("name") or "")
     ht = m.group(1) if m else str((state_now.get("heat") or {}).get("number") or "")
     return ev, ht
+
+
+# ---------- race-weergave: tempoverdeling leren uit echte reeksen (anoniem: enkel gemiddelden per slag/afstand/niveau)
+RACE_BASE100 = {"vrij": 60.0, "rug": 67.0, "school": 75.0, "vlinder": 66.0, "wissel": 70.0}   # s/100 m (referentie)
+RACE_LEARN = {"at": 0.0, "data": None}
+RACE_LOCK = threading.Lock()
+
+
+def race_stroke(disc):
+    d = (disc or "").lower()
+    for k, w in (("wissel", "wissel"), ("vlinder", "vlinder"), ("school", "school"), ("rug", "rug")):
+        if w in d:
+            return k
+    return "vrij"
+
+
+def race_band(stroke, dist, secs):
+    """Niveau uit het tempo per 100 m t.o.v. een referentie: A (snel), B, C (trager)."""
+    if not secs or not dist:
+        return "B"
+    r = secs / (dist / 100.0) / RACE_BASE100[stroke]
+    return "A" if r < 1.25 else ("B" if r < 1.5 else "C")
+
+
+def race_profiles():
+    """Leert bij uit de uitslagen die er nog niet in zitten en geeft de profielen terug (n >= 3)."""
+    with RACE_LOCK:
+        now = time.time()
+        if RACE_LEARN["data"] is not None and now - RACE_LEARN["at"] < 20:
+            return RACE_LEARN["data"]
+        RACE_LEARN["at"] = now
+        path = os.path.join(DATA, "race_profiles.json")
+        try:
+            with open(path, encoding="utf-8") as f:
+                db = json.load(f)
+        except (OSError, ValueError):
+            db = {"v": 1, "seen": [], "p": {}}
+        seen, changed = set(db.get("seen") or []), False
+        hist = (RELAY_REF[0].history if RELAY_REF[0] is not None else (STATE.history if STATE is not None else [])) or []
+        for it in hist:
+            if it.get("simulated"):
+                continue
+            ev, hh = it.get("event") or {}, it.get("heat") or {}
+            hid = f"{it.get('finishedAt')}|{ev.get('number')}|{hh.get('name') or hh.get('number')}"
+            if hid in seen:
+                continue
+            seen.add(hid)
+            changed = True
+            dist, laps, disc = hh.get("distance") or 0, hh.get("laps") or 0, ev.get("discipline") or ""
+            if not dist or laps < 2:
+                continue
+            stroke = race_stroke(disc)
+            m = re.search(r"(\d+)\s*[x×]", disc)
+            legs = int(m.group(1)) if m else 1
+            for l in it.get("lanes") or []:
+                fin = l.get("final")
+                sp = sorted((x for x in l.get("splits") or [] if x.get("time") and x.get("distance")), key=lambda x: x["distance"])
+                if not fin or l.get("finalManual") or len(sp) != laps:
+                    continue
+                if any(x.get("manual") or x.get("suspect") for x in sp):
+                    continue
+                ts = [x["time"] for x in sp]
+                if ts[-1] != fin or any(b <= a for a, b in zip([0] + ts, ts)):
+                    continue
+                fr = [(b - a) / fin for a, b in zip([0] + ts, ts)]
+                key = f"{stroke}|{legs}|{dist}|{laps}|{race_band(stroke, dist, fin / 10000.0)}"
+                pr = db["p"].setdefault(key, {"n": 0, "s": [0.0] * laps})
+                if len(pr["s"]) != laps:
+                    continue
+                pr["n"] += 1
+                pr["s"] = [a + b for a, b in zip(pr["s"], fr)]
+        if changed:
+            db["seen"] = list(seen)[-5000:]
+            try:
+                tmp = path + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(db, f)
+                os.replace(tmp, path)
+            except OSError:
+                pass
+        out = {k: {"n": v["n"], "f": [round(x / v["n"], 5) for x in v["s"]]} for k, v in db["p"].items() if v["n"] >= 3}
+        RACE_LEARN["data"] = out
+        return out
+
+
+RELAY_REF = [None]
 
 
 def live_running(state_now):
@@ -1383,7 +1476,11 @@ def callroom_json(state_now):
                              and str(a.get("session") or "") == str(b.get("session") or ""))
         if nxt is None or same(sched[pidx], nxt):         # per sessie: na een sessiewissel geen vorige reeks
             prev = {"event": sched[pidx]["event"]["number"], "heat": sched[pidx]["heat"]["number"]}
+    lv = next((h for h in sched if ev and h["event"]["number"] == ev and h["heat"]["number"] == ht), None)
+    live_entries = {"key": f"{ev}/{ht}", "lanes": {str(l["lane"]): l["entryTime"] for l in (lv or {}).get("lanes") or []
+                                                   if l.get("entryTime")}} if lv else None
     return {"upcoming": upcoming, "count": n, "matched": man is not None or (pos is not None and 0 <= pos < len(sched)), "simulated": sim,
+            "liveEntries": live_entries,
             "manual": man, "prev": prev, "prevKnown": True,
             "liveLabel": (live or {}).get("dayLabel", ""),
             "live": {"event": ev, "heat": ht},          # voor welke live reeks deze lijst berekend is
@@ -2599,6 +2696,10 @@ def make_handler(state, hub, relay=None):
                 return self._file(os.path.join(STATIC, "info.html"), "text/html; charset=utf-8")
             if path == "/infoscreen.js":
                 return self._file(os.path.join(STATIC, "infoscreen.js"), "application/javascript")
+            if path == "/api/race-profiles":
+                return self._json({"ok": True, "base100": RACE_BASE100, "profiles": race_profiles()})
+            if path == "/race.js":
+                return self._file(os.path.join(STATIC, "race.js"), "application/javascript")
             if path.startswith("/img/") and re.fullmatch(r"/img/[a-z0-9-]+\.(png|svg)", path):
                 return self._file(os.path.join(STATIC, "img", path[5:]), "image/svg+xml" if path.endswith(".svg") else "image/png")
             if path == "/api/version":
@@ -3227,6 +3328,7 @@ def make_handler(state, hub, relay=None):
             if ctype.startswith("text/html"):
                 # versie in de scriptlink: Cloudflare laat browsers .js uren bewaren, zo komt een update meteen door
                 body = body.replace(b'src="/infoscreen.js"', f'src="/infoscreen.js?v={VERSION}"'.encode())
+                body = body.replace(b'src="/race.js"', f'src="/race.js?v={VERSION}"'.encode())
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", cache)
@@ -3514,6 +3616,7 @@ class SimHost:
         o["per_event"] = max(1, min(80, int(o["per_event"])))
         o["lanes"] = max(4, min(10, int(o["lanes"])))
         o["speed"] = max(0.25, min(64.0, float(o["speed"])))
+        o["source"] = "programma" if o.get("source") == "programma" else "willekeurig"
         return o
 
     STATE_FILE = None
@@ -3545,6 +3648,11 @@ class SimHost:
             self.stop(None)
             o = self.options(over)
             ns = argparse.Namespace(host="ingebouwd", port=0, udp=None, allow_broadcast=False, direct=self._deliver, **o)
+            if o["source"] == "programma":
+                prog = [dict(h, finished=False) for h in merged_schedule()]
+                if not prog:
+                    return False, "geen programma ingeladen (Gegevens › Programma) – kies 'willekeurig' of laad eerst een programma"
+                ns.program = json.loads(json.dumps(prog))
             eng = simulator.Engine(ns)
             eng.tx.send(eng.program_msg())
             for fn in (eng.heartbeat, eng.loop):
@@ -3789,7 +3897,9 @@ def main():
     IS_RELAY = bool(args.relay_server)
     if args.relay_server:
         threading.Thread(target=release_autofetch, daemon=True).start()
+        RELAY_REF[0] = None                     # wordt gezet zodra de relay-opslag bestaat
         relay = RelayStore(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "relay_cache.json"))
+        RELAY_REF[0] = relay
         STATS = Stats(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "stats.json"))
         info_load(os.path.join(os.path.dirname(os.path.abspath(args.settings)), "info.json"))
         hub = Hub()
