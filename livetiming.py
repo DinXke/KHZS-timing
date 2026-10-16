@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.12"
+VERSION = "1.1.13"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1276,6 +1276,44 @@ def merged_schedule():
     return out
 
 
+# ---------- manueel: welke reeks zwemt nu (start van de wedstrijd, na een pauze, SwimTime nog niet bezig) ----------
+CR_MANUAL = {}
+CR_MANUAL_FILE = None
+
+
+def cr_manual_load(path):
+    global CR_MANUAL_FILE
+    CR_MANUAL_FILE = path
+    try:
+        with open(path, encoding="utf-8") as f:
+            CR_MANUAL.update(json.load(f))
+    except (OSError, ValueError):
+        pass
+
+
+def cr_manual_set(d, why=""):
+    CR_MANUAL.clear()
+    if d:
+        CR_MANUAL.update(d)
+    if CR_MANUAL_FILE:
+        try:
+            tmp = CR_MANUAL_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(CR_MANUAL, f, ensure_ascii=False)
+            os.replace(tmp, CR_MANUAL_FILE)
+        except OSError:
+            pass
+    print("oproepkamer: " + (f"manueel – reeks {d['event']}/{d['heat']} zwemt nu" if d else "automatisch (SwimTime)")
+          + (f" ({why})" if why else ""))
+
+
+def live_key(state_now):
+    ev = str((state_now.get("event") or {}).get("number") or "")
+    m = re.search(r"(\d+)\s*$", (state_now.get("heat") or {}).get("name") or "")
+    ht = m.group(1) if m else str((state_now.get("heat") or {}).get("number") or "")
+    return ev, ht
+
+
 def callroom_json(state_now):
     """Volgende N reeksen na de huidige live reeks, uit het programma van de databasekopie."""
     n = max(1, int(SETTINGS["callroom_heats"]))
@@ -1285,6 +1323,18 @@ def callroom_json(state_now):
     sim = bool(STATE_SOURCE.get("sim"))
     sched = SIM_SCHEDULE if sim else merged_schedule()
     pos = next((i for i, h in enumerate(sched) if h["event"]["number"] == ev and h["heat"]["number"] == ht), None)
+    man = None
+    if CR_MANUAL.get("event") and not sim:
+        if ev and [ev, ht] != list(CR_MANUAL.get("liveAt") or ["", ""]):
+            cr_manual_set(None, "SwimTime startte een nieuwe reeks")      # live gegevens nemen het weer over
+        else:
+            mpos = next((i for i, h in enumerate(sched) if h["event"]["number"] == str(CR_MANUAL["event"])
+                         and h["heat"]["number"] == str(CR_MANUAL["heat"])), None)
+            if mpos is not None:
+                pos = mpos
+                man = {"event": sched[mpos]["event"], "heat": sched[mpos]["heat"], "date": sched[mpos].get("date", ""),
+                       "lanes": sched[mpos].get("lanes") or [], "lanesKnown": sched[mpos].get("lanesKnown", False),
+                       "relay": sched[mpos].get("relay", False), "setAt": CR_MANUAL.get("setAt")}
     if pos is None:
         today = datetime.now().strftime("%Y-%m-%d")
         pos = next((i - 1 for i, h in enumerate(sched) if not h["finished"] and h["date"] >= today), len(sched))
@@ -1293,6 +1343,7 @@ def callroom_json(state_now):
     upcoming = [h for h in sched[pos + 1:] if not h["finished"]][:n + 1]
     live = sched[pos] if pos is not None and 0 <= pos < len(sched) else None
     return {"upcoming": upcoming, "count": n, "matched": pos is not None and 0 <= pos < len(sched), "simulated": sim,
+            "manual": man,
             "liveLabel": (live or {}).get("dayLabel", ""),
             "live": {"event": ev, "heat": ht},          # voor welke live reeks deze lijst berekend is
             "db": {"loadedAt": "simulator" if sim else (PROG_STATUS["loadedAt"] if PROG_SCHEDULE else DB_STATUS["loadedAt"]),
@@ -1531,6 +1582,78 @@ def agent_poll():
 
 
 LOGIN_FAIL_LOCK = threading.Lock()
+
+
+# ---------- beheerwachtwoord van de cloudserver: in te stellen via het beheer (gehasht in DATA/cloud_admin.json);
+# het wachtwoord uit het bestand (settings.json / relay.env) blijft altijd geldig als reserve
+CLOUD_PW_ITER = 200000
+
+
+def cloud_pw_path():
+    return os.path.join(DATA, "cloud_admin.json")
+
+
+def cloud_pw_gui():
+    try:
+        with open(cloud_pw_path(), encoding="utf-8") as f:
+            d = json.load(f)
+        return d if d.get("hash") and d.get("salt") else None
+    except (OSError, ValueError):
+        return None
+
+
+def cloud_pw_secrets():
+    """Geheimen waarvan een aanmeldcookie afgeleid wordt: het wachtwoord uit het bestand en/of de hash uit het beheer."""
+    out = []
+    if SETTINGS.get("cloud_admin_password"):
+        out.append(SETTINGS["cloud_admin_password"])
+    g = cloud_pw_gui()
+    if g:
+        out.append("gui:" + g["hash"])
+    return out
+
+
+def cloud_pw_check(pw_in):
+    """Geeft het geheim terug waarmee aangemeld wordt, of None."""
+    if not pw_in:
+        return None
+    apw = SETTINGS.get("cloud_admin_password") or ""
+    if apw and hmac.compare_digest(pw_in, apw):
+        return apw
+    g = cloud_pw_gui()
+    if g:
+        h = hashlib.pbkdf2_hmac("sha256", pw_in.encode("utf-8"), bytes.fromhex(g["salt"]), int(g.get("iter") or CLOUD_PW_ITER)).hex()
+        if hmac.compare_digest(h, g["hash"]):
+            return "gui:" + g["hash"]
+    return None
+
+
+def cloud_pw_set(new, who="beheer"):
+    """Nieuw beheerwachtwoord (via het beheer); None = terug naar enkel het wachtwoord uit het bestand."""
+    if new is None:
+        try:
+            os.remove(cloud_pw_path())
+        except OSError:
+            pass
+        print(f"beheerwachtwoord cloudserver: terug naar het bestand ({who})")
+        return None
+    if len(new) < 10:
+        raise ValueError("minstens 10 tekens")
+    if new == (SETTINGS.get("jury_password") or ""):
+        raise ValueError("mag niet hetzelfde zijn als het jurywachtwoord")
+    salt = _secrets.token_bytes(16)
+    d = {"salt": salt.hex(), "iter": CLOUD_PW_ITER, "setAt": int(time.time()), "by": who[:60],
+         "hash": hashlib.pbkdf2_hmac("sha256", new.encode("utf-8"), salt, CLOUD_PW_ITER).hex()}
+    tmp = cloud_pw_path() + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f)
+    try:
+        os.chmod(tmp, 0o600)
+    except OSError:
+        pass
+    os.replace(tmp, cloud_pw_path())
+    print(f"beheerwachtwoord cloudserver gewijzigd via het beheer ({who})")
+    return "gui:" + d["hash"]
 
 
 def session_token(password):
@@ -2159,7 +2282,7 @@ def tunnel_local(port, req):
 CLOUD_AGENT = ("127.0.0.1", 8092)
 CLOUD_AGENT_KEY_FILE = os.environ.get("LT_AGENT_KEY_FILE", "/etc/livetiming-agent.key")
 ADMIN_FAIL_LOCK = threading.Lock()
-RELAY_ADMIN_KEYS = [k for k in DEFAULT_SETTINGS if k not in ("relay_token", "admin_token", "relay_url")]
+RELAY_ADMIN_KEYS = [k for k in DEFAULT_SETTINGS if k not in ("relay_token", "admin_token", "relay_url")] + ["cloud_admin_password_reset"]
 
 
 def cloud_agent_call(method, path, body=None, headers=None, timeout=70):
@@ -2248,8 +2371,10 @@ def make_handler(state, hub, relay=None):
 
         def _cloud_admin(self):
             """Relay: aangemeld met het beheerwachtwoord van de cloudserver."""
-            apw = SETTINGS.get("cloud_admin_password") or ""
-            return bool(relay is not None and apw and hmac.compare_digest(self._cookie("lt_a"), session_token(apw + "|beheer")))
+            if relay is None:
+                return False
+            c = self._cookie("lt_a")
+            return bool(c) and any(hmac.compare_digest(c, session_token(sec + "|beheer")) for sec in cloud_pw_secrets())
 
         def _authed(self):
             if relay is None:
@@ -2457,7 +2582,8 @@ def make_handler(state, hub, relay=None):
                     return self._json({"ok": True, "boxes": TUNNEL.list(), "release": release_info()})
                 if path == "/api/whoami":
                     return self._json({"relay": True, "admin": self._cloud_admin(), "jury": self._authed(),
-                                       "adminConfigured": bool(SETTINGS.get("cloud_admin_password"))})
+                                       "adminConfigured": bool(cloud_pw_secrets()),
+                                       "adminPwGui": bool(cloud_pw_gui())})
                 if path == "/api/stats":
                     if not self._cloud_admin():
                         return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
@@ -2509,6 +2635,19 @@ def make_handler(state, hub, relay=None):
             if path == "/api/callroom":
                 st = public_view("state", state.state_json(now_fn()))
                 return self._json(callroom_json(st))
+            if path == "/api/callroom/heats" and relay is None:
+                if not self._is_admin():
+                    return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
+                st = public_view("state", state.state_json(now_fn()))
+                cj = callroom_json(st)
+                sched = SIM_SCHEDULE if STATE_SOURCE.get("sim") else merged_schedule()
+                return self._json({"ok": True, "manual": cj.get("manual") and {"event": cj["manual"]["event"]["number"],
+                                                                            "heat": cj["manual"]["heat"]["number"]},
+                                   "live": dict(zip(("event", "heat"), live_key(st))), "simulated": bool(STATE_SOURCE.get("sim")),
+                                   "heats": [{"event": h["event"]["number"], "heat": h["heat"]["number"],
+                                              "discipline": h["event"].get("discipline", ""), "time": h["heat"].get("startTime", ""),
+                                              "date": h.get("date", ""), "day": h.get("dayLabel", ""),
+                                              "finished": bool(h.get("finished"))} for h in sched]})
             if path in ("/callroom", "/callroom.html"):
                 return self._file(os.path.join(STATIC, "callroom.html"), "text/html; charset=utf-8")
             if path == "/api/relay":
@@ -2653,6 +2792,18 @@ def make_handler(state, hub, relay=None):
                         return self._json({"ok": False, "error": "niet wijzigbaar vanop afstand: " + ", ".join(bad)}, 400)
                     if "jury_password" in new and not new["jury_password"]:
                         new.pop("jury_password")
+                    if "cloud_admin_password" in new:
+                        pw_new = new.pop("cloud_admin_password")
+                        try:
+                            if pw_new:
+                                cloud_pw_set(str(pw_new), "lokaal beheer " + self.headers.get("X-Who", "?")[:30])
+                        except ValueError as e:
+                            return self._json({"ok": False, "error": "beheerwachtwoord: " + str(e)}, 400)
+                    if new.get("cloud_admin_password_reset"):
+                        cloud_pw_set(None, "lokaal beheer")
+                    new.pop("cloud_admin_password_reset", None)
+                    if not new:
+                        return self._json({"ok": True, "version": VERSION, "adminPwGui": bool(cloud_pw_gui())})
                     errors = update_settings(new)
                     if errors:
                         return self._json({"ok": False, "error": ", ".join(errors)}, 400)
@@ -2777,6 +2928,35 @@ def make_handler(state, hub, relay=None):
                         return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
                     code, data, ctype = cloud_agent_call("POST", "/update/github", b"{}", {"X-Who": "beheer cloudserver"}, timeout=240)
                     return self._send(code, data, ctype)
+                if path0 == "/api/cloud-admin-password":
+                    origin = self.headers.get("Origin") or ""
+                    if not self._cloud_admin() or (origin and urllib.parse.urlsplit(origin).netloc != (self.headers.get("Host") or "")):
+                        return self._json({"ok": False, "error": "beheerwachtwoord nodig"}, 403)
+                    try:
+                        n = int(self.headers.get("Content-Length", 0) or 0)
+                        d = json.loads(self.rfile.read(n) or b"{}")
+                    except (ValueError, UnicodeDecodeError):
+                        return self._json({"ok": False, "error": "ongeldige JSON"}, 400)
+                    if not cloud_pw_check(str(d.get("current") or "")):
+                        with LOGIN_FAIL_LOCK:
+                            time.sleep(1.5)
+                        return self._json({"ok": False, "error": "huidig wachtwoord klopt niet"}, 400)
+                    try:
+                        sec = cloud_pw_set(None if d.get("reset") else str(d.get("new") or ""), "cloudserver")
+                    except ValueError as e:
+                        return self._json({"ok": False, "error": str(e)}, 400)
+                    sec = sec or (SETTINGS.get("cloud_admin_password") or "")
+                    body = json.dumps({"ok": True, "gui": bool(cloud_pw_gui())}).encode()
+                    secure = "; Secure" if (self.headers.get("X-Forwarded-Proto", "").lower() == "https") else ""
+                    self.send_response(200)
+                    if sec:                                     # aangemeld blijven met het nieuwe wachtwoord
+                        self.send_header("Set-Cookie", f"lt_a={session_token(sec + '|beheer')}; Path=/; Max-Age=43200; HttpOnly; SameSite=Strict{secure}")
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 if path0 in ("/api/slides", "/api/slides/delete"):
                     origin = self.headers.get("Origin") or ""
                     if not self._cloud_admin() or (origin and urllib.parse.urlsplit(origin).netloc != (self.headers.get("Host") or "")):
@@ -2818,11 +2998,11 @@ def make_handler(state, hub, relay=None):
                     pw_in = form.get("password", [""])[0]
                     nxt = self._safe_next(form.get("next", ["/jury"])[0])
                     pw = SETTINGS.get("jury_password") or ""
-                    apw = SETTINGS.get("cloud_admin_password") or ""
-                    if apw and hmac.compare_digest(pw_in, apw):      # beheerder: ook jurytoegang
+                    asec = cloud_pw_check(pw_in)
+                    if asec:      # beheerder (wachtwoord uit het beheer of uit het bestand): ook jurytoegang
                         secure = "; Secure" if (self.headers.get("X-Forwarded-Proto", "").lower() == "https") else ""
                         self.send_response(303)
-                        self.send_header("Set-Cookie", f"lt_a={session_token(apw + '|beheer')}; Path=/; Max-Age=43200; HttpOnly; SameSite=Strict{secure}")
+                        self.send_header("Set-Cookie", f"lt_a={session_token(asec + '|beheer')}; Path=/; Max-Age=43200; HttpOnly; SameSite=Strict{secure}")
                         self.send_header("Location", nxt)
                         self.send_header("Content-Length", "0")
                         self.end_headers()
@@ -2858,6 +3038,27 @@ def make_handler(state, hub, relay=None):
                     PROG_STATUS["error"] = str(e)
                     return self._json({"ok": False, "error": str(e)})
                 return self._json({"ok": True, "stats": stats, "file": PROG_STATUS["file"]})
+            if path0 == "/api/callroom/manual":
+                if not self._is_admin():
+                    return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
+                try:
+                    n = int(self.headers.get("Content-Length", 0) or 0)
+                    d = json.loads(self.rfile.read(n) or b"{}")
+                except (ValueError, UnicodeDecodeError):
+                    return self._json({"ok": False, "error": "ongeldige JSON"}, 400)
+                st = public_view("state", state.state_json(now_fn()))
+                if d.get("event") and d.get("heat"):
+                    sched = merged_schedule()
+                    if not any(h["event"]["number"] == str(d["event"]) and h["heat"]["number"] == str(d["heat"]) for h in sched):
+                        return self._json({"ok": False, "error": "reeks niet gevonden in het programma"}, 400)
+                    cr_manual_set({"event": str(d["event"]), "heat": str(d["heat"]), "liveAt": list(live_key(st)),
+                                   "setAt": int(time.time())}, "beheer")
+                else:
+                    cr_manual_set(None, "beheer")
+                cj = callroom_json(st)
+                if PUSHER:
+                    PUSHER.send("callroom", cj)                 # publieke server meteen bijwerken
+                return self._json({"ok": True, "manual": cj.get("manual") is not None})
             if path0 in ("/api/slides", "/api/slides/delete"):
                 if not self._is_admin():
                     return self._json({"ok": False, "error": "beheerderscode nodig"}, 403)
@@ -3531,6 +3732,7 @@ def main():
     STATE = state
     STATS = Stats(os.path.join(DATA, "stats.json"))
     info_load(os.path.join(DATA, "info.json"))
+    cr_manual_load(os.path.join(DATA, "callroom_manual.json"))
     if ROLE != "server":
         print(f"rol '{ROLE}': live timing staat uit (enkel beheer en scherm)")
     elif SETTINGS.get("relay_url"):
