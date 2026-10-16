@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.28"
+VERSION = "1.1.29"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -1430,6 +1430,25 @@ def live_running(state_now):
             and ((state_now.get("clock") or {}).get("status") in ("running", "ready")))
 
 
+CLUBS_CACHE = {"at": 0.0, "list": []}
+
+
+def all_clubs():
+    """Alle clubs uit het ingeladen programma, de SwimTime-databank en (tijdens een simulatie) het simulatieprogramma."""
+    now = time.time()
+    if now - CLUBS_CACHE["at"] < 10:
+        return CLUBS_CACHE["list"]
+    found = set()
+    for sched in (PROG_SCHEDULE, DB_SCHEDULE, SIM_SCHEDULE if STATE_SOURCE.get("sim") else []):
+        for h in sched or []:
+            for l in h.get("lanes") or []:
+                c = str(l.get("club") or "").strip()
+                if c and len(c) <= 20:
+                    found.add(c)
+    CLUBS_CACHE.update(at=now, list=sorted(found, key=str.upper))
+    return CLUBS_CACHE["list"]
+
+
 def callroom_json(state_now):
     """Volgende N reeksen na de huidige live reeks, uit het programma van de databasekopie."""
     n = max(1, int(SETTINGS["callroom_heats"]))
@@ -1487,6 +1506,7 @@ def callroom_json(state_now):
                                                    if l.get("entryTime")}} if lv else None
     return {"upcoming": upcoming, "count": n, "matched": man is not None or (pos is not None and 0 <= pos < len(sched)), "simulated": sim,
             "liveEntries": live_entries,
+            "clubs": all_clubs(),                       # volledige clublijst (knop Club, ook op de publieke server)
             "manual": man, "prev": prev, "prevKnown": True,
             "liveLabel": (live or {}).get("dayLabel", ""),
             "live": {"event": ev, "heat": ht},          # voor welke live reeks deze lijst berekend is
@@ -2853,13 +2873,17 @@ def make_handler(state, hub, relay=None):
             if path == "/api/clubs":
                 found = set()
                 try:
-                    if relay is not None:
+                    if relay is not None:              # publieke server: de volledige lijst komt van de lokale server
+                        found.update((relay.callroom or {}).get("clubs") or [])
                         src = list((relay.callroom or {}).get("upcoming") or [])
                         st, hist = relay.state_json(), relay.history or []
                     else:
-                        src = list(SIM_SCHEDULE if STATE_SOURCE.get("sim") else merged_schedule())
-                        st, hist = state.state_json(now_fn()), state.history_json()
+                        found.update(all_clubs())
+                        src, st, hist = [], state.state_json(now_fn()), state.history_json()
+                    sim_now = bool((st or {}).get("simulated")) if relay is not None else bool(STATE_SOURCE.get("sim"))
                     for h in src + [st] + list(hist):
+                        if (h or {}).get("simulated") and not sim_now:
+                            continue                  # oude simulatie: verzonnen clubs niet tonen
                         for l in (h or {}).get("lanes") or []:
                             c = str(l.get("club") or "").strip()
                             if c and len(c) <= 20:
