@@ -34,7 +34,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.1.30"
+VERSION = "1.1.31"
 BASE = os.path.dirname(os.path.abspath(__file__))          # code (op de Pi: /opt/khzs/current)
 DATA = os.environ.get("KHZS_DATA") or BASE                 # gegevens (op de Pi: /var/lib/khzs) – blijft bij updates
 ROLE = os.environ.get("KHZS_ROLE", "server")               # server | display | off  (op de Pi via het beheer)
@@ -72,6 +72,7 @@ DEFAULT_SETTINGS = {
     "callroom_heats": 4,           # oproepkamer: aantal aankomende reeksen links
     "callroom_splash_heat": 0,     # oproepkamer-tussenscherm: welke aankomende reeks (0 = de laatste in de lijst = net binnen, 1 = volgende, ...)
     "callroom_next_big": True,     # oproepkamer: eerstvolgende reeks groter bovenaan
+    "callroom_big": "volgende",    # welke reeks groot: volgende (hierna naar de startblok) | oproep (die nu de oproepkamer binnen moet)
     "callroom_next_scale": 1.6,    # oproepkamer: vergroting van de eerstvolgende reeks
     "callroom_show_previous": False,  # oproepkamer: vorige reeks rechts tonen (onder de huidige)
     "callroom_split_left_pct": 60, # oproepkamer: breedte linkerkant (aankomende reeksen) in %
@@ -124,7 +125,7 @@ SETTINGS = dict(DEFAULT_SETTINGS)
 PALETTES = ("scorebord", "omega", "zwembad")
 SECRET_KEYS = ("admin_token", "relay_token", "jury_password", "db_smb_password", "cloud_admin_password")
 SETTINGS_FILE = os.path.join(DATA, "settings.json")
-PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s", "race_view_publiek", "race_view_jury", "race_view_callroom", "race_pool_length", "palette")
+PUBLIC_SETTINGS = ("pool_lanes", "callroom_splash_heat", "callroom_splash_seconds", "splash_enabled", "splash_seconds", "splash_jury", "splash_callroom", "splash_swim_seconds", "public_split_layout", "jury_split_left_pct", "callroom_heats", "callroom_next_big", "callroom_big", "callroom_next_scale", "callroom_show_previous", "callroom_split_left_pct", "show_reaction", "show_manual", "show_suspect", "show_clock", "overview_heats", "show_peer", "max_peer_panel_diff_s", "race_view_publiek", "race_view_jury", "race_view_callroom", "race_pool_length", "palette")
 
 
 def load_settings(path):

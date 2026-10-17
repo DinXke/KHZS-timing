@@ -426,13 +426,17 @@ function renderUp(){
   var all=callroomList(),box=$('up'),k=kiosk();
   var cap=(S&&S.settings&&S.settings.callroom_heats>0)?S.settings.callroom_heats:all.length;
   var up=all.slice(0,cap),avail=k?box.clientHeight:0,W=box.clientWidth;
-  var sig=JSON.stringify(up)+'|'+k+'|'+avail+'|'+W+'|'+all.length+'|'+nextBig()+'|'+nextScale();
+  var bigMode=so('callroom_big','volgende');
+  var sig=JSON.stringify(up)+'|'+k+'|'+avail+'|'+W+'|'+all.length+'|'+nextBig()+'|'+nextScale()+'|'+bigMode;
   if(sig===upSig)return;upSig=sig;
   if(!up.length){
     var noProg=!CR||!CR.db||!CR.db.heats;
     box.innerHTML='<div class="card"><div class="msg big">'+(noProg?'Nog geen programma beschikbaar.':(blockHeat()?'Geen volgende reeksen meer in het programma.':'Einde van het programma.'))+'</div></div>';return}
-  var first=up[0],bigOK=nextBig()&&!!(first&&first.lanesKnown!==false&&first.lanes&&first.lanes.length);
-  var rest=bigOK?up.slice(1):up,bigH=0,full=false;
+  // grote kaart: de reeks die hierna naar de startblok gaat (standaard) of de reeks die nu de oproepkamer binnen moet
+  var bigIdx=0;
+  if(bigMode==='oproep'){var chh=callHeat(),ci=chh?up.indexOf(chh):-1;if(ci>=0)bigIdx=ci}
+  var first=up[bigIdx],bigOK=nextBig()&&!!(first&&first.lanesKnown!==false&&first.lanes&&first.lanes.length);
+  var rest=bigOK?up.filter(function(h,i){return i!==bigIdx}):up,bigH=0,full=false;
   if(k&&avail>0&&bigOK){
     full=!rest.length;
     if(full)bigH=avail;
@@ -453,8 +457,10 @@ function renderUp(){
     cols=best.cols.filter(function(c){return c.length});shown=(bigOK?1:0)+best.n;
   }
   var more=all.length-shown;
-  var bigHtml=bigOK?(k?bigify(cardHtml(first,0),bigH,full):cardHtml(first,0).replace('class="card','class="card nextbig')):'';
-  box.innerHTML=bigHtml+(cols.length?'<div class="ucols">'+cols.map(function(col){return '<div class="ucol">'+col.map(function(h){return cardHtml(h,up.indexOf(h))}).join('')+'</div>'}).join('')+'</div>':'')+(more>0?'<div class="more">+'+more+' volgende '+(more===1?'reeks':'reeksen')+'</div>':'');
+  var fh=cardHtml(first,bigIdx);
+  if(bigIdx>0)fh=fh.replace('<h3>','<h3><span class="badge callb">Nu naar de oproepkamer</span>');
+  var bigHtml=bigOK?(k?bigify(fh,bigH,full):fh.replace('class="card','class="card nextbig')):'';
+  box.innerHTML=bigHtml+(cols.length?'<div class="ucols">'+cols.map(function(col){return '<div class="ucol">'+col.map(function(h){return cardHtml(h,up.indexOf(h))}).join('')+'</div>'}).join('')+'</div>':'')+(more>0?'<div class="more">+'+more+(bigIdx>0?' andere ':' volgende ')+(more===1?'reeks':'reeksen')+'</div>':'');
   if(k)Array.prototype.forEach.call(box.querySelectorAll('.card'),function(c){c._f=0;var mxf=(c.classList.contains('nextbig')?26*nextScale():26)*sc()/16;fitBox(c,'--cf',mxf,7,mxf);if(c.scrollHeight>c.clientHeight+1)persistScroll(c)});
 }
 
